@@ -2,16 +2,15 @@
 import argparse
 import sys
 
+from peek.peek import Repl
+
 
 def main():
     """Console script for peek."""
     parser = argparse.ArgumentParser()
-    parser.add_argument('_', nargs='*')
     args = parser.parse_args()
 
-    print("Arguments: " + str(args._))
-    print("Replace this message by putting your code into "
-          "peek.cli.main")
+    Repl().run()
     return 0
 
 
