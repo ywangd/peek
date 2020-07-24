@@ -1,55 +1,31 @@
 """Main module."""
 import logging
+import sys
+from typing import List
 
+from peek.commands import new_command, EsApiCall
+from peek.config import get_config
+from peek.errors import PeekError
+from peek.key_bindings import key_bindings
 from prompt_toolkit import PromptSession
-from prompt_toolkit.application import get_app
-from prompt_toolkit.enums import DEFAULT_BUFFER
-from prompt_toolkit.filters import Condition
-from prompt_toolkit.key_binding import KeyBindings
-from prompt_toolkit.styles import style_from_pygments_cls
 from prompt_toolkit.lexers import PygmentsLexer
-
-from pygments.styles.default import DefaultStyle
+from prompt_toolkit.styles import style_from_pygments_cls
 from pygments.lexers.javascript import JavascriptLexer
+from pygments.styles.default import DefaultStyle
 
 _logger = logging.getLogger(__name__)
 
 
-def buffer_should_be_handled(repl):
-    @Condition
-    def cond():
-        if not repl.state_payload:
-            return True
-
-        doc = get_app().layout.get_buffer_by_name(DEFAULT_BUFFER).document
-        # Handle the command when an empty line is entered
-        if doc.text.endswith('\n'):
-            return True
-
-        return False
-    return cond
-
-
-def key_bindings(repl):
-    kb = KeyBindings()
-
-    @kb.add("enter", filter=buffer_should_be_handled(repl))
-    def _(event):
-        event.current_buffer.validate_and_handle()
-
-    @kb.add("c-d")
-    def _(event):
-        repl.signal_exit()
-        event.current_buffer.validate_and_handle()
-
-    return kb
-
-
 class Repl:
 
-    def __init__(self):
-        self.state_payload = False
+    def __init__(self,
+                 config_file: str = None,
+                 extra_config_options: List[str] = None):
+        self.state_new_command = True
         self._should_exit = False
+        self.command = None
+        self.config = get_config(config_file, extra_config_options)
+        self._init_logging()
         self.session = PromptSession(
             message=self._get_message(),
             prompt_continuation='  ',
@@ -66,11 +42,27 @@ class Repl:
     def run(self):
         try:
             while True:
-                source = self.session.prompt()
+                text = self.session.prompt()
+                _logger.debug(f'input: {repr(text)}')
                 if self._should_exit:
                     raise EOFError()
-                print(f'You typed: {type(source)} {source}')
-                self.state_payload = not self.state_payload
+                if self.state_new_command:
+                    if text.strip() == '':
+                        continue
+                    try:
+                        self.command = new_command(text)
+                        self.state_new_command = False
+                    except PeekError as e:
+                        print(e)
+                        continue
+                else:
+                    try:
+                        self.command.run()
+                    except Exception as e:
+                        print(e)
+                    finally:
+                        self.state_new_command = True
+
         except EOFError:
             pass
 
@@ -78,4 +70,29 @@ class Repl:
         self._should_exit = True
 
     def _get_message(self):
-        return '  ' if self.state_payload else '> '
+        return '> ' if self.state_new_command else '  '
+
+    def _init_logging(self):
+        log_file = self.config['log_file']
+        log_level = self.config['log_level'].upper()
+        if log_level == 'NONE':
+            handler = logging.NullHandler()
+        elif log_file == 'stderr':
+            handler = logging.StreamHandler(sys.stderr)
+        elif log_file == 'stdout':
+            handler = logging.StreamHandler(sys.stdout)
+        else:
+            handler = logging.FileHandler(log_file)
+
+        log_level = getattr(logging, log_level, logging.WARNING)
+
+        formatter = logging.Formatter(
+            "%(asctime)s (%(process)d/%(threadName)s) "
+            "%(name)s %(levelname)s - %(message)s"
+        )
+        handler.setFormatter(formatter)
+
+        root_logger = logging.getLogger(__package__)
+        root_logger.addHandler(handler)
+        root_logger.setLevel(log_level)
+

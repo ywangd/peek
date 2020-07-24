@@ -1,0 +1,3 @@
+# vi: ft=dosini
+log_file = stderr
+log_level = warning
