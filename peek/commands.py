@@ -21,11 +21,8 @@ class EsApiCommand(Command):
         self.source = text
         self.method, self.path, self.payload = self._parse()
 
-    def set_payload(self, text):
-        pass
-
-    def execute(self, es_client):
-        return es_client.execute_command(self)
+    def execute(self, client):
+        return client.execute_command(self)
 
     def _parse(self):
         fields = self.source.split(' ', 1)

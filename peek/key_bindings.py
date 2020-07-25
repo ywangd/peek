@@ -3,7 +3,7 @@ import os
 
 from prompt_toolkit.application import get_app
 from prompt_toolkit.enums import DEFAULT_BUFFER
-from prompt_toolkit.filters import Condition
+from prompt_toolkit.filters import Condition, completion_is_selected, is_searching
 from prompt_toolkit.key_binding import KeyBindings
 
 from peek.commands import PeekCommand
@@ -14,7 +14,7 @@ _logger = logging.getLogger(__name__)
 def key_bindings(repl):
     kb = KeyBindings()
 
-    @kb.add("enter", filter=buffer_should_be_handled(repl))
+    @kb.add("enter", filter=~(completion_is_selected | is_searching) & buffer_should_be_handled(repl))
     def _(event):
         event.current_buffer.validate_and_handle()
 

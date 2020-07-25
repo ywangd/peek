@@ -4,3 +4,5 @@ log_level = warning
 hosts = localhost:9200
 use_ssl = False
 verify_certs = False
+
+pretty_print = True

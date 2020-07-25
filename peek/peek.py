@@ -1,4 +1,5 @@
 """Main module."""
+import json
 import logging
 import sys
 from typing import List
@@ -44,8 +45,8 @@ class Peek:
         self.es_client = self._init_es_client()
 
     def run(self):
-        try:
-            while True:
+        while True:
+            try:
                 text = self.session.prompt()
                 _logger.debug(f'input: {repr(text)}')
                 if self._should_exit:
@@ -54,8 +55,10 @@ class Peek:
                     continue
                 try:
                     self.command = new_command(text)
-                    result = self.command.execute(self.es_client)
-                    tokens = list(pygments.lex(result, lexer=JavascriptLexer()))
+                    response = self.command.execute(self.es_client)
+                    if self.config.as_bool('pretty_print'):
+                        response = json.dumps(json.loads(response), indent=2)
+                    tokens = list(pygments.lex(response, lexer=JavascriptLexer()))
                     print_formatted_text(PygmentsTokens(tokens))
 
                 except PeekError as e:
@@ -63,8 +66,10 @@ class Peek:
                 except Exception as e:
                     print(e)
 
-        except EOFError:
-            pass
+            except KeyboardInterrupt:
+                continue
+            except EOFError:
+                break
 
     def signal_exit(self):
         self._should_exit = True
