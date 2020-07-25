@@ -19,6 +19,7 @@ from peek.config import get_config
 from peek.errors import PeekError
 from peek.history import SqLiteHistory
 from peek.key_bindings import key_bindings
+from peek.lex import EsLexer
 
 _logger = logging.getLogger(__name__)
 
@@ -36,7 +37,7 @@ class Peek:
             message=self._get_message(),
             prompt_continuation='  ',
             style=style_from_pygments_cls(DefaultStyle),
-            lexer=PygmentsLexer(JavascriptLexer),
+            lexer=PygmentsLexer(EsLexer),
             auto_suggest=AutoSuggestFromHistory(),
             history=SqLiteHistory(),
             multiline=True,
