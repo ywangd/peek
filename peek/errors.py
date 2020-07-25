@@ -7,7 +7,7 @@ class InvalidEsCommand(PeekError):
         self.text = text
 
     def __str__(self):
-        return f'Invalid ES API call. Expect format of [METHOD URL], got [{self.text}]'
+        return f'Invalid ES API call. Expect format of "METHOD URL [PAYLOAD]", got [{self.text}]'
 
 
 class InvalidHttpMethod(PeekError):

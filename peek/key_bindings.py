@@ -6,6 +6,8 @@ from prompt_toolkit.enums import DEFAULT_BUFFER
 from prompt_toolkit.filters import Condition
 from prompt_toolkit.key_binding import KeyBindings
 
+from peek.commands import PeekCommand
+
 _logger = logging.getLogger(__name__)
 
 
@@ -31,7 +33,10 @@ def buffer_should_be_handled(repl):
         _logger.debug(f'current doc: {doc}')
         if doc.text.strip() == '':
             return True
-        # Handle the command when an empty line is entered
+        elif doc.text.lstrip().startswith(PeekCommand.LEADING_CHAR):
+            return True
+
+        # Handle ES API call when an empty line is entered
         last_linesep_position = doc.text.rfind(os.linesep)
         if last_linesep_position != -1 and doc.text[last_linesep_position:].strip() == '':
             return True

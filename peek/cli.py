@@ -2,7 +2,7 @@
 import argparse
 import sys
 
-from peek.peek import Repl
+from peek.peek import Peek
 
 
 def main():
@@ -16,7 +16,7 @@ def main():
                         help='Extra configuration option to override')
     args = parser.parse_args()
 
-    Repl(
+    Peek(
         config_file=args.config,
         extra_config_options=args.extra_config_option).run()
     return 0

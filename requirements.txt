@@ -2,5 +2,5 @@ prompt-toolkit~=3.0.5
 Pygments~=2.6.1
 peek~=0.1.0
 configobj~=5.0.6
-pytest~=5.4.3
-setuptools~=41.2.0
+
+elasticsearch>=7.0.0,<8.0.0

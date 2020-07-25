@@ -1,3 +1,6 @@
 # vi: ft=dosini
 log_file = stderr
 log_level = warning
+hosts = localhost:9200
+use_ssl = False
+verify_certs = False

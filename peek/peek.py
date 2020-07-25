@@ -3,12 +3,15 @@ import logging
 import sys
 from typing import List
 
-from prompt_toolkit import PromptSession
+import pygments
+from prompt_toolkit import PromptSession, print_formatted_text
+from prompt_toolkit.formatted_text import PygmentsTokens
 from prompt_toolkit.lexers import PygmentsLexer
 from prompt_toolkit.styles import style_from_pygments_cls
 from pygments.lexers.javascript import JavascriptLexer
 from pygments.styles.default import DefaultStyle
 
+from peek.clients import EsClient
 from peek.commands import new_command
 from peek.config import get_config
 from peek.errors import PeekError
@@ -17,7 +20,7 @@ from peek.key_bindings import key_bindings
 _logger = logging.getLogger(__name__)
 
 
-class Repl:
+class Peek:
 
     def __init__(self,
                  config_file: str = None,
@@ -38,6 +41,7 @@ class Repl:
             enable_suspend=True,
             search_ignore_case=True
         )
+        self.es_client = self._init_es_client()
 
     def run(self):
         try:
@@ -50,7 +54,10 @@ class Repl:
                     continue
                 try:
                     self.command = new_command(text)
-                    self.command.run()
+                    result = self.command.execute(self.es_client)
+                    tokens = list(pygments.lex(result, lexer=JavascriptLexer()))
+                    print_formatted_text(PygmentsTokens(tokens))
+
                 except PeekError as e:
                     print(e)
                 except Exception as e:
@@ -89,3 +96,17 @@ class Repl:
         root_logger.addHandler(handler)
         root_logger.setLevel(log_level)
 
+    def _init_es_client(self):
+        auth = f'{self.config.get("username", "")}:{self.config.get("password", "")}'.strip()
+        if auth == ':':
+            auth = None
+
+        return EsClient(
+            hosts=self.config.get('hosts', 'localhost:9200').split(','),
+            auth=auth,
+            use_ssl=self.config.as_bool('use_ssl'),
+            verify_certs=self.config.as_bool('verify_certs'),
+            ca_certs=self.config.get('ca_certs', None),
+            client_cert=self.config.get('client_cert', None),
+            client_key=self.config.get('client_key', None)
+        )

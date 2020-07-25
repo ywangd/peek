@@ -1,3 +1,5 @@
+import ast
+import string
 from abc import ABCMeta, abstractmethod
 
 from peek.errors import InvalidHttpMethod, InvalidEsCommand
@@ -6,33 +8,47 @@ from peek.errors import InvalidHttpMethod, InvalidEsCommand
 class Command(metaclass=ABCMeta):
 
     @abstractmethod
-    def run(self):
+    def execute(self):
         """
         Execute the command
         """
 
 
-class EsApiCall(Command):
-    METHODS = ('GET', 'PUT', 'POST', 'DELETE')
+class EsApiCommand(Command):
+    _METHODS = ('GET', 'PUT', 'POST', 'DELETE')
 
     def __init__(self, text: str):
-        fields = text.split(' ', 1)
-        if len(fields) != 2:
-            raise InvalidEsCommand(text)
-
-        method = fields[0].strip().upper()
-        if method not in EsApiCall.METHODS:
-            raise InvalidHttpMethod(method)
-
-        self.method = method
-        self.path = fields[1].strip()
-        self.payload = None
+        self.source = text
+        self.method, self.path, self.payload = self._parse()
 
     def set_payload(self, text):
         pass
 
-    def run(self):
-        pass
+    def execute(self, es_client):
+        return es_client.execute_command(self)
+
+    def _parse(self):
+        fields = self.source.split(' ', 1)
+        if len(fields) != 2:
+            raise InvalidEsCommand(self.source)
+
+        for i, c in enumerate(fields[1]):
+            if c in string.whitespace:
+                path, payload = fields[1][:i].strip(), fields[1][i:].strip()
+                break
+        else:
+            path = fields[1]
+            payload = ''
+
+        method = fields[0].strip().upper()
+        if method not in EsApiCommand._METHODS:
+            raise InvalidHttpMethod(method)
+
+        return (
+            method,
+            path if path.startswith('/') else f'/{path}',
+            ast.literal_eval(payload) if payload else None
+        )
 
 
 class PeekCommand:
@@ -50,4 +66,4 @@ def new_command(text: str):
     if text.startswith(PeekCommand.LEADING_CHAR):
         return PeekCommand(text)
     else:
-        return EsApiCall(text)
+        return EsApiCommand(text)
