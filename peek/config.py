@@ -1,7 +1,6 @@
 import logging
 import os
 import platform
-import shutil
 from os.path import expanduser, dirname
 from typing import List
 
@@ -25,9 +24,9 @@ def ensure_dir_exists(path):
     os.makedirs(parent_dir, exist_ok=True)
 
 
-def load_config(default_config_file: str,
+def load_config(package_config_file: str,
                 config_file: str = None, extra_config_options: List[str] = None):
-    config = ConfigObj(default_config_file)
+    config = ConfigObj(package_config_file)
     if config_file is not None:
         config.merge(ConfigObj(config_file))
 
@@ -57,16 +56,11 @@ def load_config(default_config_file: str,
     return config
 
 
-def ensure_default_config_file():
+def get_config(config_file: str = None, extra_config_options: List[str] = None):
     from peek import __file__ as package_root
     package_root = os.path.dirname(package_root)
+    package_config_file = os.path.join(package_root, 'peekrc')
     default_config_file = expanduser(config_location() + 'peekrc')
     ensure_dir_exists(default_config_file)
-    if not os.path.exists(default_config_file) or bool(os.environ.get('PEEK_PROVISION_DEFAULT_CONFIG')):
-        shutil.copyfile(os.path.join(package_root, 'peekrc'), default_config_file)
-    return default_config_file
-
-
-def get_config(config_file: str = None, extra_config_options: List[str] = None):
-    default_config_file = ensure_default_config_file()
-    return load_config(default_config_file, config_file, extra_config_options)
+    config_file = config_file or default_config_file
+    return load_config(package_config_file, config_file, extra_config_options)
