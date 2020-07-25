@@ -66,6 +66,7 @@ class Peek:
                     if self.config.as_bool('pretty_print'):
                         response = json.dumps(json.loads(response), indent=2)
                     tokens = list(pygments.lex(response, lexer=JavascriptLexer()))
+                    print('===')
                     print_formatted_text(PygmentsTokens(tokens))
 
                 except PeekError as e:
@@ -82,7 +83,7 @@ class Peek:
         self._should_exit = True
 
     def _get_message(self):
-        return '> '
+        return '>>>\n'
 
     def _init_logging(self):
         log_file = self.config['log_file']
