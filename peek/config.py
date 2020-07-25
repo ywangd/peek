@@ -62,9 +62,8 @@ def ensure_default_config_file():
     package_root = os.path.dirname(package_root)
     default_config_file = expanduser(config_location() + 'peekrc')
     ensure_dir_exists(default_config_file)
-    if os.path.exists(default_config_file) and not bool(os.environ.get('PEEK_PROVISION_DEFAULT_CONFIG')):
-        return
-    shutil.copyfile(os.path.join(package_root, 'peekrc'), default_config_file)
+    if not os.path.exists(default_config_file) or bool(os.environ.get('PEEK_PROVISION_DEFAULT_CONFIG')):
+        shutil.copyfile(os.path.join(package_root, 'peekrc'), default_config_file)
     return default_config_file
 
 

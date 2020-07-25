@@ -3,15 +3,16 @@ import logging
 import sys
 from typing import List
 
-from peek.commands import new_command, EsApiCall
-from peek.config import get_config
-from peek.errors import PeekError
-from peek.key_bindings import key_bindings
 from prompt_toolkit import PromptSession
 from prompt_toolkit.lexers import PygmentsLexer
 from prompt_toolkit.styles import style_from_pygments_cls
 from pygments.lexers.javascript import JavascriptLexer
 from pygments.styles.default import DefaultStyle
+
+from peek.commands import new_command
+from peek.config import get_config
+from peek.errors import PeekError
+from peek.key_bindings import key_bindings
 
 _logger = logging.getLogger(__name__)
 
@@ -21,7 +22,6 @@ class Repl:
     def __init__(self,
                  config_file: str = None,
                  extra_config_options: List[str] = None):
-        self.state_new_command = True
         self._should_exit = False
         self.command = None
         self.config = get_config(config_file, extra_config_options)
@@ -46,22 +46,15 @@ class Repl:
                 _logger.debug(f'input: {repr(text)}')
                 if self._should_exit:
                     raise EOFError()
-                if self.state_new_command:
-                    if text.strip() == '':
-                        continue
-                    try:
-                        self.command = new_command(text)
-                        self.state_new_command = False
-                    except PeekError as e:
-                        print(e)
-                        continue
-                else:
-                    try:
-                        self.command.run()
-                    except Exception as e:
-                        print(e)
-                    finally:
-                        self.state_new_command = True
+                if text.strip() == '':
+                    continue
+                try:
+                    self.command = new_command(text)
+                    self.command.run()
+                except PeekError as e:
+                    print(e)
+                except Exception as e:
+                    print(e)
 
         except EOFError:
             pass
@@ -70,7 +63,7 @@ class Repl:
         self._should_exit = True
 
     def _get_message(self):
-        return '> ' if self.state_new_command else '  '
+        return '> '
 
     def _init_logging(self):
         log_file = self.config['log_file']

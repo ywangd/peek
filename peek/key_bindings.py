@@ -27,11 +27,10 @@ def key_bindings(repl):
 def buffer_should_be_handled(repl):
     @Condition
     def cond():
-        if repl.state_new_command:
-            return True
-
         doc = get_app().layout.get_buffer_by_name(DEFAULT_BUFFER).document
         _logger.debug(f'current doc: {doc}')
+        if doc.text.strip() == '':
+            return True
         # Handle the command when an empty line is entered
         last_linesep_position = doc.text.rfind(os.linesep)
         if last_linesep_position != -1 and doc.text[last_linesep_position:].strip() == '':
