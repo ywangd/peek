@@ -15,11 +15,12 @@ from pygments.styles.default import DefaultStyle
 
 from peek.clients import EsClient
 from peek.commands import new_command
+from peek.completer import PeekCompleter
 from peek.config import get_config
 from peek.errors import PeekError
 from peek.history import SqLiteHistory
 from peek.key_bindings import key_bindings
-from peek.lex import EsLexer
+from peek.lex import PeekLexer
 
 _logger = logging.getLogger(__name__)
 
@@ -37,8 +38,9 @@ class Peek:
             message=self._get_message(),
             prompt_continuation='  ',
             style=style_from_pygments_cls(DefaultStyle),
-            lexer=PygmentsLexer(EsLexer),
+            lexer=PygmentsLexer(PeekLexer),
             auto_suggest=AutoSuggestFromHistory(),
+            completer=PeekCompleter(),
             history=SqLiteHistory(),
             multiline=True,
             key_bindings=key_bindings(self),

@@ -2,12 +2,12 @@ import re
 
 from pygments.lexer import RegexLexer, words, include, bygroups
 from pygments.style import Style
-from pygments.token import Keyword, Literal, String, Number, Text, Punctuation, Name, Comment
+from pygments.token import Keyword, Literal, String, Number, Text, Punctuation, Name, Comment, Whitespace
 
 
 # null: #445
 
-class EsStyle(Style):
+class PeekStyle(Style):
     default_style = ''
     styles = {
         Keyword: '#d38',
@@ -28,7 +28,7 @@ def innerstring_rules(ttype):
     ]
 
 
-class EsLexer(RegexLexer):
+class PeekLexer(RegexLexer):
     name = 'ES'
     aliases = ['es']
     filenames = ['*.es']
@@ -37,8 +37,14 @@ class EsLexer(RegexLexer):
 
     tokens = {
         'root': [
-            (r'^(\s*)(GET|POST|PUT|DELETE)(\s+)(\S+)(\s+|\n)',
-             bygroups(Text, Keyword, Text, Literal, Text), 'payload'),
+            (r'\s+', Whitespace),
+            (words(('GET', 'POST', 'PUT', 'DELETE'), suffix=r'\b'), Keyword, 'path'),
+            (r'^(\s*)(%)(\S+)',
+             bygroups(Whitespace, Name.Symbol, Name.Builtin), 'args')
+        ],
+        'path': [
+            (r'\s+', Whitespace),
+            (r'\S+', Literal, 'payload')
         ],
         'payload': [
             (words(('true', 'false', 'null'), suffix=r'\b'), Name.Builtin),
@@ -47,7 +53,7 @@ class EsLexer(RegexLexer):
             ('"', String.Double, 'dqs'),
             ("'", String.Single, 'sqs'),
             include('numbers'),
-            (r'\s+', Text),
+            (r'\s+', Whitespace),
         ],
         'strings-double': innerstring_rules(String.Double),
         'strings-single': innerstring_rules(String.Single),
@@ -69,5 +75,9 @@ class EsLexer(RegexLexer):
             (r'0[xX][a-fA-F0-9]+', Number.Hex),
             (r'\d+L', Number.Integer.Long),
             (r'\d+j?', Number.Integer)
+        ],
+        'args': [
+            (r'\s+', Whitespace),
+            (r'\S+', Literal),
         ],
     }
