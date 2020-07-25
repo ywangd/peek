@@ -6,6 +6,7 @@ from typing import List
 
 import pygments
 from prompt_toolkit import PromptSession, print_formatted_text
+from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.formatted_text import PygmentsTokens
 from prompt_toolkit.lexers import PygmentsLexer
 from prompt_toolkit.styles import style_from_pygments_cls
@@ -16,6 +17,7 @@ from peek.clients import EsClient
 from peek.commands import new_command
 from peek.config import get_config
 from peek.errors import PeekError
+from peek.history import SqLiteHistory
 from peek.key_bindings import key_bindings
 
 _logger = logging.getLogger(__name__)
@@ -35,12 +37,14 @@ class Peek:
             prompt_continuation='  ',
             style=style_from_pygments_cls(DefaultStyle),
             lexer=PygmentsLexer(JavascriptLexer),
+            auto_suggest=AutoSuggestFromHistory(),
+            history=SqLiteHistory(),
             multiline=True,
             key_bindings=key_bindings(self),
             enable_open_in_editor=True,
             enable_system_prompt=True,
             enable_suspend=True,
-            search_ignore_case=True
+            search_ignore_case=True,
         )
         self.es_client = self._init_es_client()
 
