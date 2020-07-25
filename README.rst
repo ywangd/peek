@@ -35,3 +35,7 @@ This package was created with Cookiecutter_ and the `audreyr/cookiecutter-pypack
 
 .. _Cookiecutter: https://github.com/audreyr/cookiecutter
 .. _`audreyr/cookiecutter-pypackage`: https://github.com/audreyr/cookiecutter-pypackage
+
+
+download rest-api-spec jar 
+https://repo1.maven.org/maven2/org/elasticsearch/rest-api-spec/7.8.0/rest-api-spec-7.8.0.jar
