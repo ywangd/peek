@@ -5,7 +5,7 @@ import logging
 from elasticsearch import Elasticsearch
 from pygments.token import Whitespace, Comment, Keyword, Number, Name, String
 
-from peek.errors import PeekSyntaxError, InvalidHttpMethod, InvalidEsApiCall
+from peek.errors import PeekSyntaxError, InvalidHttpMethod, InvalidEsApiCall, PeekError
 from peek.lexers import PeekLexer, Percent, CurlyLeft, CurlyRight, BracketLeft, BracketRight, Comma, Colon
 
 _logger = logging.getLogger(__name__)
@@ -56,8 +56,19 @@ class PeekClient:
             return self.execute_es_api_call(tokens)
 
     def execute_special(self, tokens):
-        _logger.debug('attempt execute special command')
-        pass
+        _logger.debug(f'attempt execute special command: {tokens}')
+        command_token = tokens[0]
+        if command_token[1] != 'conn':
+            raise PeekError(f'Unknown special command: {repr(command_token[1])}')
+        kwargs = {}
+        for token in tokens[1:]:
+            key, value = token[1].split('=', 1)
+            try:
+                kwargs[key] = ast.literal_eval(value)
+            except Exception:
+                kwargs[key] = value
+        self.es_client = EsClient(**kwargs)
+        return 'Success'
 
     def execute_es_api_call(self, tokens):
         _logger.debug('attempt execute ES API call')
@@ -110,7 +121,6 @@ class PeeKCommandInterpreter:
 
     def __init__(self):
         pass
-
 
 class NoopDeserializer:
     def __init__(self):

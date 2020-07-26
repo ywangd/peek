@@ -3,12 +3,13 @@ import logging
 import os
 from typing import Iterable
 
+from prompt_toolkit.application import get_app
 from prompt_toolkit.completion import Completer, CompleteEvent, Completion, WordCompleter
 from prompt_toolkit.document import Document
-from pygments.lexer import Lexer
+from prompt_toolkit.enums import DEFAULT_BUFFER
 from pygments.token import Whitespace, Comment, Token
 
-from peek.lexers import Percent
+from peek.lexers import Percent, PeekLexer
 
 _logger = logging.getLogger(__name__)
 
@@ -17,11 +18,13 @@ _HTTP_METHOD_COMPLETER = WordCompleter(['GET', 'POST', 'PUT', 'DELETE'], ignore_
 
 class PeekCompleter(Completer):
 
-    def __init__(self, lexer: Lexer):
-        self.lexer = lexer
+    def __init__(self):
+        self.lexer = PeekLexer()
         self.specs = load_rest_api_spec()
 
     def get_completions(self, document: Document, complete_event: CompleteEvent) -> Iterable[Completion]:
+        _logger.debug(f'doc: {document}, event: {complete_event}')
+
         text = document.text[:document.cursor_position]
         _logger.debug(f'text: {repr(text)}')
 
@@ -52,9 +55,10 @@ class PeekCompleter(Completer):
             return self._complete_special(document, complete_event)
 
         elif len(tokens) == 1 and (tokens[0][0] + len(tokens[0][2]) >= document.cursor_position):
+            _logger.debug('HTTP method completing')
             return _HTTP_METHOD_COMPLETER.get_completions(document, complete_event)
 
-        elif len(tokens) == 2:
+        elif len(tokens) == 2 or (len(tokens) == 1 and get_app().layout.get_buffer_by_name(DEFAULT_BUFFER).document.cursor_position > document.cursor_position):
             return self._complete_path(tokens, document, complete_event)
 
         else:
@@ -67,13 +71,14 @@ class PeekCompleter(Completer):
             return []
         method = method_token[2].upper()
         path = path_token[2]
+        _logger.debug(f'Path completing: {repr(path)}')
         ret = []
         # TODO: handle placeholder in path
         # TODO: complete parameters
         for name, spec in self.specs.items():
             for p in spec['url']['paths']:
                 if method in p['methods']:
-                    if p['path'].startswith(path) or p['path'].startswith(f'/{path}'):
+                    if p['path'].startswith(path) or p['path'].startswith('/' + path):
                         ret.append(Completion(p['path'], start_position=-len(path)))
         return ret
 

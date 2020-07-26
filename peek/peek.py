@@ -1,8 +1,8 @@
 """Main module."""
 import json
 import logging
-import os
 import sys
+from json import JSONDecodeError
 from typing import List
 
 import pygments
@@ -29,27 +29,31 @@ OUTPUT_HEADER = FormattedText([(PeekStyle.styles[Heading], '===')])
 class Peek:
 
     def __init__(self,
+                 batch_mode=False,
                  config_file: str = None,
                  extra_config_options: List[str] = None):
         self._should_exit = False
         self.command = None
         self.config = get_config(config_file, extra_config_options)
         self._init_logging()
-        self.session = PromptSession(
-            message=self._get_message(),
-            # prompt_continuation='  ',
-            style=style_from_pygments_cls(PeekStyle),
-            lexer=PygmentsLexer(PeekLexer),
-            auto_suggest=AutoSuggestFromHistory(),
-            completer=PeekCompleter(PeekLexer()),
-            history=SqLiteHistory(),
-            multiline=True,
-            key_bindings=key_bindings(self),
-            enable_open_in_editor=True,
-            enable_system_prompt=True,
-            enable_suspend=True,
-            search_ignore_case=True,
-        )
+        self.batch_mode = batch_mode
+        if self.batch_mode:
+            self.session = None
+        else:
+            self.session = PromptSession(
+                message=self._get_message(),
+                style=style_from_pygments_cls(PeekStyle),
+                lexer=PygmentsLexer(PeekLexer),
+                auto_suggest=AutoSuggestFromHistory(),
+                completer=PeekCompleter(),
+                history=SqLiteHistory(),
+                multiline=True,
+                key_bindings=key_bindings(self),
+                enable_open_in_editor=True,
+                enable_system_prompt=True,
+                enable_suspend=True,
+                search_ignore_case=True,
+            )
         self.client = self._init_client()
 
     def run(self):
@@ -61,25 +65,32 @@ class Peek:
                     raise EOFError()
                 if text.strip() == '':
                     continue
-                try:
-                    response = self.client.execute_command(text)
-                    if self.config.as_bool('pretty_print'):
-                        response = json.dumps(json.loads(response), indent=2)
-                    tokens = list(pygments.lex(response, lexer=PayloadLexer()))
-                    print_formatted_text(OUTPUT_HEADER)
-                    print_formatted_text(PygmentsTokens(tokens), style=style_from_pygments_cls(PeekStyle))
-
-                except PeekError as e:
-                    print(e)
-                except Exception as e:
-                    print(e)
-                    # if getattr(e, 'info'):
-                    #     print(e.info)
+                self.execute_command(text)
 
             except KeyboardInterrupt:
                 continue
             except EOFError:
                 break
+
+    def execute_command(self, text):
+        try:
+            response = self.client.execute_command(text)
+            if not self.batch_mode:
+                print_formatted_text(OUTPUT_HEADER)
+            try:
+                if self.config.as_bool('pretty_print'):
+                    response = json.dumps(json.loads(response), indent=2)
+                tokens = list(pygments.lex(response, lexer=PayloadLexer()))
+                print_formatted_text(PygmentsTokens(tokens), style=style_from_pygments_cls(PeekStyle))
+            except JSONDecodeError:
+                print(response)
+
+        except PeekError as e:
+            print(e)
+        except Exception as e:
+            print(e)
+            # if getattr(e, 'info'):
+            #     print(e.info)
 
     def signal_exit(self):
         self._should_exit = True
