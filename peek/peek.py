@@ -11,7 +11,6 @@ from prompt_toolkit.formatted_text import PygmentsTokens
 from prompt_toolkit.lexers import PygmentsLexer
 from prompt_toolkit.styles import style_from_pygments_cls
 from pygments.lexers.javascript import JavascriptLexer
-from pygments.styles.default import DefaultStyle
 
 from peek.clients import EsClient
 from peek.commands import new_command
@@ -20,7 +19,7 @@ from peek.config import get_config
 from peek.errors import PeekError
 from peek.history import SqLiteHistory
 from peek.key_bindings import key_bindings
-from peek.lex import PeekLexer
+from peek.lexers import PeekLexer, PeekStyle, PayloadLexer
 
 _logger = logging.getLogger(__name__)
 
@@ -36,8 +35,8 @@ class Peek:
         self._init_logging()
         self.session = PromptSession(
             message=self._get_message(),
-            prompt_continuation='  ',
-            style=style_from_pygments_cls(DefaultStyle),
+            # prompt_continuation='  ',
+            style=style_from_pygments_cls(PeekStyle),
             lexer=PygmentsLexer(PeekLexer),
             auto_suggest=AutoSuggestFromHistory(),
             completer=PeekCompleter(),
@@ -65,14 +64,16 @@ class Peek:
                     response = self.command.execute(self.es_client)
                     if self.config.as_bool('pretty_print'):
                         response = json.dumps(json.loads(response), indent=2)
-                    tokens = list(pygments.lex(response, lexer=JavascriptLexer()))
+                    tokens = list(pygments.lex(response, lexer=PayloadLexer()))
                     print('===')
-                    print_formatted_text(PygmentsTokens(tokens))
+                    print_formatted_text(PygmentsTokens(tokens), style=style_from_pygments_cls(PeekStyle))
 
                 except PeekError as e:
                     print(e)
                 except Exception as e:
                     print(e)
+                    # if getattr(e, 'info'):
+                    #     print(e.info)
 
             except KeyboardInterrupt:
                 continue
