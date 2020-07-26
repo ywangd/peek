@@ -1,27 +1,29 @@
 """Main module."""
 import json
 import logging
+import os
 import sys
 from typing import List
 
 import pygments
 from prompt_toolkit import PromptSession, print_formatted_text
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
-from prompt_toolkit.formatted_text import PygmentsTokens
+from prompt_toolkit.formatted_text import PygmentsTokens, FormattedText
 from prompt_toolkit.lexers import PygmentsLexer
 from prompt_toolkit.styles import style_from_pygments_cls
-from pygments.lexers.javascript import JavascriptLexer
 
-from peek.clients import EsClient
-from peek.commands import new_command
+from peek.clients import PeekClient
 from peek.completer import PeekCompleter
-from peek.config import get_config
+from peek.config import get_config, config_location
 from peek.errors import PeekError
 from peek.history import SqLiteHistory
 from peek.key_bindings import key_bindings
-from peek.lexers import PeekLexer, PeekStyle, PayloadLexer
+from peek.lexers import PeekLexer, PeekStyle, PayloadLexer, Heading
 
 _logger = logging.getLogger(__name__)
+
+INPUT_HEADER = [(PeekStyle.styles[Heading], '>>>\n')]
+OUTPUT_HEADER = FormattedText([(PeekStyle.styles[Heading], '===')])
 
 
 class Peek:
@@ -48,7 +50,7 @@ class Peek:
             enable_suspend=True,
             search_ignore_case=True,
         )
-        self.es_client = self._init_es_client()
+        self.client = self._init_client()
 
     def run(self):
         while True:
@@ -60,12 +62,11 @@ class Peek:
                 if text.strip() == '':
                     continue
                 try:
-                    self.command = new_command(text)
-                    response = self.command.execute(self.es_client)
+                    response = self.client.execute_command(text)
                     if self.config.as_bool('pretty_print'):
                         response = json.dumps(json.loads(response), indent=2)
                     tokens = list(pygments.lex(response, lexer=PayloadLexer()))
-                    print('===')
+                    print_formatted_text(OUTPUT_HEADER)
                     print_formatted_text(PygmentsTokens(tokens), style=style_from_pygments_cls(PeekStyle))
 
                 except PeekError as e:
@@ -84,7 +85,7 @@ class Peek:
         self._should_exit = True
 
     def _get_message(self):
-        return '>>>\n'
+        return INPUT_HEADER
 
     def _init_logging(self):
         log_file = self.config['log_file']
@@ -96,7 +97,7 @@ class Peek:
         elif log_file == 'stdout':
             handler = logging.StreamHandler(sys.stdout)
         else:
-            handler = logging.FileHandler(log_file)
+            handler = logging.FileHandler(config_location() + log_file)
 
         log_level = getattr(logging, log_level, logging.WARNING)
 
@@ -110,12 +111,12 @@ class Peek:
         root_logger.addHandler(handler)
         root_logger.setLevel(log_level)
 
-    def _init_es_client(self):
+    def _init_client(self):
         auth = f'{self.config.get("username", "")}:{self.config.get("password", "")}'.strip()
         if auth == ':':
             auth = None
 
-        return EsClient(
+        return PeekClient(
             hosts=self.config.get('hosts', 'localhost:9200').split(','),
             auth=auth,
             use_ssl=self.config.as_bool('use_ssl'),

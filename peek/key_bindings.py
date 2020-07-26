@@ -6,9 +6,9 @@ from prompt_toolkit.enums import DEFAULT_BUFFER
 from prompt_toolkit.filters import Condition, completion_is_selected, is_searching
 from prompt_toolkit.key_binding import KeyBindings
 
-from peek.commands import PeekCommand
-
 _logger = logging.getLogger(__name__)
+
+SPECIAL_LEADING_CHAR = '%'
 
 
 def key_bindings(repl):
@@ -33,7 +33,7 @@ def buffer_should_be_handled(repl):
         _logger.debug(f'current doc: {doc}')
         if doc.text.strip() == '':
             return True
-        elif doc.text.lstrip().startswith(PeekCommand.LEADING_CHAR):
+        elif doc.text.lstrip().startswith(SPECIAL_LEADING_CHAR):
             return True
 
         # Handle ES API call when an empty line is entered

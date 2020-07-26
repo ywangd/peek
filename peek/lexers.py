@@ -2,7 +2,7 @@ import re
 
 from pygments.lexer import RegexLexer, words, include, bygroups, using
 from pygments.style import Style
-from pygments.token import Keyword, Literal, String, Number, Punctuation, Name, Comment, Whitespace
+from pygments.token import Keyword, Literal, String, Number, Punctuation, Name, Comment, Whitespace, Generic
 
 Percent = Punctuation.Percent
 CurlyLeft = Punctuation.Curly.Left
@@ -11,6 +11,7 @@ BracketLeft = Punctuation.Bracket.Left
 BracketRight = Punctuation.Bracket.Right
 Comma = Punctuation.Comma
 Colon = Punctuation.Colon
+Heading = Generic.Heading
 
 
 class PeekStyle(Style):
@@ -18,11 +19,12 @@ class PeekStyle(Style):
     # null: #445
     styles = {
         Keyword: '#d38',
-        Literal: '#499',
+        Literal: '#FFFCF9',
         String.Symbol: '#bff',  # '#28b',
         String: '#395',
         Name.Builtin: '#77f',
-        Number: '#07a'
+        Number: '#07a',
+        Heading: '#F6D845',
     }
 
 
@@ -58,12 +60,12 @@ class PayloadLexer(RegexLexer):
 
     tokens = {
         'root': [
-            (r'//.+$', Comment.Single),
+            (r'//.*', Comment.Single),
             (r'{', CurlyLeft, 'dict-key'),
             (r'\s+', Whitespace),
         ],
         'dict-key': [
-            (r'//.+$', Comment.Single),
+            (r'//.*', Comment.Single),
             (r'}', CurlyRight, '#pop'),  # empty dict
             (r'"', String.Symbol, 'dqs-key'),
             (r"'", String.Symbol, 'sqs-key'),
@@ -81,7 +83,7 @@ class PayloadLexer(RegexLexer):
             include('value'),
         ],
         'value': [
-            (r'//.+$', Comment.Single),
+            (r'//.*', Comment.Single),
             (r'{', CurlyLeft, 'dict-key'),
             (r'\[', BracketLeft, 'array-values'),
             (r'"', String.Double, 'dqs'),
@@ -115,8 +117,8 @@ class PeekLexer(RegexLexer):
 
     tokens = {
         'root': [
+            (r'//.*', Comment.Single),
             (r'\s+', Whitespace),
-            (r'//.+$', Comment.Single),
             (words(('GET', 'POST', 'PUT', 'DELETE'), suffix=r'\b'), Keyword, ('#pop', 'path')),
             (r'^(\s*)(%)', bygroups(Whitespace, Percent), ('#pop', 'command')),
         ],
@@ -132,7 +134,7 @@ class PeekLexer(RegexLexer):
             (r'\s+', Whitespace),
         ],
         'args': [
-            (r'//.+$', Comment.Single),
+            (r'//.*', Comment.Single),
             (r'\S+', Literal),
             (r'\s+', Whitespace),
         ],

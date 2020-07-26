@@ -1,13 +1,16 @@
 import json
+import logging
 import os
 from typing import Iterable
 
 from prompt_toolkit.completion import Completer, CompleteEvent, Completion, WordCompleter
 from prompt_toolkit.document import Document
 from pygments.lexer import Lexer
-from pygments.token import Whitespace
+from pygments.token import Whitespace, Comment, Token
 
 from peek.lexers import Percent
+
+_logger = logging.getLogger(__name__)
 
 _HTTP_METHOD_COMPLETER = WordCompleter(['GET', 'POST', 'PUT', 'DELETE'], ignore_case=True)
 
@@ -20,14 +23,35 @@ class PeekCompleter(Completer):
 
     def get_completions(self, document: Document, complete_event: CompleteEvent) -> Iterable[Completion]:
         text = document.text[:document.cursor_position]
-        tokens = [t for t in self.lexer.get_tokens_unprocessed(text) if t[1] != Whitespace]
+        _logger.debug(f'text: {repr(text)}')
+
+        # Merge consecutive error tokens
+        tokens = []
+        error_token = None
+        for token in self.lexer.get_tokens_unprocessed(text):
+            if token[1] in (Whitespace, Comment.Single):
+                if error_token is not None:
+                    tokens.append(error_token)
+                    error_token = None
+            elif token[1] is Token.Error:
+                error_token = token if error_token is None else (
+                    error_token[0], error_token[1], error_token[2] + token[2])
+            else:
+                if error_token is not None:
+                    tokens.append(error_token)
+                    error_token = None
+                tokens.append(token)
+        if error_token is not None:
+            tokens.append(error_token)
+        _logger.debug(f'tokens: {tokens}')
+
         if len(tokens) == 0:
             return []
 
         elif len(tokens) == 1 and tokens[0] == Percent:
-            return self._complete_command(document, complete_event)
+            return self._complete_special(document, complete_event)
 
-        elif len(tokens) == 1:
+        elif len(tokens) == 1 and (tokens[0][0] + len(tokens[0][2]) >= document.cursor_position):
             return _HTTP_METHOD_COMPLETER.get_completions(document, complete_event)
 
         elif len(tokens) == 2:
@@ -57,8 +81,8 @@ class PeekCompleter(Completer):
         # TODO: payload completion
         return []
 
-    def _complete_command(self, document: Document, complete_event: CompleteEvent) -> Iterable[Completion]:
-        # TODO: command completion
+    def _complete_special(self, document: Document, complete_event: CompleteEvent) -> Iterable[Completion]:
+        # TODO: special command completion
         return []
 
 
