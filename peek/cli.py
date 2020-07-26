@@ -2,6 +2,7 @@
 import argparse
 import sys
 
+from peek.config import config_location
 from peek.peek import Peek
 
 
@@ -11,7 +12,7 @@ def main():
 
     parser.add_argument('-b', '--batch', action='store_true',
                         help='Take input from stdin and run in batch mode')
-    parser.add_argument('--config', default='~/.peekrc',
+    parser.add_argument('--config', default=config_location() + 'peekrc',
                         help='Configuration file to load')
 
     parser.add_argument('-e', '--extra-config-option', action='append',

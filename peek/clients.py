@@ -25,7 +25,8 @@ class EsClient:
             verify_certs=verify_certs,
             ca_certs=ca_certs,
             client_cert=client_cert,
-            client_key=client_key
+            client_key=client_key,
+            ssl_show_warn=False,
         )
 
     def perform_request(self, method, path, payload):
