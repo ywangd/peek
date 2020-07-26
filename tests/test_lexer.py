@@ -1,4 +1,4 @@
-from peek.lex import PeekLexer
+from peek.lexers import PeekLexer
 
 
 def test_lexer_api_call():
@@ -12,7 +12,7 @@ def test_lexer_api_call():
     "null": null,
     "list": [42, false, null, "string", {"inner":"something"},]
 }'''
-    tokens = [t for t in lexer.get_tokens(text)]
+    tokens = [t for t in lexer.get_tokens_unprocessed(text)]
 
     for t in tokens:
         print(t)

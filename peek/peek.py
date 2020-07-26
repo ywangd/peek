@@ -39,7 +39,7 @@ class Peek:
             style=style_from_pygments_cls(PeekStyle),
             lexer=PygmentsLexer(PeekLexer),
             auto_suggest=AutoSuggestFromHistory(),
-            completer=PeekCompleter(),
+            completer=PeekCompleter(PeekLexer()),
             history=SqLiteHistory(),
             multiline=True,
             key_bindings=key_bindings(self),

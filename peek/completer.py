@@ -4,30 +4,45 @@ from typing import Iterable
 
 from prompt_toolkit.completion import Completer, CompleteEvent, Completion, WordCompleter
 from prompt_toolkit.document import Document
+from pygments.lexer import Lexer
+from pygments.token import Whitespace
+
+from peek.lexers import Percent
 
 _HTTP_METHOD_COMPLETER = WordCompleter(['GET', 'POST', 'PUT', 'DELETE'], ignore_case=True)
 
 
 class PeekCompleter(Completer):
 
-    def __init__(self):
+    def __init__(self, lexer: Lexer):
+        self.lexer = lexer
         self.specs = load_rest_api_spec()
 
     def get_completions(self, document: Document, complete_event: CompleteEvent) -> Iterable[Completion]:
-        if '\n' in document.text:
+        text = document.text[:document.cursor_position]
+        tokens = [t for t in self.lexer.get_tokens_unprocessed(text) if t[1] != Whitespace]
+        if len(tokens) == 0:
             return []
-        for c in document.text.lstrip():
-            if c.isspace():
-                return self._get_path(document, complete_event)
-        else:
+
+        elif len(tokens) == 1 and tokens[0] == Percent:
+            return self._complete_command(document, complete_event)
+
+        elif len(tokens) == 1:
             return _HTTP_METHOD_COMPLETER.get_completions(document, complete_event)
 
-    def _get_path(self, document: Document, complete_event: CompleteEvent) -> Iterable[Completion]:
-        fields = document.text.lstrip().split(maxsplit=1)
-        if len(fields) != 2:
+        elif len(tokens) == 2:
+            return self._complete_path(tokens, document, complete_event)
+
+        else:
+            return self._complete_payload(document, complete_event)
+
+    def _complete_path(self, tokens, document: Document, complete_event: CompleteEvent) -> Iterable[Completion]:
+        method_token, path_token = tokens
+        # If there are whitespaces after path, provide no completion
+        if path_token[0] + len(path_token[2]) < document.cursor_position:
             return []
-        method = fields[0].upper()
-        path = fields[1].lstrip()
+        method = method_token[2].upper()
+        path = path_token[2]
         ret = []
         # TODO: handle placeholder in path
         # TODO: complete parameters
@@ -37,6 +52,14 @@ class PeekCompleter(Completer):
                     if p['path'].startswith(path) or p['path'].startswith(f'/{path}'):
                         ret.append(Completion(p['path'], start_position=-len(path)))
         return ret
+
+    def _complete_payload(self, document: Document, complete_event: CompleteEvent) -> Iterable[Completion]:
+        # TODO: payload completion
+        return []
+
+    def _complete_command(self, document: Document, complete_event: CompleteEvent) -> Iterable[Completion]:
+        # TODO: command completion
+        return []
 
 
 def load_rest_api_spec():

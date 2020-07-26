@@ -4,11 +4,18 @@ from pygments.lexer import RegexLexer, words, include, bygroups, using
 from pygments.style import Style
 from pygments.token import Keyword, Literal, String, Number, Punctuation, Name, Comment, Whitespace
 
+Percent = Punctuation.Percent
+CurlyLeft = Punctuation.Curly.Left
+CurlyRight = Punctuation.Curly.Right
+BracketLeft = Punctuation.Bracket.Left
+BracketRight = Punctuation.Bracket.Right
+Comma = Punctuation.Comma
+Colon = Punctuation.Colon
 
-# null: #445
 
 class PeekStyle(Style):
     default_style = ''
+    # null: #445
     styles = {
         Keyword: '#d38',
         Literal: '#499',
@@ -52,31 +59,31 @@ class PayloadLexer(RegexLexer):
     tokens = {
         'root': [
             (r'//.+$', Comment.Single),
-            (r'{', Punctuation.Curly.Left, 'dict-key'),
+            (r'{', CurlyLeft, 'dict-key'),
             (r'\s+', Whitespace),
         ],
         'dict-key': [
             (r'//.+$', Comment.Single),
-            (r'}', Punctuation.Curly.Right, '#pop'),  # empty dict
+            (r'}', CurlyRight, '#pop'),  # empty dict
             (r'"', String.Symbol, 'dqs-key'),
             (r"'", String.Symbol, 'sqs-key'),
-            (r':', Punctuation.Colon, ('#pop', 'dict-value')),
+            (r':', Colon, ('#pop', 'dict-value')),
             (r'\s+', Whitespace),
         ],
         'dict-value': [
-            (r',', Punctuation.Comma, ('#pop', 'dict-key')),
-            (r'}', Punctuation.Curly.Right, '#pop'),
+            (r',', Comma, ('#pop', 'dict-key')),
+            (r'}', CurlyRight, '#pop'),
             include('value'),
         ],
         'array-values': [
-            (r',', Punctuation.Comma),
-            (r']', Punctuation.Bracket.Right, '#pop'),
+            (r',', Comma),
+            (r']', BracketRight, '#pop'),
             include('value'),
         ],
         'value': [
             (r'//.+$', Comment.Single),
-            (r'{', Punctuation.Curly.Left, 'dict-key'),
-            (r'\[', Punctuation.Bracket.Left, 'array-values'),
+            (r'{', CurlyLeft, 'dict-key'),
+            (r'\[', BracketLeft, 'array-values'),
             (r'"', String.Double, 'dqs'),
             (r"'", String.Single, 'sqs'),
             (words(('true', 'false', 'null'), suffix=r'\b'), Name.Builtin),
@@ -111,7 +118,7 @@ class PeekLexer(RegexLexer):
             (r'\s+', Whitespace),
             (r'//.+$', Comment.Single),
             (words(('GET', 'POST', 'PUT', 'DELETE'), suffix=r'\b'), Keyword, ('#pop', 'path')),
-            (r'^(\s*)(%)', bygroups(Whitespace, Punctuation.Percent), ('#pop', 'command')),
+            (r'^(\s*)(%)', bygroups(Whitespace, Percent), ('#pop', 'command')),
         ],
         'path': [
             (r'\s+', Whitespace),
