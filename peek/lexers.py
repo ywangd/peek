@@ -30,25 +30,17 @@ class PeekStyle(Style):
 
 def dqs(ttype):
     return [
-               (r'"', ttype, '#pop'),
-               (r'\\\\|\\"|\\\n', String.Escape),  # included here for raw strings
-           ] + innerstring_rules(ttype)
+        (r'"', ttype, '#pop'),
+        (r'\\\\|\\"|\\', ttype),  # allow escapes
+        (r'[^\\\n"]+', ttype),  # not cater for multiple line
+    ]
 
 
 def sqs(ttype):
     return [
-               (r"'", ttype, '#pop'),
-               (r"\\\\|\\'|\\\n", String.Escape),  # included here for raw strings
-
-           ] + innerstring_rules(ttype)
-
-
-def innerstring_rules(ttype):
-    return [
-        # backslashes, quotes and formatting signs must be parsed one at a time
-        (r'[^\\\'"%\n]+', ttype),
-        (r'[\'"\\]', ttype),
-        # newlines are an error (use "nl" state)
+        (r"'", ttype, '#pop'),
+        (r"\\\\|\\'|\\", ttype),  # allow escapes
+        (r'[^\\\n\']+', ttype),  # not cater for multiple line
     ]
 
 
@@ -56,7 +48,7 @@ class PayloadLexer(RegexLexer):
     name = 'PAYLOAD'
     aliases = ['payload']
 
-    flags = re.IGNORECASE
+    flags = re.MULTILINE
 
     tokens = {
         'root': [
@@ -95,7 +87,7 @@ class PayloadLexer(RegexLexer):
         'dqs-key': dqs(String.Symbol),
         'sqs-key': sqs(String.Symbol),
         'dqs': dqs(String.Double),
-        'sqs': dqs(String.Single),
+        'sqs': sqs(String.Single),
         'numbers': [
             (r'(\d+\.\d*|\d*\.\d+)([eE][+-]?[0-9]+)?j?', Number.Float),
             (r'\d+[eE][+-]?[0-9]+j?', Number.Float),
