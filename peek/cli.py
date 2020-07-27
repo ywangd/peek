@@ -10,8 +10,6 @@ def main():
     """Console script for peek."""
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('-b', '--batch', action='store_true',
-                        help='Take input from stdin and run in batch mode')
     parser.add_argument('--config', default=config_location() + 'peekrc',
                         help='Configuration file to load')
 
@@ -19,16 +17,17 @@ def main():
                         help='Extra configuration option to override')
     args = parser.parse_args()
 
+    isatty = sys.stdin.isatty()
     peek = Peek(
-        batch_mode=args.batch,
+        batch_mode=not isatty,
         config_file=args.config,
         extra_config_options=args.extra_config_option
     )
-    if args.batch:
+    if isatty:
+        peek.run()
+    else:
         stdin_read = sys.stdin.read()
         peek.execute_command(stdin_read)
-    else:
-        peek.run()
 
     return 0
 
