@@ -7,7 +7,8 @@ from elasticsearch import Elasticsearch
 from pygments.token import Whitespace, Comment, Keyword, Number, Name, String
 
 from peek.errors import PeekSyntaxError, InvalidHttpMethod, InvalidEsApiCall, PeekError
-from peek.lexers import PeekLexer, Percent, CurlyLeft, CurlyRight, BracketLeft, BracketRight, Comma, Colon
+from peek.lexers import PeekLexer, Percent, CurlyLeft, CurlyRight, BracketLeft, BracketRight, Comma, Colon, TripleD, \
+    TripleS
 
 _logger = logging.getLogger(__name__)
 
@@ -120,7 +121,7 @@ def construct_payload(tokens) -> Optional[str]:
                 payload.append(value)
         elif ttype is String.Double:
             payload.append(value)
-        elif ttype is String.Single:
+        elif ttype is String.Single or ttype is TripleD or ttype is TripleS:
             payload.append(json.dumps(ast.literal_eval(value)))
         else:
             raise PeekSyntaxError(f'Unknown token: {token}')

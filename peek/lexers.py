@@ -12,6 +12,8 @@ BracketRight = Punctuation.Bracket.Right
 Comma = Punctuation.Comma
 Colon = Punctuation.Colon
 Heading = Generic.Heading
+TripleD = String.TripleD
+TripleS = String.TripleS
 
 
 class PeekStyle(Style):
@@ -78,6 +80,8 @@ class PayloadLexer(RegexLexer):
             (r'//.*', Comment.Single),
             (r'{', CurlyLeft, 'dict-key'),
             (r'\[', BracketLeft, 'array-values'),
+            (r'"""', TripleD, 'tdqs'),
+            (r"'''", TripleS, 'tsqs'),
             (r'"', String.Double, 'dqs'),
             (r"'", String.Single, 'sqs'),
             (words(('true', 'false', 'null'), suffix=r'\b'), Name.Builtin),
@@ -88,6 +92,16 @@ class PayloadLexer(RegexLexer):
         'sqs-key': sqs(String.Symbol),
         'dqs': dqs(String.Double),
         'sqs': sqs(String.Single),
+        'tdqs': [
+            (r'"""', TripleD, '#pop'),
+            (r'\\\\|\\"|\\|"', TripleD),  # allow escapes
+            (r'[^\\"]+', TripleD),  # not cater for multiple line
+        ],
+        'tsqs': [
+            (r"'''", TripleS, '#pop'),
+            (r"\\\\|\\'|\\|'", TripleS),  # allow escapes
+            (r"[^\\']+", TripleS),  # not cater for multiple line
+        ],
         'numbers': [
             (r'(\d+\.\d*|\d*\.\d+)([eE][+-]?[0-9]+)?j?', Number.Float),
             (r'\d+[eE][+-]?[0-9]+j?', Number.Float),

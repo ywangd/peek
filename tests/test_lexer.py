@@ -37,7 +37,7 @@ def test_lexer_normal_payload():
     payload = parse_for_payload(text)
     assert (payload == '{ "foo" : "bar" , "hello" : 1.0 , '
                        '"world" : [ 2.0 , true , null , false ] , '
-                       '"nested" : { "this is it" : "orly?" , "the end" : [ "the" , "end" , "of" , "it" ] }}')
+                       '"nested" : { "this is it" : "orly?" , "the end" : [ "the" , "end" , "of" , "it" ] } } \n')
 
 
 def test_lexer_string_escapes():
@@ -50,6 +50,34 @@ def test_lexer_string_escapes():
     assert (payload == """{ "'hello\\tworld'" : "\\"hello\\tworld\\"" , """
             + """"foo\\\\\\t\\nbar" : "foo\\\\\\t\\nbar" , """
             + """"magic\\\\'\\"" : "magic\\\\\\"'" } \n""")
+
+
+def test_lexer_tdqs():
+    text = r'''{
+        "'hello\tworld'": """"hello\t
+world\"""",
+        "foo\\\t\nbar": """foo\\
+\t\nbar""",
+        "magic\\'\"": """magic\\"\''"""
+    }'''
+    payload = parse_for_payload(text)
+    assert (payload == """{ "'hello\\tworld'" : "\\"hello\\t\\nworld\\"" , """
+            + """"foo\\\\\\t\\nbar" : "foo\\\\\\n\\t\\nbar" , """
+            + """"magic\\\\'\\"" : "magic\\\\\\"''" } \n""")
+
+
+def test_lexer_tsqs():
+    text = r"""{
+        "'hello\tworld'": ''''hello\t
+world\'''',
+        "foo\\\t\nbar": '''foo\\
+\t\nbar''',
+        "magic\\'\"": '''magic\\"\'"'''
+    }"""
+    payload = parse_for_payload(text)
+    assert (payload == """{ "'hello\\tworld'" : "'hello\\t\\nworld'" , """
+            + """"foo\\\\\\t\\nbar" : "foo\\\\\\n\\t\\nbar" , """
+            + """"magic\\\\'\\"" : "magic\\\\\\"'\\"" } \n""")
 
 
 def test_lexer_command():
