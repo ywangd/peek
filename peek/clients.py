@@ -75,21 +75,26 @@ class PeekClient:
 
     def execute_es_api_call(self, tokens):
         _logger.debug('attempt execute ES API call')
-        if len(tokens) < 2:
-            raise InvalidEsApiCall(' '.join([t[2] for t in tokens]))
-        method_token, path_token = tokens[0], tokens[1]
-        if method_token[1] is not Keyword:
-            raise InvalidHttpMethod(method_token[2])
-        method = method_token[2].upper()
-        path = path_token[2]
-        path = path if path.startswith('/') else ('/' + path)
-        _logger.debug(f'method: {repr(method)}, path: {repr(path)}')
+        method, path = parse_for_method_and_path(tokens)
+        payload = parse_for_payload(tokens[2:])
 
-        payload = construct_payload(tokens[2:])
         return self.es_client.perform_request(method, path, payload)
 
 
-def construct_payload(tokens) -> Optional[str]:
+def parse_for_method_and_path(tokens):
+    if len(tokens) < 2:
+        raise InvalidEsApiCall(' '.join([t[2] for t in tokens]))
+    method_token, path_token = tokens[0], tokens[1]
+    if method_token[1] is not Keyword:
+        raise InvalidHttpMethod(method_token[2])
+    method = method_token[2].upper()
+    path = path_token[2]
+    path = path if path.startswith('/') else ('/' + path)
+    _logger.debug(f'method: {repr(method)}, path: {repr(path)}')
+    return method, path
+
+
+def parse_for_payload(tokens) -> Optional[str]:
     """
     Take merged unprocessed tokens for payload and construct a payload string
     """
@@ -115,13 +120,8 @@ def construct_payload(tokens) -> Optional[str]:
         elif ttype is Name.Builtin:  # true, false, null
             payload.append(value.lower())
         elif ttype is String.Symbol:
-            if value.startswith("'"):
-                payload.append(json.dumps(ast.literal_eval(value)))
-            else:
-                payload.append(value)
-        elif ttype is String.Double:
-            payload.append(value)
-        elif ttype is String.Single or ttype is TripleD or ttype is TripleS:
+            payload.append(json.dumps(ast.literal_eval(value)))
+        elif ttype in (String.Double, String.Single, TripleD, TripleS):
             payload.append(json.dumps(ast.literal_eval(value)))
         else:
             raise PeekSyntaxError(f'Unknown token: {token}')

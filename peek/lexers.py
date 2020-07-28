@@ -32,17 +32,20 @@ class PeekStyle(Style):
 
 def dqs(ttype):
     return [
-        (r'"', ttype, '#pop'),
-        (r'\\\\|\\"|\\', ttype),  # allow escapes
-        (r'[^\\\n"]+', ttype),  # not cater for multiple line
+        (r'"', ttype, '#pop'),  # end of string
+        (r'\\.', ttype),  # process escapes separately
+        # Inner string, not allow multiline, not processing end of string,
+        # also don't consume a single backslash on its own since it is processed above
+        # in combination with the char it applies to.
+        (r'[^\\\n"]+', ttype),
     ]
 
 
 def sqs(ttype):
     return [
         (r"'", ttype, '#pop'),
-        (r"\\\\|\\'|\\", ttype),  # allow escapes
-        (r'[^\\\n\']+', ttype),  # not cater for multiple line
+        (r"\\.", ttype),
+        (r'[^\\\n\']+', ttype),
     ]
 
 

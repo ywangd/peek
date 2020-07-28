@@ -95,6 +95,9 @@ def load_rest_api_spec():
     from peek import __file__ as package_root
     package_root = os.path.dirname(package_root)
     spec_dir = os.path.join(package_root, 'rest-api-spec', 'api')
+    if not os.path.exists(spec_dir):
+        _logger.warning(f'spec directory does not exist: {spec_dir}')
+        return {}
     spec_files = [f for f in os.listdir(spec_dir) if f.endswith('.json')]
     specs = {}
     for spec_file in spec_files:

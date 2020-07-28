@@ -2,7 +2,7 @@ import json
 
 from pygments.token import Token, Whitespace, Comment, String
 
-from peek.clients import merge_unprocessed_tokens, construct_payload
+from peek.clients import merge_unprocessed_tokens, parse_for_payload, parse_for_method_and_path
 from peek.lexers import PeekLexer, PayloadLexer, CurlyRight, CurlyLeft
 
 
@@ -34,7 +34,7 @@ def test_lexer_normal_payload():
         "the end": ['the', 'end', 'of', 'it']
     }
 }"""
-    payload = parse_for_payload(text)
+    payload = do_test_for_payload(text)
     assert (payload == '{ "foo" : "bar" , "hello" : 1.0 , '
                        '"world" : [ 2.0 , true , null , false ] , '
                        '"nested" : { "this is it" : "orly?" , "the end" : [ "the" , "end" , "of" , "it" ] } } \n')
@@ -46,7 +46,7 @@ def test_lexer_string_escapes():
     "foo\\\t\nbar": 'foo\\\t\nbar',
     "magic\\'\"": 'magic\\"\''
 }"""
-    payload = parse_for_payload(text)
+    payload = do_test_for_payload(text)
     assert (payload == """{ "'hello\\tworld'" : "\\"hello\\tworld\\"" , """
             + """"foo\\\\\\t\\nbar" : "foo\\\\\\t\\nbar" , """
             + """"magic\\\\'\\"" : "magic\\\\\\"'" } \n""")
@@ -60,7 +60,7 @@ world\"""",
 \t\nbar""",
         "magic\\'\"": """magic\\"\''"""
     }'''
-    payload = parse_for_payload(text)
+    payload = do_test_for_payload(text)
     assert (payload == """{ "'hello\\tworld'" : "\\"hello\\t\\nworld\\"" , """
             + """"foo\\\\\\t\\nbar" : "foo\\\\\\n\\t\\nbar" , """
             + """"magic\\\\'\\"" : "magic\\\\\\"''" } \n""")
@@ -74,10 +74,41 @@ world\'''',
 \t\nbar''',
         "magic\\'\"": '''magic\\"\'"'''
     }"""
-    payload = parse_for_payload(text)
+    payload = do_test_for_payload(text)
     assert (payload == """{ "'hello\\tworld'" : "'hello\\t\\nworld'" , """
             + """"foo\\\\\\t\\nbar" : "foo\\\\\\n\\t\\nbar" , """
             + """"magic\\\\'\\"" : "magic\\\\\\"'\\"" } \n""")
+
+
+def test_lexer_bulk_index_payload():
+    text = '''PUT _bulk
+{ "index" : { "_index" : "test", "_id" : "1" } }
+{ "field1" : "value1" }
+{ "delete" : { "_index" : "test", "_id" : "2" } }
+{ "create" : { "_index" : "test", "_id" : "3" } }
+{ "field1" : "value3" }
+{ "update" : {"_id" : "1", "_index" : "test"} }
+{ "doc" : {"field2" : "value2"} }
+'''
+    lexer = PeekLexer()
+    tokens = [t for t in lexer.get_tokens_unprocessed(text)]
+    for t in tokens:
+        assert t[1] is not Token.Error
+
+    merged_tokens = merge_unprocessed_tokens(tokens)
+    for t in merged_tokens:
+        assert t[1] not in (Whitespace, Comment.Single), t
+
+    method, path = parse_for_method_and_path(merged_tokens)
+    assert method == 'PUT'
+    assert path == '/_bulk'
+    payload = parse_for_payload(merged_tokens[2:])
+    try:
+        for line in payload.splitlines():
+            if line.strip():
+                json.loads(line)
+    except Exception as e:
+        assert False, e
 
 
 def test_lexer_command():
@@ -107,26 +138,7 @@ PUT /my-index/_doc/12345?pretty&flat_settings=false // here
         print(t)
 
 
-def test_lexer_bulk_index():
-    lexer = PeekLexer()
-    lexer.add_filter('tokenmerge')
-    lexer.add_filter('raiseonerror', excclass=RuntimeError)
-    text = '''POST _bulk
-{ "index" : { "_index" : "test", "_id" : "1" } }
-{ "field1" : "value1" }
-{ "delete" : { "_index" : "test", "_id" : "2" } }
-{ "create" : { "_index" : "test", "_id" : "3" } }
-{ "field1" : "value3" }
-{ "update" : {"_id" : "1", "_index" : "test"} }
-{ "doc" : {"field2" : "value2"} }
-'''
-    tokens = [t for t in lexer.get_tokens(text)]
-
-    for t in tokens:
-        print(t)
-
-
-def parse_for_payload(text):
+def do_test_for_payload(text):
     lexer = PayloadLexer()
     tokens = [t for t in lexer.get_tokens_unprocessed(text)]
     for t in tokens:
@@ -136,10 +148,11 @@ def parse_for_payload(text):
     for t in merged_tokens:
         assert t[1] not in (Whitespace, Comment.Single), t
 
-    payload = construct_payload(merged_tokens)
-    print(payload)
+    payload = parse_for_payload(merged_tokens)
     try:
-        json.loads(payload)
+        for line in payload.splitlines():
+            if line.strip():
+                json.loads(line)
     except Exception as e:
         assert False, e
     return payload
