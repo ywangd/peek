@@ -59,38 +59,55 @@ class Peek:
     def run(self):
         while True:
             try:
-                text = self.session.prompt()
+                text: str = self.session.prompt()
                 _logger.debug(f'input: {repr(text)}')
                 if self._should_exit:
                     raise EOFError()
                 if text.strip() == '':
                     continue
-                self.execute_command(text)
+                self.process_input(text)
 
             except KeyboardInterrupt:
                 continue
             except EOFError:
                 break
 
-    def execute_command(self, text):
-        try:
-            response = self.client.execute_command(text)
-            if not self.batch_mode:
-                print_formatted_text(OUTPUT_HEADER)
-            try:
-                if self.config.as_bool('pretty_print'):
-                    response = json.dumps(json.loads(response), indent=2)
-                tokens = list(pygments.lex(response, lexer=PayloadLexer()))
-                print_formatted_text(PygmentsTokens(tokens), style=style_from_pygments_cls(PeekStyle))
-            except JSONDecodeError:
-                print(response)
+    def process_input(self, text):
+        batches = []
+        one_batch = []
+        for line in text.splitlines(keepends=True):
+            if line.lstrip().startswith('%'):
+                batches.append(line)
+            elif line.strip() == '' and one_batch:
+                batches.append(''.join(one_batch))
+                one_batch = []
+            else:
+                one_batch.append(line)
 
-        except PeekError as e:
-            print(e)
-        except Exception as e:
-            print(e)
-            # if getattr(e, 'info'):
-            #     print(e.info)
+        if one_batch:
+            batches.append(''.join(one_batch))
+
+        for buf in batches:
+            try:
+                self.execute_command(buf)
+            except PeekError as e:
+                print(e)
+            except Exception as e:
+                print(e)
+                # if getattr(e, 'info'):
+                #     print(e.info)
+
+    def execute_command(self, buf):
+        response = self.client.execute_command(buf)
+        if not self.batch_mode:
+            print_formatted_text(OUTPUT_HEADER)
+        try:
+            if self.config.as_bool('pretty_print'):
+                response = json.dumps(json.loads(response), indent=2)
+            tokens = list(pygments.lex(response, lexer=PayloadLexer()))
+            print_formatted_text(PygmentsTokens(tokens), style=style_from_pygments_cls(PeekStyle))
+        except JSONDecodeError:
+            print(response)
 
     def signal_exit(self):
         self._should_exit = True

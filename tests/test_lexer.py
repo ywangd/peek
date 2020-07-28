@@ -80,6 +80,22 @@ world\'''',
             + """"magic\\\\'\\"" : "magic\\\\\\"'\\"" } \n""")
 
 
+def test_lexer_ignorecase_for_method():
+    text = r"""get abc"""
+    lexer = PeekLexer()
+    tokens = [t for t in lexer.get_tokens_unprocessed(text)]
+    for t in tokens:
+        assert t[1] is not Token.Error
+
+    merged_tokens = merge_unprocessed_tokens(tokens)
+    for t in merged_tokens:
+        assert t[1] not in (Whitespace, Comment.Single), t
+
+    method, path = parse_for_method_and_path(merged_tokens)
+    assert method == 'GET'
+    assert path == '/abc'
+
+
 def test_lexer_bulk_index_payload():
     text = '''PUT _bulk
 { "index" : { "_index" : "test", "_id" : "1" } }

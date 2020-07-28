@@ -14,11 +14,15 @@ SPECIAL_LEADING_CHAR = '%'
 def key_bindings(repl):
     kb = KeyBindings()
 
-    @kb.add("enter", filter=~(completion_is_selected | is_searching) & buffer_should_be_handled(repl))
+    @kb.add('enter', filter=~(completion_is_selected | is_searching) & buffer_should_be_handled(repl))
     def _(event):
         event.current_buffer.validate_and_handle()
 
-    @kb.add("c-d")
+    @kb.add('escape', 'enter', filter=~(completion_is_selected | is_searching))
+    def _(event):
+        event.app.current_buffer.insert_text('\n')
+
+    @kb.add('c-d')
     def _(event):
         repl.signal_exit()
         event.current_buffer.validate_and_handle()

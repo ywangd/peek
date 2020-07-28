@@ -122,13 +122,13 @@ class PeekLexer(RegexLexer):
     aliases = ['es']
     filenames = ['*.es']
 
-    flags = re.IGNORECASE
+    flags = re.MULTILINE
 
     tokens = {
         'root': [
             (r'//.*', Comment.Single),
             (r'\s+', Whitespace),
-            (words(('GET', 'POST', 'PUT', 'DELETE'), suffix=r'\b'), Keyword, ('#pop', 'path')),
+            (words(('GET', 'POST', 'PUT', 'DELETE'), prefix=r'(?i)', suffix=r'\b'), Keyword, ('#pop', 'path')),
             (r'^(\s*)(%)', bygroups(Whitespace, Percent), ('#pop', 'command')),
         ],
         'path': [
