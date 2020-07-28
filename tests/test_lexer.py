@@ -127,6 +127,24 @@ def test_lexer_bulk_index_payload():
         assert False, e
 
 
+def test_multiple_commands():
+    text = """get abc
+
+post abc/_doc
+{ "foo":
+         "bar"
+}
+
+%conn foo=bar  // comment
+get abc
+"""
+    lexer = PeekLexer()
+    tokens = [t for t in lexer.get_tokens_unprocessed(text)]
+    for t in tokens:
+        print(t)
+        assert t[1] is not Token.Error
+
+
 def test_lexer_command():
     lexer = PeekLexer()
     text = '''%command arg1 arg2 // comment abc'''

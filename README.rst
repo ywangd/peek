@@ -2,19 +2,8 @@
 peek
 ====
 
-
-.. image:: https://img.shields.io/pypi/v/peek.svg
-        :target: https://pypi.python.org/pypi/peek
-
-.. image:: https://img.shields.io/travis/ywangd/peek.svg
-        :target: https://travis-ci.com/ywangd/peek
-
-.. image:: https://readthedocs.org/projects/peek/badge/?version=latest
-        :target: https://peek.readthedocs.io/en/latest/?badge=latest
-        :alt: Documentation Status
-
-
-
+.. image:: https://github.com/ywangd/peek/workflows/Peek/badge.svg
+        :target: https://github.com/ywangd/peek
 
 Peek into elasticsearch clusters
 
@@ -37,5 +26,5 @@ This package was created with Cookiecutter_ and the `audreyr/cookiecutter-pypack
 .. _`audreyr/cookiecutter-pypackage`: https://github.com/audreyr/cookiecutter-pypackage
 
 
-download rest-api-spec jar 
+download rest-api-spec jar
 https://repo1.maven.org/maven2/org/elasticsearch/rest-api-spec/7.8.0/rest-api-spec-7.8.0.jar

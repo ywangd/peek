@@ -73,6 +73,11 @@ class Peek:
                 break
 
     def process_input(self, text):
+        """
+        Process the input text, split it if it contains multiple commands.
+        Note the multiple commands support here is separate from the syntax
+        highlight. It maybe better if it can be merged somehow (TODO)
+        """
         batches = []
         one_batch = []
         for line in text.splitlines(keepends=True):
@@ -98,9 +103,9 @@ class Peek:
                 #     print(e.info)
 
     def execute_command(self, buf):
-        response = self.client.execute_command(buf)
         if not self.batch_mode:
             print_formatted_text(OUTPUT_HEADER)
+        response = self.client.execute_command(buf)
         try:
             if self.config.as_bool('pretty_print'):
                 response = json.dumps(json.loads(response), indent=2)

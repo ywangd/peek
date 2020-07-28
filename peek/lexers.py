@@ -14,6 +14,7 @@ Colon = Punctuation.Colon
 Heading = Generic.Heading
 TripleD = String.TripleD
 TripleS = String.TripleS
+BlankLine = Whitespace.BlankLine
 
 
 class PeekStyle(Style):
@@ -136,6 +137,7 @@ class PeekLexer(RegexLexer):
             (r'\S+', Literal, ('#pop', 'payload')),
         ],
         'payload': [
+            (r'(?s)(.*?)(\n[^\S]*\n)', bygroups(using(PayloadLexer), BlankLine), '#pop'),
             (r'(?s)(.*)', bygroups(using(PayloadLexer)), '#pop'),
         ],
         'command': [
@@ -143,6 +145,7 @@ class PeekLexer(RegexLexer):
             (r'\s+', Whitespace),
         ],
         'args': [
+            (r'\n', BlankLine, '#pop'),
             (r'//.*', Comment.Single),
             (r'\S+', Literal),
             (r'\s+', Whitespace),

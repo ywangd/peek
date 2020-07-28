@@ -20,7 +20,7 @@ def key_bindings(repl):
 
     @kb.add('escape', 'enter', filter=~(completion_is_selected | is_searching))
     def _(event):
-        event.app.current_buffer.insert_text('\n')
+        event.app.current_buffer.newline()
 
     @kb.add('c-d')
     def _(event):

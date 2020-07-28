@@ -27,7 +27,7 @@ def main():
         peek.run()
     else:
         stdin_read = sys.stdin.read()
-        peek.execute_command(stdin_read)
+        peek.process_input(stdin_read)
 
     return 0
 
