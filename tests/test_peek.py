@@ -5,9 +5,6 @@
 import pytest
 
 
-from peek import peek
-
-
 @pytest.fixture
 def response():
     """Sample pytest fixture.
