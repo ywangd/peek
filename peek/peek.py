@@ -12,13 +12,14 @@ from prompt_toolkit.formatted_text import PygmentsTokens, FormattedText
 from prompt_toolkit.lexers import PygmentsLexer
 from prompt_toolkit.styles import style_from_pygments_cls
 
-from peek.clients import PeekClient
 from peek.completer import PeekCompleter
 from peek.config import get_config, config_location
-from peek.errors import PeekError
+from peek.errors import PeekError, PeekSyntaxError
 from peek.history import SqLiteHistory
 from peek.key_bindings import key_bindings
 from peek.lexers import PeekLexer, PeekStyle, PayloadLexer, Heading
+from peek.parser import PeekParser
+from peek.vm import PeekVM
 
 _logger = logging.getLogger(__name__)
 
@@ -54,7 +55,8 @@ class Peek:
                 enable_suspend=True,
                 search_ignore_case=True,
             )
-        self.client = self._init_client()
+        self.parser = PeekParser()
+        self.vm = self._init_vm()
 
     def run(self):
         while True:
@@ -78,23 +80,15 @@ class Peek:
         Note the multiple commands support here is separate from the syntax
         highlight. It maybe better if it can be merged somehow (TODO)
         """
-        batches = []
-        one_batch = []
-        for line in text.splitlines(keepends=True):
-            if line.lstrip().startswith('%'):
-                batches.append(line)
-            elif line.strip() == '' and one_batch:
-                batches.append(''.join(one_batch))
-                one_batch = []
-            else:
-                one_batch.append(line)
+        try:
+            stmts = self.parser.parse(text)
+        except PeekSyntaxError as e:
+            print(e)
+            return
 
-        if one_batch:
-            batches.append(''.join(one_batch))
-
-        for buf in batches:
+        for stmt in stmts:
             try:
-                self.execute_command(buf)
+                self.execute_stmt(stmt)
             except PeekError as e:
                 print(e)
             except Exception as e:
@@ -102,10 +96,10 @@ class Peek:
                 # if getattr(e, 'info'):
                 #     print(e.info)
 
-    def execute_command(self, buf):
+    def execute_stmt(self, stmt):
         if not self.batch_mode:
             print_formatted_text(OUTPUT_HEADER)
-        response = self.client.execute_command(buf)
+        response = self.vm.execute_stmt(stmt)
         try:
             if self.config.as_bool('pretty_print'):
                 response = json.dumps(json.loads(response), indent=2)
@@ -144,12 +138,12 @@ class Peek:
         root_logger.addHandler(handler)
         root_logger.setLevel(log_level)
 
-    def _init_client(self):
+    def _init_vm(self):
         auth = f'{self.config.get("username", "")}:{self.config.get("password", "")}'.strip()
         if auth == ':':
             auth = None
 
-        return PeekClient(
+        return PeekVM(
             hosts=self.config.get('hosts', 'localhost:9200').split(','),
             auth=auth,
             use_ssl=self.config.as_bool('use_ssl'),

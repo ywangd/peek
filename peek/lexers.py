@@ -2,7 +2,9 @@ import re
 
 from pygments.lexer import RegexLexer, words, include, bygroups, using
 from pygments.style import Style
-from pygments.token import Keyword, Literal, String, Number, Punctuation, Name, Comment, Whitespace, Generic
+from pygments.token import Keyword, Literal, String, Number, Punctuation, Name, Comment, Whitespace, Generic, Error
+
+HTTP_METHODS = ('GET', 'POST', 'PUT', 'DELETE')
 
 Percent = Punctuation.Percent
 CurlyLeft = Punctuation.Curly.Left
@@ -15,19 +17,23 @@ Heading = Generic.Heading
 TripleD = String.TripleD
 TripleS = String.TripleS
 BlankLine = Whitespace.BlankLine
+SpecialFunc = Name.SpecialFunc
+PayloadKey = String.Symbol
 
 
 class PeekStyle(Style):
     default_style = ''
     # null: #445
     styles = {
-        Keyword: '#d38',
+        Keyword: '#03F147',
         Literal: '#FFFCF9',
-        String.Symbol: '#bff',  # '#28b',
+        PayloadKey: '#bff',  # '#28b',
         String: '#395',
         Name.Builtin: '#77f',
+        SpecialFunc: '#77f',
         Number: '#07a',
         Heading: '#F6D845',
+        Error: 'bg:#a40000',
     }
 
 
@@ -65,8 +71,8 @@ class PayloadLexer(RegexLexer):
         'dict-key': [
             (r'//.*', Comment.Single),
             (r'}', CurlyRight, '#pop'),  # empty dict
-            (r'"', String.Symbol, 'dqs-key'),
-            (r"'", String.Symbol, 'sqs-key'),
+            (r'"', PayloadKey, 'dqs-key'),
+            (r"'", PayloadKey, 'sqs-key'),
             (r':', Colon, ('#pop', 'dict-value')),
             (r'\s+', Whitespace),
         ],
@@ -92,8 +98,8 @@ class PayloadLexer(RegexLexer):
             include('numbers'),
             (r'\s+', Whitespace),
         ],
-        'dqs-key': dqs(String.Symbol),
-        'sqs-key': sqs(String.Symbol),
+        'dqs-key': dqs(PayloadKey),
+        'sqs-key': sqs(PayloadKey),
         'dqs': dqs(String.Double),
         'sqs': sqs(String.Single),
         'tdqs': [
@@ -129,7 +135,7 @@ class PeekLexer(RegexLexer):
         'root': [
             (r'//.*', Comment.Single),
             (r'\s+', Whitespace),
-            (words(('GET', 'POST', 'PUT', 'DELETE'), prefix=r'(?i)', suffix=r'\b'), Keyword, ('#pop', 'path')),
+            (words(HTTP_METHODS, prefix=r'(?i)', suffix=r'\b'), Keyword, ('#pop', 'path')),
             (r'^(\s*)(%)', bygroups(Whitespace, Percent), ('#pop', 'command')),
         ],
         'path': [
@@ -137,11 +143,11 @@ class PeekLexer(RegexLexer):
             (r'\S+', Literal, ('#pop', 'payload')),
         ],
         'payload': [
-            (r'(?s)(.*?)(\n[^\S]*\n)', bygroups(using(PayloadLexer), BlankLine), '#pop'),
+            (r'(?s)(.*?)(\n\s*\n)', bygroups(using(PayloadLexer), BlankLine), '#pop'),
             (r'(?s)(.*)', bygroups(using(PayloadLexer)), '#pop'),
         ],
         'command': [
-            (r'\S+', Name.Builtin, ('#pop', 'args')),
+            (r'\S+', SpecialFunc, ('#pop', 'args')),
             (r'\s+', Whitespace),
         ],
         'args': [

@@ -23,7 +23,7 @@ def test_content(response):
     # assert 'GitHub' in BeautifulSoup(response.content).title.string
 
 
-def test_multiple_commands():
+def test_multiple_stmts():
     text = """get abc
 
 post abc/_doc
@@ -34,14 +34,14 @@ post abc/_doc
 %conn foo=bar
 get abc
 """
-    batches = []
+    stmts = []
     peek = Peek(batch_mode=True)
-    peek.execute_command = lambda buf: batches.append(buf)
+    peek.execute_stmt = lambda stmt: stmts.append(stmt)
     peek.process_input(text)
 
-    assert batches == [
-        'get abc\n',
-        'post abc/_doc\n{ "foo":\n         "bar"\n}\n',
-        '%conn foo=bar\n',
-        'get abc\n',
+    assert [str(stmt) for stmt in stmts] == [
+        'GET /abc',
+        'POST /abc/_doc\n{ "foo" : "bar" }\n',
+        "%conn {'foo': 'bar'}",
+        'GET /abc',
     ]
