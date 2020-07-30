@@ -2,7 +2,7 @@ import ast
 import json
 import logging
 from abc import ABCMeta, abstractmethod
-from typing import Dict, Optional, List, NamedTuple
+from typing import List, NamedTuple, Iterable
 
 from pygments.token import Token, Whitespace, String, Comment, Literal, Keyword, Number, Name, _TokenType
 
@@ -21,18 +21,50 @@ class Stmt(metaclass=ABCMeta):
     def execute(self, vm):
         pass
 
+    @abstractmethod
+    def format_compact(self):
+        pass
+
+    @abstractmethod
+    def format_pretty(self):
+        pass
+
     def __repr__(self):
         return str(self)
 
 
 class SpecialStmt(Stmt):
 
-    def __init__(self, func_name: str, options: Dict):
-        self.func_name = func_name
-        self.options = options
+    def __init__(self, func_token: PeekToken, options_tokens: Iterable[PeekToken]):
+        self.func_token = func_token
+        self.options_tokens = options_tokens
+
+    @property
+    def func_name(self):
+        return self.func_token.value
+
+    @property
+    def options(self):
+        # TODO: more feature rich and robust argument parsing
+        options = {}
+        for t in self.options_tokens:
+            k, v = t.value.split('=', 1)
+            options[k] = v
+        return options
 
     def execute(self, vm):
         return vm.execute_special(self)
+
+    def format_compact(self):
+        # Always use the raw token here to preserve user input (case, quotes etc)
+        parts = ['%', self.func_token.value]
+        for option_token in self.options_tokens:
+            parts.append(option_token.value)
+        parts.append('\n')
+        return ' '.join(parts)
+
+    def format_pretty(self):
+        return self.format_compact()
 
     def __str__(self):
         return f'%{self.func_name} {self.options}'
@@ -40,13 +72,85 @@ class SpecialStmt(Stmt):
 
 class EsApiStmt(Stmt):
 
-    def __init__(self, method: str, path: str, payload: Optional[str]):
-        self.method = method
-        self.path = path if path.startswith('/') else ('/' + path)
-        self.payload = payload
+    def __init__(self,
+                 method_token: PeekToken,
+                 path_token: PeekToken,
+                 payload_tokens: List[List[PeekToken]]):
+        self.method_token = method_token
+        self.path_token = path_token
+        self.payload_tokens = payload_tokens
+
+    @property
+    def method(self):
+        return self.method_token.value.upper()
+
+    @property
+    def path(self):
+        return (self.path_token.value if self.path_token.value.startswith('/')
+                else ('/' + self.path_token.value))
+
+    @property
+    def payload(self):
+        lines = []
+        for tokens in self.payload_tokens:
+            parts = []
+            for t in tokens:
+                if t.ttype in (PayloadKey, String.Double, String.Single, TripleS, TripleD):
+                    parts.append(normalise_string(t.value))
+                else:
+                    parts.append(t.value)
+            lines.append(' '.join(parts))
+        return '\n'.join(lines) + '\n' if lines else None
 
     def execute(self, vm):
         return vm.execute_es_api_call(self)
+
+    def format_compact(self):
+        parts = [self.method_token.value, ' ', self.path_token.value, '\n']
+        for tokens in self.payload_tokens:
+            parts += [t.value for t in tokens]
+            parts.append('\n')
+        parts.append('\n')
+        return ''.join(parts)
+
+    def format_pretty(self):
+        parts = [self.method_token.value, ' ', self.path_token.value, '\n']
+        for tokens in self.payload_tokens:
+            parts += self._format_pretty_helper(tokens)
+        parts.append('\n')
+        return ''.join(parts)
+
+    def _format_pretty_helper(self, tokens: List[PeekToken]):
+        parts = []
+        indent_level = 0
+        for i, t in enumerate(tokens):
+            assert indent_level >= 0
+            # comma or colon always directly follow
+            if t.ttype is Comma:
+                parts += [t.value, '\n']
+            elif t.ttype is Colon:
+                parts += [t.value, ' ']
+            elif tokens[i - 1].ttype is Colon:  # single space after colon
+                parts += [t.value]
+            elif t.ttype not in (CurlyRight, BracketRight):
+                if indent_level > 0:
+                    parts.append('  ' * indent_level)
+                parts.append(t.value)
+
+            if t.ttype in (CurlyLeft, BracketLeft):
+                # We can be sure there is i+1 token since parser guarantees it
+                if tokens[i + 1].ttype not in (CurlyRight, BracketRight):
+                    parts.append('\n')
+                    indent_level += 1
+            elif t.ttype in (CurlyRight, BracketRight):
+                if tokens[i-1].ttype not in (CurlyLeft, BracketLeft):
+                    parts.append('\n')
+                    indent_level -= 1
+                    if indent_level > 0:
+                        parts.append('  ' * indent_level)
+                parts.append(t.value)
+        parts.append('\n')
+        return parts
 
     def __str__(self):
         return f'{self.method} {self.path}' + ('\n' + self.payload if self.payload else '')
@@ -100,7 +204,7 @@ class PeekParser:
                 title='Invalid HTTP method',
                 message=f'Expect HTTP method of value in {HTTP_METHODS!r}, got {method_token.value!r}')
         path_token = self._consume_token(Literal)
-        lines = []
+        payloads = []
         while True:
             try:
                 token = self._peek_token()
@@ -108,49 +212,52 @@ class PeekParser:
                     break
             except EOFError:
                 break
-            lines.append(' '.join(self._parse_json_object()))
-        return EsApiStmt(method_token.value.upper(), path_token.value,
-                         '\n'.join(lines) + '\n' if lines else None)
+            payloads.append(self._parse_json_object())
+        return EsApiStmt(method_token, path_token, payloads)
 
     def _parse_json_object(self):
-        parts = [self._consume_token(CurlyLeft).value]
+        tokens = [self._consume_token(CurlyLeft)]
         has_trailing_comma = False
         while self._peek_token().ttype is not CurlyRight:
-            has_trailing_comma = False
-            parts += self._parse_json_kv()
+            tokens += self._parse_json_kv()
             if self._peek_token().ttype is Comma:
                 has_trailing_comma = True
-                parts.append(self._consume_token(Comma).value)
+                tokens.append(self._consume_token(Comma))
+            else:
+                has_trailing_comma = False
+                break
 
         if has_trailing_comma:
-            parts.pop()
-        parts.append(self._consume_token(CurlyRight).value)
+            tokens.pop()
+        tokens.append(self._consume_token(CurlyRight))
 
-        return parts
+        return tokens
 
     def _parse_json_kv(self):
-        parts = [
-            normalise_string(self._consume_token(PayloadKey).value),
-            self._consume_token(Colon).value
+        tokens = [
+            self._consume_token(PayloadKey),
+            self._consume_token(Colon)
         ]
-        parts += self._parse_json_value()
-        return parts
+        tokens += self._parse_json_value()
+        return tokens
 
     def _parse_json_array(self):
-        parts = [self._consume_token(BracketLeft).value]
+        tokens = [self._consume_token(BracketLeft)]
         has_trailing_comma = False
         while self._peek_token().ttype is not BracketRight:
-            has_trailing_comma = False
-            parts += self._parse_json_value()
+            tokens += self._parse_json_value()
             if self._peek_token().ttype is Comma:
                 has_trailing_comma = True
-                parts.append(self._consume_token(Comma).value)
+                tokens.append(self._consume_token(Comma))
+            else:
+                has_trailing_comma = False
+                break
 
         if has_trailing_comma:
-            parts.pop()
-        parts.append(self._consume_token(BracketRight).value)
+            tokens.pop()
+        tokens.append(self._consume_token(BracketRight))
 
-        return parts
+        return tokens
 
     def _parse_json_value(self):
         token = self._peek_token()
@@ -159,27 +266,21 @@ class PeekParser:
         elif token.ttype is BracketLeft:
             return self._parse_json_array()
         elif token.ttype in Number or token.ttype is Name.Builtin:
-            return [self._consume_token(token.ttype).value]
+            return [self._consume_token(token.ttype)]
         elif token.ttype in (String.Double, String.Single, TripleS, TripleD):
-            return [normalise_string(self._consume_token(token.ttype).value)]
+            return [self._consume_token(token.ttype)]
         else:
             raise PeekSyntaxError(self.text, token)
 
     def _parse_special(self):
-        self._consume_token(Percent)
+        self._consume_token(Percent),
         func_token = self._consume_token(SpecialFunc)
-        arg_tokens = []
+        options_tokens = []
         while True:
             if self._peek_token().ttype is BlankLine:
                 break
-            arg_tokens.append(self._consume_token(Literal))
-
-        # TODO: more feature rich and robust argument parsing
-        options = {}
-        for t in arg_tokens:
-            k, v = t.value.split('=', 1)
-            options[k] = v
-        return SpecialStmt(func_token.value, options)
+            options_tokens.append(self._consume_token(Literal))
+        return SpecialStmt(func_token, options_tokens)
 
     def _peek_token(self) -> PeekToken:
         if self.position >= len(self.tokens):

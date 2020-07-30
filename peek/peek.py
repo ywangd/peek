@@ -34,6 +34,7 @@ class Peek:
                  config_file: str = None,
                  extra_config_options: List[str] = None):
         self._should_exit = False
+        self.is_pretty = False
         self.command = None
         self.config = get_config(config_file, extra_config_options)
         self._init_logging()

@@ -6,6 +6,8 @@ from prompt_toolkit.enums import DEFAULT_BUFFER
 from prompt_toolkit.filters import Condition, completion_is_selected, is_searching
 from prompt_toolkit.key_binding import KeyBindings
 
+from peek.errors import PeekSyntaxError
+
 _logger = logging.getLogger(__name__)
 
 SPECIAL_LEADING_CHAR = '%'
@@ -26,6 +28,18 @@ def key_bindings(repl):
     def _(event):
         repl.signal_exit()
         event.current_buffer.validate_and_handle()
+
+    @kb.add('f3')
+    def _(event):
+        _logger.debug('Reformatting')
+        try:
+            texts = []
+            for stmt in repl.parser.parse(event.current_buffer.text):
+                texts.append(stmt.format_pretty() if not repl.is_pretty else stmt.format_compact())
+            event.current_buffer.text = ''.join(texts)
+            repl.is_pretty = not repl.is_pretty
+        except (PeekSyntaxError, EOFError) as e:
+            _logger.debug(f'Cannot reformat for invalid/incomplete input: {e}')
 
     return kb
 

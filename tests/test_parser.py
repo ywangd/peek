@@ -154,3 +154,20 @@ qrs"""
         parser.parse(text)
 
     assert 'qrs' in str(e.value)
+
+
+def test_parser_invalid_missing_comma(parser):
+    text = """get abc
+{"a": 1 2,
+ "b": 5 }"""
+    with pytest.raises(PeekSyntaxError) as e:
+        parser.parse(text)
+
+    assert 'Expect token of type Token.Punctuation.Curly.Right, got Token.Literal.Number.Integer' in str(e.value)
+
+    text = """get abc
+{"a": [ 3 4 ]}"""
+    with pytest.raises(PeekSyntaxError) as e:
+        parser.parse(text)
+
+    assert 'Expect token of type Token.Punctuation.Bracket.Right, got Token.Literal.Number.Integer' in str(e.value)
