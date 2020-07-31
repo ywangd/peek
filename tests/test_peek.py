@@ -31,7 +31,7 @@ post abc/_doc
          "bar"
 }
 
-%conn foo=bar
+conn foo=bar
 get abc
 """
     stmts = []
@@ -42,6 +42,6 @@ get abc
     assert [str(stmt) for stmt in stmts] == [
         'GET /abc',
         'POST /abc/_doc\n{ "foo" : "bar" }\n',
-        "%conn {'foo': 'bar'}",
+        "conn {'foo': 'bar'}",
         'GET /abc',
     ]

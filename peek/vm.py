@@ -3,7 +3,7 @@ import logging
 from elasticsearch import Elasticsearch
 
 from peek.errors import PeekError
-from peek.parser import Stmt, SpecialStmt, EsApiStmt
+from peek.parser import Stmt, FuncCallStmt, EsApiStmt
 
 _logger = logging.getLogger(__name__)
 
@@ -44,10 +44,10 @@ class PeekVM:
     def execute_stmt(self, stmt: Stmt):
         return stmt.execute(self)
 
-    def execute_special(self, stmt: SpecialStmt):
-        _logger.debug(f'Attempt to execute special stmt: {stmt}')
+    def execute_func_call(self, stmt: FuncCallStmt):
+        _logger.debug(f'Attempt to execute function call: {stmt}')
         if stmt.func_name != 'conn':
-            raise PeekError(f'Unknown special function: {stmt.func_name!r}')
+            raise PeekError(f'Unknown function: {stmt.func_name!r}')
         self.es_client = EsClient(**stmt.options)
         return 'Success'
 

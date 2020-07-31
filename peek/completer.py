@@ -52,7 +52,7 @@ class PeekCompleter(Completer):
             return []
 
         elif len(tokens) == 1 and tokens[0] == Percent:
-            return self._complete_special(document, complete_event)
+            return self._complete_func_call(document, complete_event)
 
         elif len(tokens) == 1 and (tokens[0][0] + len(tokens[0][2]) >= document.cursor_position):
             _logger.debug('HTTP method completing')
@@ -86,8 +86,8 @@ class PeekCompleter(Completer):
         # TODO: payload completion
         return []
 
-    def _complete_special(self, document: Document, complete_event: CompleteEvent) -> Iterable[Completion]:
-        # TODO: special command completion
+    def _complete_func_call(self, document: Document, complete_event: CompleteEvent) -> Iterable[Completion]:
+        # TODO: function call completion
         return []
 
 

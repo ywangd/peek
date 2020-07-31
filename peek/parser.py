@@ -7,8 +7,8 @@ from typing import List, NamedTuple, Iterable
 from pygments.token import Token, Whitespace, String, Comment, Literal, Keyword, Number, Name, _TokenType
 
 from peek.errors import PeekSyntaxError
-from peek.lexers import PeekLexer, BlankLine, Percent, SpecialFunc, HTTP_METHODS, CurlyLeft, PayloadKey, Colon, \
-    CurlyRight, Comma, BracketLeft, BracketRight, TripleS, TripleD, EOF
+from peek.lexers import PeekLexer, BlankLine, Percent, HTTP_METHODS, CurlyLeft, PayloadKey, Colon, \
+    CurlyRight, Comma, BracketLeft, BracketRight, TripleS, TripleD, EOF, Variable
 
 _logger = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ class Stmt(metaclass=ABCMeta):
         return str(self)
 
 
-class SpecialStmt(Stmt):
+class FuncCallStmt(Stmt):
 
     def __init__(self, func_token: PeekToken, options_tokens: Iterable[PeekToken]):
         self.func_token = func_token
@@ -53,7 +53,7 @@ class SpecialStmt(Stmt):
         return options
 
     def execute(self, vm):
-        return vm.execute_special(self)
+        return vm.execute_func_call(self)
 
     def format_compact(self):
         # Always use the raw token here to preserve user input (case, quotes etc)
@@ -67,7 +67,7 @@ class SpecialStmt(Stmt):
         return self.format_compact()
 
     def __str__(self):
-        return f'%{self.func_name} {self.options}'
+        return f'{self.func_name} {self.options}'
 
 
 class EsApiStmt(Stmt):
@@ -182,8 +182,8 @@ class PeekParser:
             token = self._peek_token()
             if token.ttype is BlankLine:
                 self._consume_token(BlankLine)
-            elif token.ttype is Percent:
-                stmts.append(self._parse_special())
+            elif token.ttype is Variable:
+                stmts.append(self._parse_func_call())
             elif token.ttype is Keyword:
                 stmts.append(self._parse_es_api_call())
             else:
@@ -266,16 +266,15 @@ class PeekParser:
         else:
             raise PeekSyntaxError(self.text, token)
 
-    def _parse_special(self):
-        self._consume_token(Percent),
-        func_token = self._consume_token(SpecialFunc)
+    def _parse_func_call(self):
+        func_token = self._consume_token(Variable)
         options_tokens = []
         while self._peek_token().ttype is not EOF:
             if self._peek_token().ttype is BlankLine:
                 self._consume_token(BlankLine)
                 break
             options_tokens.append(self._consume_token(Literal))
-        return SpecialStmt(func_token, options_tokens)
+        return FuncCallStmt(func_token, options_tokens)
 
     def _peek_token(self) -> PeekToken:
         if self.position >= len(self.tokens):

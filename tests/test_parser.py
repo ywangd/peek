@@ -48,7 +48,7 @@ post abc/_doc
          "bar"
 }
 
-%conn foo=bar  // comment
+conn foo=bar  // comment
 get abc
 """
     stmts = parser.parse(text)

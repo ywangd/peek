@@ -4,7 +4,7 @@ from pygments.lexer import RegexLexer, words, include, bygroups, using
 from pygments.style import Style
 from pygments.token import Keyword, Literal, String, Number, Punctuation, Name, Comment, Whitespace, Generic, Error
 
-HTTP_METHODS = ('GET', 'POST', 'PUT', 'DELETE')
+from peek.common import HTTP_METHODS
 
 Percent = Punctuation.Percent
 CurlyLeft = Punctuation.Curly.Left
@@ -17,7 +17,7 @@ Heading = Generic.Heading
 TripleD = String.TripleD
 TripleS = String.TripleS
 BlankLine = Whitespace.BlankLine
-SpecialFunc = Name.SpecialFunc
+Variable = Name.Variable
 PayloadKey = String.Symbol
 EOF = Whitespace.EOF
 
@@ -31,7 +31,7 @@ class PeekStyle(Style):
         PayloadKey: '#bff',  # '#28b',
         String: '#395',
         Name.Builtin: '#77f',
-        SpecialFunc: '#77f',
+        Variable: '#77f',
         Number: '#07a',
         Heading: '#F6D845',
         Error: 'bg:#a40000',
@@ -137,7 +137,8 @@ class PeekLexer(RegexLexer):
             (r'//.*', Comment.Single),
             (r'\s+', Whitespace),
             (words(HTTP_METHODS, prefix=r'(?i)', suffix=r'\b'), Keyword, ('#pop', 'path')),
-            (r'^(\s*)(%)', bygroups(Whitespace, Percent), ('#pop', 'command')),
+            # TODO: more keywords
+            (r'[_a-zA-Z]+[_a-zA-Z0-9]*', Name.Variable, ('#pop', 'func_args')),
         ],
         'path': [
             (r'\s+', Whitespace),
@@ -147,11 +148,7 @@ class PeekLexer(RegexLexer):
             (r'(?s)(.*?)(\n\s*\n)', bygroups(using(PayloadLexer), BlankLine), '#pop'),
             (r'(?s)(.*)', bygroups(using(PayloadLexer)), '#pop'),
         ],
-        'command': [
-            (r'\S+', SpecialFunc, ('#pop', 'args')),
-            (r'\s+', Whitespace),
-        ],
-        'args': [
+        'func_args': [
             (r'\n', BlankLine, '#pop'),
             (r'//.*', Comment.Single),
             (r'\S+', Literal),
