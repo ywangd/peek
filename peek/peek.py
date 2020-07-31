@@ -92,18 +92,18 @@ class Peek:
                 self.execute_stmt(stmt)
             except PeekError as e:
                 print(e)
-            except Exception as e:
-                print(e)
-                # if getattr(e, 'info'):
-                #     print(e.info)
 
     def execute_stmt(self, stmt):
         if not self.batch_mode:
             print_formatted_text(OUTPUT_HEADER)
         response = self.vm.execute_stmt(stmt)
+        if response is None:
+            return
         try:
-            if self.config.as_bool('pretty_print'):
+            if isinstance(response, str) and self.config.as_bool('pretty_print'):
                 response = json.dumps(json.loads(response), indent=2)
+            elif isinstance(response, dict):
+                response = json.dumps(response, indent=2 if self.config.as_bool('pretty_print') else None)
             tokens = list(pygments.lex(response, lexer=PayloadLexer()))
             print_formatted_text(PygmentsTokens(tokens), style=style_from_pygments_cls(PeekStyle))
         except JSONDecodeError:
@@ -140,16 +140,4 @@ class Peek:
         root_logger.setLevel(log_level)
 
     def _init_vm(self):
-        auth = f'{self.config.get("username", "")}:{self.config.get("password", "")}'.strip()
-        if auth == ':':
-            auth = None
-
-        return PeekVM(
-            hosts=self.config.get('hosts', 'localhost:9200').split(','),
-            auth=auth,
-            use_ssl=self.config.as_bool('use_ssl'),
-            verify_certs=self.config.as_bool('verify_certs'),
-            ca_certs=self.config.get('ca_certs', None),
-            client_cert=self.config.get('client_cert', None),
-            client_key=self.config.get('client_key', None)
-        )
+        return PeekVM(self.config)

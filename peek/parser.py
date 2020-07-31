@@ -7,7 +7,7 @@ from typing import List, NamedTuple, Iterable
 from pygments.token import Token, Whitespace, String, Comment, Literal, Keyword, Number, Name, _TokenType
 
 from peek.errors import PeekSyntaxError
-from peek.lexers import PeekLexer, BlankLine, Percent, HTTP_METHODS, CurlyLeft, PayloadKey, Colon, \
+from peek.lexers import PeekLexer, BlankLine, HTTP_METHODS, CurlyLeft, PayloadKey, Colon, \
     CurlyRight, Comma, BracketLeft, BracketRight, TripleS, TripleD, EOF, Variable
 
 _logger = logging.getLogger(__name__)
