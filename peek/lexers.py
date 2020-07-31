@@ -114,13 +114,13 @@ class PayloadLexer(RegexLexer):
             (r"[^\\']+", TripleS),  # not cater for multiple line
         ],
         'numbers': [
-            (r'(\d+\.\d*|\d*\.\d+)([eE][+-]?[0-9]+)?j?', Number.Float),
-            (r'\d+[eE][+-]?[0-9]+j?', Number.Float),
-            (r'0[0-7]+j?', Number.Oct),
-            (r'0[bB][01]+', Number.Bin),
-            (r'0[xX][a-fA-F0-9]+', Number.Hex),
-            (r'\d+L', Number.Integer.Long),
-            (r'\d+j?', Number.Integer),
+            (r'[-+]?(\d+\.\d*|\d*\.\d+)([eE][+-]?[0-9]+)?j?', Number.Float),
+            (r'[-+]?\d+[eE][+-]?[0-9]+j?', Number.Float),
+            (r'[-+]?0[0-7]+j?', Number.Oct),
+            (r'[-+]?0[bB][01]+', Number.Bin),
+            (r'[-+]?0[xX][a-fA-F0-9]+', Number.Hex),
+            (r'[-+]?\d+L', Number.Integer.Long),
+            (r'[-+]?\d+j?', Number.Integer),
         ],
     }
 
