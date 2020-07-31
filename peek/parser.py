@@ -8,7 +8,7 @@ from pygments.token import Token, Whitespace, String, Comment, Literal, Keyword,
 
 from peek.errors import PeekSyntaxError
 from peek.lexers import PeekLexer, BlankLine, Percent, SpecialFunc, HTTP_METHODS, CurlyLeft, PayloadKey, Colon, \
-    CurlyRight, Comma, BracketLeft, BracketRight, TripleS, TripleD
+    CurlyRight, Comma, BracketLeft, BracketRight, TripleS, TripleD, EOF
 
 _logger = logging.getLogger(__name__)
 
@@ -143,7 +143,7 @@ class EsApiStmt(Stmt):
                     parts.append('\n')
                     indent_level += 1
             elif t.ttype in (CurlyRight, BracketRight):
-                if tokens[i-1].ttype not in (CurlyLeft, BracketLeft):
+                if tokens[i - 1].ttype not in (CurlyLeft, BracketLeft):
                     parts.append('\n')
                     indent_level -= 1
                     if indent_level > 0:
@@ -178,11 +178,8 @@ class PeekParser:
         self.tokens = process_tokens(unprocessed_tokens)
 
         stmts = []
-        while True:
-            try:
-                token = self._peek_token()
-            except EOFError:
-                break
+        while self._peek_token().ttype is not EOF:
+            token = self._peek_token()
             if token.ttype is BlankLine:
                 self._consume_token(BlankLine)
             elif token.ttype is Percent:
@@ -205,12 +202,9 @@ class PeekParser:
                 message=f'Expect HTTP method of value in {HTTP_METHODS!r}, got {method_token.value!r}')
         path_token = self._consume_token(Literal)
         payloads = []
-        while True:
-            try:
-                token = self._peek_token()
-                if token.ttype == BlankLine:
-                    break
-            except EOFError:
+        while self._peek_token().ttype is not EOF:
+            if self._peek_token().ttype is BlankLine:
+                self._consume_token(BlankLine)
                 break
             payloads.append(self._parse_json_object())
         return EsApiStmt(method_token, path_token, payloads)
@@ -276,15 +270,16 @@ class PeekParser:
         self._consume_token(Percent),
         func_token = self._consume_token(SpecialFunc)
         options_tokens = []
-        while True:
+        while self._peek_token().ttype is not EOF:
             if self._peek_token().ttype is BlankLine:
+                self._consume_token(BlankLine)
                 break
             options_tokens.append(self._consume_token(Literal))
         return SpecialStmt(func_token, options_tokens)
 
     def _peek_token(self) -> PeekToken:
         if self.position >= len(self.tokens):
-            raise EOFError()
+            return PeekToken(len(self.text), EOF, '\0')
         return self.tokens[self.position]
 
     def _consume_token(self, ttype, value=None) -> PeekToken:

@@ -19,6 +19,7 @@ TripleS = String.TripleS
 BlankLine = Whitespace.BlankLine
 SpecialFunc = Name.SpecialFunc
 PayloadKey = String.Symbol
+EOF = Whitespace.EOF
 
 
 class PeekStyle(Style):

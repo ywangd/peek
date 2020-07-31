@@ -171,3 +171,12 @@ def test_parser_invalid_missing_comma(parser):
         parser.parse(text)
 
     assert 'Expect token of type Token.Punctuation.Bracket.Right, got Token.Literal.Number.Integer' in str(e.value)
+
+
+def test_parser_incomplete(parser):
+    text = """get
+"""
+    with pytest.raises(PeekSyntaxError) as e:
+        parser.parse(text)
+
+    assert 'Expect token of type Token.Literal, got Token.Text.Whitespace.EOF' in str(e.value)

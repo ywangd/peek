@@ -2,6 +2,7 @@ import logging
 import os
 
 from prompt_toolkit.application import get_app
+from prompt_toolkit.buffer import ValidationState
 from prompt_toolkit.enums import DEFAULT_BUFFER
 from prompt_toolkit.filters import Condition, completion_is_selected, is_searching
 from prompt_toolkit.key_binding import KeyBindings
@@ -27,6 +28,8 @@ def key_bindings(repl):
     @kb.add('c-d')
     def _(event):
         repl.signal_exit()
+        # Short circuit the validation
+        event.current_buffer.validation_state = ValidationState.VALID
         event.current_buffer.validate_and_handle()
 
     @kb.add('f3')
@@ -38,7 +41,7 @@ def key_bindings(repl):
                 texts.append(stmt.format_pretty() if not repl.is_pretty else stmt.format_compact())
             event.current_buffer.text = ''.join(texts)
             repl.is_pretty = not repl.is_pretty
-        except (PeekSyntaxError, EOFError) as e:
+        except PeekSyntaxError as e:
             _logger.debug(f'Cannot reformat for invalid/incomplete input: {e}')
 
     return kb
