@@ -13,10 +13,10 @@ from peek.errors import PeekSyntaxError
 _logger = logging.getLogger(__name__)
 
 
-def key_bindings(repl):
+def key_bindings(app):
     kb = KeyBindings()
 
-    @kb.add('enter', filter=~(completion_is_selected | is_searching) & buffer_should_be_handled(repl))
+    @kb.add('enter', filter=~(completion_is_selected | is_searching) & buffer_should_be_handled(app))
     def _(event):
         event.current_buffer.validate_and_handle()
 
@@ -26,27 +26,27 @@ def key_bindings(repl):
 
     @kb.add('c-d')
     def _(event):
-        repl.signal_exit()
+        app.signal_exit()
         # Short circuit the validation
         event.current_buffer.validation_state = ValidationState.VALID
         event.current_buffer.validate_and_handle()
 
     @kb.add('f3')
     def _(event):
-        _logger.debug('Reformatting')
+        _logger.debug('Reformatting payload json')
         try:
             texts = []
-            for stmt in repl.parser.parse(event.current_buffer.text):
-                texts.append(stmt.format_pretty() if not repl.is_pretty else stmt.format_compact())
+            for stmt in app.parser.parse(event.current_buffer.text):
+                texts.append(stmt.format_pretty() if not app.is_pretty else stmt.format_compact())
             event.current_buffer.text = ''.join(texts)
-            repl.is_pretty = not repl.is_pretty
+            app.is_pretty = not app.is_pretty
         except PeekSyntaxError as e:
             _logger.debug(f'Cannot reformat for invalid/incomplete input: {e}')
 
     return kb
 
 
-def buffer_should_be_handled(repl):
+def buffer_should_be_handled(app):
     @Condition
     def cond():
         doc = get_app().layout.get_buffer_by_name(DEFAULT_BUFFER).document

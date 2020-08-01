@@ -4,7 +4,7 @@
 
 import pytest
 
-from peek.peek import Peek
+from peek.peekapp import PeekApp
 
 
 @pytest.fixture
@@ -35,7 +35,7 @@ conn foo=bar
 get abc
 """
     stmts = []
-    peek = Peek(batch_mode=True)
+    peek = PeekApp(batch_mode=True)
     peek.execute_stmt = lambda stmt: stmts.append(stmt)
     peek.process_input(text)
 

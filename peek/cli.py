@@ -3,7 +3,7 @@ import argparse
 import sys
 
 from peek.config import config_location
-from peek.peek import Peek
+from peek.peekapp import PeekApp
 
 
 def main():
@@ -15,13 +15,41 @@ def main():
 
     parser.add_argument('-e', '--extra-config-option', action='append',
                         help='Extra configuration option to override')
-    args = parser.parse_args()
+
+    parser.add_argument('--hosts', default='localhsot:9200',
+                        help='ES hosts to connect to')
+    parser.add_argument('--auth_type', default='userpass',
+                        choices=('userpass', 'apikey', 'token', 'saml', 'oidc', 'krb', 'pki'),
+                        help='Authentication type')
+    parser.add_argument('--username',
+                        help='Username')
+    parser.add_argument('--password',
+                        help='Password')
+    parser.add_argument('--api_key',
+                        help='API key of format id:key')
+    parser.add_argument('--use_ssl', action='store_true',
+                        help='Enable TLS for connecting to ES')
+    parser.add_argument('--verify_certs', action='store_true',
+                        help='Verify server certificate')
+    parser.add_argument('--ca_certs',
+                        help='Location of CA certificates')
+    parser.add_argument('--client_cert',
+                        help='Location of client certificate')
+    parser.add_argument('--client_key',
+                        help='Location of client private key')
+    parser.add_argument('--force_prompt', action='store_true',
+                        help='Force prompting for password')
+    parser.add_argument('--no_prompt', action='store_true',
+                        help='Do not prompt for password')
+
+    ns = parser.parse_args()
 
     isatty = sys.stdin.isatty()
-    peek = Peek(
+    peek = PeekApp(
         batch_mode=not isatty,
-        config_file=args.config,
-        extra_config_options=args.extra_config_option
+        config_file=ns.config,
+        extra_config_options=ns.extra_config_option,
+        cli_ns=ns,
     )
     if isatty:
         peek.run()

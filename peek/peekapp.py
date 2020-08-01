@@ -6,7 +6,10 @@ from json import JSONDecodeError
 from typing import List
 
 import pygments
-from prompt_toolkit import PromptSession, print_formatted_text
+from peek.common import NONE_NS
+from peek.connection import AuthType
+from peek.variables import func_conn
+from prompt_toolkit import PromptSession, print_formatted_text, prompt
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.formatted_text import PygmentsTokens, FormattedText
 from prompt_toolkit.lexers import PygmentsLexer
@@ -27,42 +30,31 @@ INPUT_HEADER = [(PeekStyle.styles[Heading], '>>>\n')]
 OUTPUT_HEADER = FormattedText([(PeekStyle.styles[Heading], '===')])
 
 
-class Peek:
+class PeekApp:
 
     def __init__(self,
                  batch_mode=False,
                  config_file: str = None,
-                 extra_config_options: List[str] = None):
+                 extra_config_options: List[str] = None,
+                 cli_ns=NONE_NS):
         self._should_exit = False
-        self.is_pretty = False
-        self.command = None
-        self.config = get_config(config_file, extra_config_options)
-        self._init_logging()
         self.batch_mode = batch_mode
-        if self.batch_mode:
-            self.session = None
-        else:
-            self.session = PromptSession(
-                message=self._get_message(),
-                style=style_from_pygments_cls(PeekStyle),
-                lexer=PygmentsLexer(PeekLexer),
-                auto_suggest=AutoSuggestFromHistory(),
-                completer=PeekCompleter(),
-                history=SqLiteHistory(),
-                multiline=True,
-                key_bindings=key_bindings(self),
-                enable_open_in_editor=True,
-                enable_system_prompt=True,
-                enable_suspend=True,
-                search_ignore_case=True,
-            )
+        self.config = get_config(config_file, extra_config_options)
+        self.cli_ns = cli_ns
+        self._init_logging()
+        self.prompt = self._init_prompt()
         self.parser = PeekParser()
+        self.es_client_manager = EsClientManger()
+        self._init_es_client()
         self.vm = self._init_vm()
+
+        # TODO: better name for signal payload json reformat
+        self.is_pretty = True
 
     def run(self):
         while True:
             try:
-                text: str = self.session.prompt()
+                text: str = self.prompt.prompt()
                 _logger.debug(f'input: {repr(text)}')
                 if self._should_exit:
                     raise EOFError()
@@ -112,6 +104,16 @@ class Peek:
     def signal_exit(self):
         self._should_exit = True
 
+    def add_es_client(self, es_client):
+        self.es_client_manager.add(es_client)
+
+    @property
+    def es_client(self):
+        return self.es_client_manager.current()
+
+    def request_input(self, message='', is_secret=False):
+        return prompt(message=message, is_password=is_secret)
+
     def _get_message(self):
         return INPUT_HEADER
 
@@ -139,5 +141,61 @@ class Peek:
         root_logger.addHandler(handler)
         root_logger.setLevel(log_level)
 
+    def _init_prompt(self):
+        if self.batch_mode:
+            return None
+        else:
+            return PromptSession(
+                message=self._get_message(),
+                style=style_from_pygments_cls(PeekStyle),
+                lexer=PygmentsLexer(PeekLexer),
+                auto_suggest=AutoSuggestFromHistory(),
+                completer=PeekCompleter(),
+                history=SqLiteHistory(),
+                multiline=True,
+                key_bindings=key_bindings(self),
+                enable_open_in_editor=True,
+                enable_system_prompt=True,
+                enable_suspend=True,
+                search_ignore_case=True,
+            )
+
+    def _init_es_client(self):
+        func_conn(
+            self,
+            hosts=self.cli_ns.hosts,
+            auth_type=AuthType.USERPASS if self.cli_ns.auth_type is None else AuthType(self.cli_ns.auth_type.upper()),
+            username=self.cli_ns.username,
+            password=self.cli_ns.password,
+            api_key=self.cli_ns.api_key,
+            use_ssl=self.cli_ns.use_ssl,
+            verify_certs=self.cli_ns.verify_certs,
+            ca_certs=self.cli_ns.ca_certs,
+            client_cert=self.cli_ns.client_cert,
+            client_key=self.cli_ns.client_key,
+            force_prompt=self.cli_ns.force_prompt,
+            no_prompt=self.cli_ns.no_prompt,
+        )
+
     def _init_vm(self):
-        return PeekVM(self.config)
+        return PeekVM(self)
+
+
+class EsClientManger:
+
+    def __init__(self):
+        self._clients = []
+        self._current = None
+
+    def add(self, client):
+        self._clients.append(client)
+        self._current = len(self._clients) - 1
+        # TODO: maintain size
+
+    def current(self):
+        if self._current is None:
+            raise PeekError('No ES client is configured')
+        if self._current < 0 or self._current >= len(self._clients):
+            raise PeekError(f'Attempt to get ES client at invalid index {self._current} out of {self._clients}')
+        return self._clients[self._current]
+
