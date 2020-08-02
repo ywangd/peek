@@ -1,28 +1,25 @@
 """Main module."""
-import json
 import logging
 import sys
-from json import JSONDecodeError
 from typing import List
 
-import pygments
 from peek.common import NONE_NS
-from peek.connection import AuthType
-from peek.variables import func_conn
-from prompt_toolkit import PromptSession, print_formatted_text, prompt
-from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
-from prompt_toolkit.formatted_text import PygmentsTokens, FormattedText
-from prompt_toolkit.lexers import PygmentsLexer
-from prompt_toolkit.styles import style_from_pygments_cls
-
 from peek.completer import PeekCompleter
 from peek.config import get_config, config_location
+from peek.connection import AuthType
+from peek.display import Display
 from peek.errors import PeekError, PeekSyntaxError
 from peek.history import SqLiteHistory
 from peek.key_bindings import key_bindings
-from peek.lexers import PeekLexer, PeekStyle, PayloadLexer, Heading
+from peek.lexers import PeekLexer, PeekStyle, Heading
 from peek.parser import PeekParser
+from peek.variables import func_conn
 from peek.vm import PeekVM
+from prompt_toolkit import PromptSession, print_formatted_text, prompt
+from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
+from prompt_toolkit.formatted_text import FormattedText
+from prompt_toolkit.lexers import PygmentsLexer
+from prompt_toolkit.styles import style_from_pygments_cls
 
 _logger = logging.getLogger(__name__)
 
@@ -43,6 +40,7 @@ class PeekApp:
         self.cli_ns = cli_ns
         self._init_logging()
         self.prompt = self._init_prompt()
+        self.display = Display(self)
         self.parser = PeekParser()
         self.es_client_manager = EsClientManger()
         self._init_es_client()
@@ -89,17 +87,7 @@ class PeekApp:
         if not self.batch_mode:
             print_formatted_text(OUTPUT_HEADER)
         response = self.vm.execute_stmt(stmt)
-        if response is None:
-            return
-        try:
-            if isinstance(response, str) and self.config.as_bool('pretty_print'):
-                response = json.dumps(json.loads(response), indent=2)
-            elif isinstance(response, dict):
-                response = json.dumps(response, indent=2 if self.config.as_bool('pretty_print') else None)
-            tokens = list(pygments.lex(response, lexer=PayloadLexer()))
-            print_formatted_text(PygmentsTokens(tokens), style=style_from_pygments_cls(PeekStyle))
-        except JSONDecodeError:
-            print(response)
+        self.display.show(response)
 
     def signal_exit(self):
         self._should_exit = True

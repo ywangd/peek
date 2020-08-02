@@ -1,4 +1,6 @@
 import logging
+import os
+import sys
 
 from peek.errors import PeekError
 from peek.parser import Stmt, FuncCallStmt, EsApiStmt
@@ -12,7 +14,7 @@ class PeekVM:
     def __init__(self, app):
         self.app = app
         self.variables = {}
-        self._load_variables(None)  # TODO
+        self._load_variables()  # TODO
         # Load builtin variables last so they won't be overridden
         self.variables.update(VARIABLES)
 
@@ -41,9 +43,40 @@ class PeekVM:
                 return str(e.info)
             return str(e)
 
-    def _load_variables(self, path):
+    def _load_variables(self):
         """
-        Load extra variables from given path
+        Load extra variables from external paths
         """
-        pass
+        extension_path = self.app.config['extension_path']
+        if not extension_path:
+            return
 
+        sys_path = sys.path[:]
+        try:
+            for p in extension_path.split(':'):
+                if os.path.isfile(p):
+                    self._load_one_extension(p)
+                elif os.path.isdir(p):
+                    for f in os.listdir(p):
+                        if not f.endswith('.py'):
+                            continue
+                        self._load_one_extension(f)
+        finally:
+            sys.path = sys_path
+
+    def _load_one_extension(self, p):
+        import importlib
+        fields = os.path.splitext(p)
+        if len(fields) != 2 or fields[1] != '.py':
+            _logger.warning(f'Extension must be python files, got: {p}')
+            return
+        sys.path.insert(0, os.path.dirname(fields[0]))
+        try:
+            m = importlib.import_module(os.path.basename(fields[0]))
+            if isinstance(m.EXPORTS, dict):
+                self.variables.update(m.EXPORTS)
+                _logger.info(f'Loaded extension: {p!r}')
+            else:
+                _logger.warning(f'Ignore extension {p!r} since EXPORTS is not a dict, but: {m.EXPORTS!r}')
+        except Exception as e:
+            _logger.warning(f'Error on loading extension: {p!r}, {e}')

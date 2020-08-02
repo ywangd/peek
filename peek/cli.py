@@ -25,21 +25,21 @@ def main():
                         help='Username')
     parser.add_argument('--password',
                         help='Password')
-    parser.add_argument('--api_key',
+    parser.add_argument('--api-key',
                         help='API key of format id:key')
-    parser.add_argument('--use_ssl', action='store_true',
+    parser.add_argument('--use-ssl', action='store_true',
                         help='Enable TLS for connecting to ES')
-    parser.add_argument('--verify_certs', action='store_true',
+    parser.add_argument('--verify-certs', action='store_true',
                         help='Verify server certificate')
-    parser.add_argument('--ca_certs',
+    parser.add_argument('--ca-certs',
                         help='Location of CA certificates')
-    parser.add_argument('--client_cert',
+    parser.add_argument('--client-cert',
                         help='Location of client certificate')
-    parser.add_argument('--client_key',
+    parser.add_argument('--client-key',
                         help='Location of client private key')
-    parser.add_argument('--force_prompt', action='store_true',
+    parser.add_argument('--force-prompt', action='store_true',
                         help='Force prompting for password')
-    parser.add_argument('--no_prompt', action='store_true',
+    parser.add_argument('--no-prompt', action='store_true',
                         help='Do not prompt for password')
 
     ns = parser.parse_args()

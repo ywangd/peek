@@ -91,23 +91,23 @@ def _connect_userpass(app, **options):
     if not username and password:
         raise PeekError(f'Username is required for userpass authentication')
 
-    if username and not password:
-        if options['force_prompt']:
-            password = app.request_input(message='Please enter password: ', is_secret=True)
-        else:
-            password = os.environ.get('PEEK_PASSWORD', None)
-            if not password:
-                if app.config.as_bool('use_keyring'):
-                    password = _keyring(service_name, username)
-                    if not password:
-                        if options['no_prompt']:
-                            raise PeekError('Password is not found and password prompt is disabled')
-                        password = app.request_input(message='Please enter password: ', is_secret=True)
+    if options['force_prompt']:
+        password = app.request_input(message='Please enter password: ', is_secret=True)
 
-                else:
+    if username and not password:
+        password = os.environ.get('PEEK_PASSWORD', None)
+        if not password:
+            if app.config.as_bool('use_keyring'):
+                password = _keyring(service_name, username)
+                if not password:
                     if options['no_prompt']:
                         raise PeekError('Password is not found and password prompt is disabled')
                     password = app.request_input(message='Please enter password: ', is_secret=True)
+
+            else:
+                if options['no_prompt']:
+                    raise PeekError('Password is not found and password prompt is disabled')
+                password = app.request_input(message='Please enter password: ', is_secret=True)
 
     auth = f'{username}:{password}' if username and password else None
 
