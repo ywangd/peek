@@ -16,7 +16,7 @@ def main():
     parser.add_argument('-e', '--extra-config-option', action='append',
                         help='Extra configuration option to override')
 
-    parser.add_argument('--hosts', default='localhsot:9200',
+    parser.add_argument('--hosts', default='localhost:9200',
                         help='ES hosts to connect to')
     parser.add_argument('--auth_type', default='userpass',
                         choices=('userpass', 'apikey', 'token', 'saml', 'oidc', 'krb', 'pki'),

@@ -13,7 +13,7 @@ from peek.history import SqLiteHistory
 from peek.key_bindings import key_bindings
 from peek.lexers import PeekLexer, PeekStyle, Heading
 from peek.parser import PeekParser
-from peek.variables import func_conn
+from peek.names import func_connect
 from peek.vm import PeekVM
 from prompt_toolkit import PromptSession, print_formatted_text, prompt
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
@@ -149,7 +149,7 @@ class PeekApp:
             )
 
     def _init_es_client(self):
-        func_conn(
+        func_connect(
             self,
             hosts=self.cli_ns.hosts,
             auth_type=AuthType.USERPASS if self.cli_ns.auth_type is None else AuthType(self.cli_ns.auth_type.upper()),
@@ -187,3 +187,5 @@ class EsClientManger:
             raise PeekError(f'Attempt to get ES client at invalid index {self._current} out of {self._clients}')
         return self._clients[self._current]
 
+    def clients(self):
+        return self._clients

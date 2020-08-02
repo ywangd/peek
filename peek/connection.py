@@ -46,6 +46,16 @@ class EsClient:
         finally:
             self.es.transport.deserializer = deserializer
 
+    def __str__(self):
+        hosts = self.es.transport.hosts
+        if not hosts:
+            return f'localhost:9200'
+        host = hosts[0]
+        use_ssl = host.get("use_ssl")
+        port = host.get('port', '443' if use_ssl else '9200')
+        url = f'{"https" if use_ssl else "http"}://{host["host"]}:{port}'
+        return url
+
 
 class AuthType(Enum):
     USERPASS = 'USERPASS'

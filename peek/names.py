@@ -1,6 +1,7 @@
 import logging
 
 from configobj import ConfigObj
+
 from peek.connection import connect
 
 _logger = logging.getLogger(__name__)
@@ -32,11 +33,19 @@ def func_config(app, **options):
     app.config.merge(ConfigObj(extra_config))
 
 
-def func_conn(app, **options):
+def func_connect(app, **options):
     app.add_es_client(connect(app, **options))
 
 
-VARIABLES = {
-    'connect': func_conn,
+def func_connections(app, **options):
+    lines = []
+    for client in app.es_client_manager.clients():
+        lines.append(('* ' if client == app.es_client_manager.current() else '  ') + str(client))
+    return '\n'.join(lines)
+
+
+NAMES = {
+    'connect': func_connect,
     'config': func_config,
+    'connections': func_connections,
 }
