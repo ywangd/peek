@@ -1,8 +1,10 @@
+import json
 import logging
 
 from configobj import ConfigObj
 
 from peek.connection import connect
+from peek.saml import saml_authenticate
 
 _logger = logging.getLogger(__name__)
 
@@ -44,8 +46,20 @@ def func_connections(app, **options):
     return '\n'.join(lines)
 
 
+def func_saml_authenticate(app, **options):
+    realm = options.get('realm', 'saml1')
+    saml_es_client = saml_authenticate(
+        app.es_client_manager.current(),
+        realm,
+        options.get('callback_port', '15601'),
+    )
+    app.add_es_client(saml_es_client)
+    return json.dumps({'username': saml_es_client.username, 'realm': 'realm'})
+
+
 NAMES = {
     'connect': func_connect,
     'config': func_config,
     'connections': func_connections,
+    'saml_authenticate': func_saml_authenticate,
 }

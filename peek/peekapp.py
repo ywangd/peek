@@ -6,7 +6,7 @@ from typing import List
 from peek.common import NONE_NS
 from peek.completer import PeekCompleter
 from peek.config import get_config, config_location
-from peek.connection import AuthType
+from peek.connection import AuthType, EsClientManger
 from peek.display import Display
 from peek.errors import PeekError, PeekSyntaxError
 from peek.history import SqLiteHistory
@@ -168,24 +168,3 @@ class PeekApp:
     def _init_vm(self):
         return PeekVM(self)
 
-
-class EsClientManger:
-
-    def __init__(self):
-        self._clients = []
-        self._current = None
-
-    def add(self, client):
-        self._clients.append(client)
-        self._current = len(self._clients) - 1
-        # TODO: maintain size
-
-    def current(self):
-        if self._current is None:
-            raise PeekError('No ES client is configured')
-        if self._current < 0 or self._current >= len(self._clients):
-            raise PeekError(f'Attempt to get ES client at invalid index {self._current} out of {self._clients}')
-        return self._clients[self._current]
-
-    def clients(self):
-        return self._clients
