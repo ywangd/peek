@@ -32,7 +32,8 @@ class PeekSyntaxError(PeekError):
 
         return f'{self.title} at Line {line_index + 1}, Column {col_index + 1}:\n' \
                f'{line}\n' \
-               f'{"^" * len(self.error_token.value):>{col_index + 1}}' \
+               f'{" " * col_index}' \
+               f'{"^" * len(self.error_token.value)}' \
                f'{os.linesep + self.message if self.message else ""}'
 
 

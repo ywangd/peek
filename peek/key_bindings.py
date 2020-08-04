@@ -43,6 +43,104 @@ def key_bindings(app):
         except PeekSyntaxError as e:
             _logger.debug(f'Cannot reformat for invalid/incomplete input: {e}')
 
+    # par-editing is a shamelessly copy from https://github.com/nicolewhite/cycli/blob/master/cycli/binder.py
+    @kb.add("{")
+    def curly_left(event):
+        b = event.current_buffer
+        b.insert_text("{")
+        b.insert_text("}", move_cursor=False)
+
+    @kb.add("}")
+    def curly_right(event):
+        b = event.current_buffer
+        char = b.document.current_char
+
+        if char == "}":
+            b.cursor_right()
+        else:
+            b.insert_text("}")
+
+    @kb.add("(")
+    def paren_left(event):
+        b = event.current_buffer
+        b.insert_text("(")
+        b.insert_text(")", move_cursor=False)
+
+    @kb.add(")")
+    def paren_right(event):
+        b = event.current_buffer
+        char = b.document.current_char
+
+        if char == ")":
+            b.cursor_right()
+        else:
+            b.insert_text(")")
+
+    @kb.add("[")
+    def bracket_left(event):
+        b = event.current_buffer
+        b.insert_text("[")
+        b.insert_text("]", move_cursor=False)
+
+    @kb.add("]")
+    def bracket_right(event):
+        b = event.current_buffer
+        char = b.document.current_char
+
+        if char == "]":
+            b.cursor_right()
+        else:
+            b.insert_text("]")
+
+    @kb.add("'")
+    def apostrophe(event):
+        b = event.current_buffer
+        char = b.document.current_char
+
+        if char == "'":
+            b.cursor_right()
+        else:
+            b.insert_text("'")
+            b.insert_text("'", move_cursor=False)
+
+    @kb.add("\"")
+    def quote(event):
+        b = event.current_buffer
+        char = b.document.current_char
+
+        if char == "\"":
+            b.cursor_right()
+        else:
+            b.insert_text("\"")
+            b.insert_text("\"", move_cursor=False)
+
+    @kb.add("`")
+    def backtick(event):
+        b = event.current_buffer
+        char = b.document.current_char
+
+        if char == "`":
+            b.cursor_right()
+        else:
+            b.insert_text("`")
+            b.insert_text("`", move_cursor=False)
+
+    @kb.add('c-h')  # backspace
+    def backspace(event):
+        b = event.current_buffer
+        current_char = b.document.current_char
+        before_char = b.document.char_before_cursor
+
+        patterns = [("(", ")"), ("[", "]"), ("{", "}"), ("'", "'"), ('"', '"'), ("`", "`")]
+
+        for pattern in patterns:
+            if before_char == pattern[0] and current_char == pattern[1]:
+                b.cursor_right()
+                b.delete_before_cursor(2)
+                return
+
+        b.delete_before_cursor()
+
     return kb
 
 
