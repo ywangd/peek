@@ -5,6 +5,8 @@ from abc import ABCMeta, abstractmethod
 from enum import Enum
 
 from elasticsearch import Elasticsearch, AuthenticationException
+from urllib3 import Timeout
+
 from peek.errors import PeekError
 
 _logger = logging.getLogger(__name__)
@@ -58,6 +60,7 @@ class EsClient(BaseClient):
             client_cert=client_cert,
             client_key=client_key,
             ssl_show_warn=False,
+            timeout=Timeout(connect=None, read=None),
             **kwargs,
         )
 
@@ -162,8 +165,6 @@ class EsClientManger:
 
     def clients(self):
         return self._clients
-
-
 
 
 class AuthType(Enum):
