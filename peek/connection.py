@@ -146,15 +146,24 @@ class EsClientManger:
         self._current = len(self._clients) - 1
         # TODO: maintain size
 
+    @property
     def current(self):
         if self._current is None:
             raise PeekError('No ES client is configured')
         if self._current < 0 or self._current >= len(self._clients):
-            raise PeekError(f'Attempt to get ES client at invalid index {self._current} out of {self._clients}')
+            raise PeekError(f'Attempt to get ES client at invalid index [{self._current}]')
         return self._clients[self._current]
+
+    @current.setter
+    def current(self, i):
+        if i < 0 or i >= len(self._clients):
+            raise PeekError(f'Attempt to set ES client at invalid index [{i}]')
+        self._current = i
 
     def clients(self):
         return self._clients
+
+
 
 
 class AuthType(Enum):

@@ -6,7 +6,7 @@ from typing import List, NamedTuple, Iterable
 
 from pygments.token import Token, Whitespace, String, Comment, Literal, Keyword, Number, Name, _TokenType
 
-from peek.errors import PeekSyntaxError
+from peek.errors import PeekSyntaxError, PeekError
 from peek.lexers import PeekLexer, BlankLine, HTTP_METHODS, CurlyLeft, PayloadKey, Colon, \
     CurlyRight, Comma, BracketLeft, BracketRight, TripleS, TripleD, EOF, Variable
 
@@ -48,7 +48,10 @@ class FuncCallStmt(Stmt):
         # TODO: more feature rich and robust argument parsing
         options = {}
         for t in self.options_tokens:
-            k, v = t.value.split('=', 1)
+            try:
+                k, v = t.value.split('=', 1)
+            except ValueError as e:
+                raise PeekError(e)
             options[k] = v
         return options
 

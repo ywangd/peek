@@ -26,10 +26,9 @@ class PeekVM:
         if not callable(func):
             raise PeekError(f'{stmt.func_name!r} is not a callable, but a {func!r}')
         try:
-            result = func(self.app, **stmt.options)
-            return str(result) if result else None
+            return func(self.app, **stmt.options)
         except Exception as e:
-            return str(e)
+            return e
 
     def execute_es_api_call(self, stmt: EsApiStmt):
         _logger.debug(f'Attempt to execute ES API call: {stmt}')
@@ -37,8 +36,8 @@ class PeekVM:
             return self.app.es_client.perform_request(stmt.method, stmt.path, stmt.payload)
         except Exception as e:
             if getattr(e, 'info', None):
-                return str(e.info)
-            return str(e)
+                return e.info
+            return e
 
     def _get_value_for_name(self, name):
         value = self.builtin_names.get(name)

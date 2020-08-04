@@ -32,6 +32,7 @@ def func_config(app, **options):
         if isinstance(parent, dict):
             parent[key_components[-1]] = value
 
+    # TODO: saner merge that does not change data type, e.g. from dict to primitive and vice versa
     app.config.merge(ConfigObj(extra_config))
 
 
@@ -41,17 +42,22 @@ def func_connect(app, **options):
 
 def func_connections(app, **options):
     lines = []
-    for client in app.es_client_manager.clients():
-        lines.append(('* ' if client == app.es_client_manager.current() else '  ') + str(client))
+    if 'current' in options:
+        app.es_client_manager.current = int(options['current'])
+
+    for i, client in enumerate(app.es_client_manager.clients()):
+        prefix = '*' if client == app.es_client_manager.current else ' '
+        index = f'[{i}]'
+        lines.append(f'{prefix} {index:>4} {client}')
     return '\n'.join(lines)
 
 
 def func_saml_authenticate(app, **options):
     realm = options.get('realm', 'saml1')
     saml_es_client = saml_authenticate(
-        app.es_client_manager.current(),
+        app.es_client,
         realm,
-        options.get('callback_port', '15601'),
+        options.get('callback_port', '5601'),
     )
     app.add_es_client(saml_es_client)
     return json.dumps({'username': saml_es_client.username, 'realm': 'realm'})

@@ -97,7 +97,7 @@ class PeekApp:
 
     @property
     def es_client(self):
-        return self.es_client_manager.current()
+        return self.es_client_manager.current
 
     def request_input(self, message='', is_secret=False):
         return prompt(message=message, is_password=is_secret)
