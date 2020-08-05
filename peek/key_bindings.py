@@ -8,7 +8,7 @@ from prompt_toolkit.filters import Condition, completion_is_selected, is_searchi
 from prompt_toolkit.key_binding import KeyBindings
 
 from peek.common import HTTP_METHODS
-from peek.errors import PeekSyntaxError
+from peek.errors import PeekSyntaxError, PeekError
 
 _logger = logging.getLogger(__name__)
 
@@ -42,6 +42,18 @@ def key_bindings(app):
             app.is_pretty = not app.is_pretty
         except PeekSyntaxError as e:
             _logger.debug(f'Cannot reformat for invalid/incomplete input: {e}')
+
+    def switch_connection(event):
+        _logger.debug(f'switching to connection: {event.key_sequence[1].key}')
+        try:
+            app.es_client_manager.current = int(event.key_sequence[1].key)
+            app.preserved_text = event.current_buffer.text
+            event.current_buffer.reset()
+            event.current_buffer.validate_and_handle()
+        except PeekError as e:
+            app.display.show(e)
+    for i in range(5):
+        kb.add('escape', f'{i}')(switch_connection)
 
     # par-editing is a shamelessly copy from https://github.com/nicolewhite/cycli/blob/master/cycli/binder.py
     @kb.add("{")

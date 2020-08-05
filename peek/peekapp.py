@@ -3,6 +3,9 @@ import logging
 import sys
 from typing import List
 
+from prompt_toolkit.application import get_app
+from prompt_toolkit.enums import DEFAULT_BUFFER
+
 from peek.common import NONE_NS
 from peek.completer import PeekCompleter
 from peek.config import get_config, config_location
@@ -11,7 +14,7 @@ from peek.display import Display
 from peek.errors import PeekError, PeekSyntaxError
 from peek.history import SqLiteHistory
 from peek.key_bindings import key_bindings
-from peek.lexers import PeekLexer, PeekStyle, Heading
+from peek.lexers import PeekLexer, PeekStyle, Heading, TipsMinor
 from peek.parser import PeekParser
 from peek.names import func_connect
 from peek.vm import PeekVM
@@ -23,7 +26,6 @@ from prompt_toolkit.styles import style_from_pygments_cls
 
 _logger = logging.getLogger(__name__)
 
-INPUT_HEADER = [(PeekStyle.styles[Heading], '>>>\n')]
 OUTPUT_HEADER = FormattedText([(PeekStyle.styles[Heading], '===')])
 
 
@@ -35,15 +37,16 @@ class PeekApp:
                  extra_config_options: List[str] = None,
                  cli_ns=NONE_NS):
         self._should_exit = False
+        self._preserved_text = ''
         self.batch_mode = batch_mode
         self.config = get_config(config_file, extra_config_options)
         self.cli_ns = cli_ns
         self._init_logging()
+        self.es_client_manager = EsClientManger()
+        self._init_es_client()
         self.prompt = self._init_prompt()
         self.display = Display(self)
         self.parser = PeekParser()
-        self.es_client_manager = EsClientManger()
-        self._init_es_client()
         self.vm = self._init_vm()
 
         # TODO: better name for signal payload json reformat
@@ -52,14 +55,16 @@ class PeekApp:
     def run(self):
         while True:
             try:
-                text: str = self.prompt.prompt()
+                text: str = self.prompt.prompt(
+                    message=self._get_message(),
+                    default=self._get_default_text(),
+                )
                 _logger.debug(f'input: {repr(text)}')
                 if self._should_exit:
                     raise EOFError()
                 if text.strip() == '':
                     continue
                 self.process_input(text)
-
             except KeyboardInterrupt:
                 continue
             except EOFError:
@@ -86,11 +91,20 @@ class PeekApp:
     def execute_stmt(self, stmt):
         if not self.batch_mode:
             print_formatted_text(OUTPUT_HEADER)
+            self.es_client
         response = self.vm.execute_stmt(stmt)
         self.display.show(response)
 
     def signal_exit(self):
         self._should_exit = True
+
+    @property
+    def preserved_text(self):
+        return self._preserved_text
+
+    @preserved_text.setter
+    def preserved_text(self, value: str):
+        self._preserved_text = value
 
     def add_es_client(self, es_client):
         self.es_client_manager.add(es_client)
@@ -103,7 +117,16 @@ class PeekApp:
         return prompt(message=message, is_password=is_secret)
 
     def _get_message(self):
-        return INPUT_HEADER
+        return FormattedText([
+            (PeekStyle.styles[Heading], '>>>'),
+            (PeekStyle.styles[TipsMinor], f' [{self.es_client_manager._current}] {self.es_client}\n'),
+        ])
+
+    def _get_default_text(self):
+        text = self.preserved_text
+        if text:
+            self.preserved_text = ''
+        return text
 
     def _init_logging(self):
         log_file = self.config['log_file']
@@ -167,4 +190,3 @@ class PeekApp:
 
     def _init_vm(self):
         return PeekVM(self)
-

@@ -19,6 +19,7 @@ TripleS = String.TripleS
 BlankLine = Whitespace.BlankLine
 Variable = Name.Variable
 PayloadKey = String.Symbol
+TipsMinor = Generic.TipsMinor
 EOF = Whitespace.EOF
 
 
@@ -34,6 +35,7 @@ class PeekStyle(Style):
         Variable: '#77f',
         Number: '#07a',
         Heading: '#F6D845',
+        TipsMinor: '#4C4447',
         Error: 'bg:#a40000',
     }
 
