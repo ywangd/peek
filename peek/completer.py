@@ -2,15 +2,13 @@ import itertools
 import json
 import logging
 import os
-import urllib
 from typing import Iterable
 
 from prompt_toolkit.completion import Completer, CompleteEvent, Completion, WordCompleter, FuzzyCompleter
 from prompt_toolkit.document import Document
 from pygments.token import Keyword
 
-from peek.errors import PeekError
-from peek.lexers import PeekLexer, UrlPathLexer, PathPart, ParamName, ParamValue, Ampersand, QuestionMark, Slash
+from peek.lexers import PeekLexer, UrlPathLexer, PathPart, ParamName, Ampersand, QuestionMark, Slash
 from peek.names import NAMES
 from peek.parser import process_tokens
 
@@ -73,25 +71,10 @@ class PeekCompleter(Completer):
         _logger.debug(f'cursor_token: {cursor_token}')
         if cursor_token.ttype in (PathPart, Slash):
             return self._complete_path_part(method, path_tokens, document, complete_event)
-        elif cursor_token.ttype is ParamName:
-            pass
-        elif cursor_token.ttype is ParamValue:
-            return []
-
-        elif cursor_token.ttype in (QuestionMark, Ampersand):
-            pass  # complete for param name
+        elif cursor_token.ttype in (ParamName, QuestionMark, Ampersand):
+            return self._complete_query_param_name(method, path_tokens, document, complete_event)
         else:  # skip for param value
             return []
-
-        ret = []
-        # TODO: handle placeholder in path
-        # TODO: complete parameters
-        for name, spec in self.specs.items():
-            for p in spec['url']['paths']:
-                if method in p['methods']:
-                    if p['path'].startswith(path) or p['path'].startswith('/' + path):
-                        ret.append(Completion(p['path'], start_position=-len(path)))
-        return ret
 
     def _complete_path_part(self, method, path_tokens, document: Document, complete_event: CompleteEvent):
         cursor_token = path_tokens[-1]
@@ -106,25 +89,49 @@ class PeekCompleter(Completer):
                 if method not in api_path['methods']:
                     continue
                 ps = [p for p in api_path['path'].split('/') if p]
-                _logger.debug(f'ts: {ts}, fs: {ps}')
                 # Nothing to complete if the candidate is shorter than current input
-                if len(ps) <= len(ts):
+                if len(ts) >= len(ps):
                     continue
-                for t, p in zip(ts, ps):
-                    if t != p:
-                        if t.startswith('_'):
-                            break
-                        if not (p.startswith('{') and p.endswith('}')):
-                            break
-                else:
-                    candidate = '/'.join(ps[len(ts):])
-                    candidates.append(Completion(candidate, start_position=0))
+                if not can_match(ts, ps):
+                    continue
+                candidate = '/'.join(ps[len(ts):])
+                candidates.append(Completion(candidate, start_position=0))
 
         return FuzzyCompleter(ConstantCompleter(candidates)).get_completions(document, complete_event)
+
+    def _complete_query_param_name(self, method, path_tokens, document: Document, complete_event: CompleteEvent):
+        _logger.debug(f'Completing query param name: {path_tokens[-1]}')
+        ts = [t.value for t in path_tokens if t.ttype is PathPart]
+        candidates = set()
+        for api_name, api_spec in self.specs.items():
+            for api_path in api_spec['url']['paths']:
+                if method not in api_path['methods']:
+                    continue
+                if not api_spec.get('params', None):
+                    continue
+                ps = [p for p in api_path['path'].split('/') if p]
+                if len(ts) != len(ps):
+                    continue
+                if not can_match(ts, ps):
+                    continue
+                candidates.update(api_spec['params'].keys())
+
+        return FuzzyCompleter(ConstantCompleter(
+            [Completion(c, start_position=0) for c in candidates])).get_completions(document, complete_event)
 
     def _complete_payload(self, document: Document, complete_event: CompleteEvent) -> Iterable[Completion]:
         # TODO: payload completion
         return []
+
+
+def can_match(ts, ps):
+    for t, p in zip(ts, ps):
+        if t != p:
+            if t.startswith('_'):
+                return False
+            if not (p.startswith('{') and p.endswith('}')):
+                return False
+    return True
 
 
 class ConstantCompleter(Completer):
