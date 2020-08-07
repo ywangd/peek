@@ -3,10 +3,11 @@ import logging
 from json import JSONDecodeError
 
 import pygments
-from peek.lexers import PayloadLexer, PeekStyle
 from prompt_toolkit import print_formatted_text
 from prompt_toolkit.formatted_text import PygmentsTokens
 from prompt_toolkit.styles import style_from_pygments_cls
+
+from peek.lexers import PeekStyle, PeekLexer
 
 _logger = logging.getLogger(__name__)
 
@@ -15,6 +16,7 @@ class Display:
 
     def __init__(self, app):
         self.app = app
+        self.payload_lexer = PeekLexer(stack=('dict',))
 
     @property
     def pretty_print(self):
@@ -37,7 +39,7 @@ class Display:
                 return False
         try:
             source = json.dumps(source, indent=2 if self.pretty_print else None)
-            tokens = list(pygments.lex(source, lexer=PayloadLexer()))
+            tokens = list(pygments.lex(source, lexer=self.payload_lexer))  # TODO: as instance variable
             print_formatted_text(PygmentsTokens(tokens), style=style_from_pygments_cls(PeekStyle))
             return True
         except Exception as e:

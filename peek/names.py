@@ -38,22 +38,13 @@ def func_config(app, **options):
 
 def func_connect(app, **options):
     app.add_es_client(connect(app, **options))
-    return _show_connections(app)
+    return str(app.es_client_manager)
 
 
 def func_connections(app, **options):
     if 'current' in options:
         app.es_client_manager.current = int(options['current'])
-    return _show_connections(app)
-
-
-def _show_connections(app):
-    lines = []
-    for i, client in enumerate(app.es_client_manager.clients()):
-        prefix = '*' if client == app.es_client_manager.current else ' '
-        index = f'[{i}]'
-        lines.append(f'{prefix} {index:>4} {client}')
-    return '\n'.join(lines)
+    return str(app.es_client_manager)
 
 
 def func_saml_authenticate(app, **options):

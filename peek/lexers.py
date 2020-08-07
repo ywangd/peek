@@ -1,10 +1,9 @@
 import re
 
-from pygments.lexer import RegexLexer, words, include, bygroups, using
+from pygments.lexer import RegexLexer, words, include, bygroups, default
 from pygments.style import Style
-from pygments.token import Keyword, Literal, String, Number, Punctuation, Name, Comment, Whitespace, Generic, Error
-
-from peek.common import HTTP_METHODS
+from pygments.token import Keyword, Literal, String, Number, Punctuation, Name, Comment, Whitespace, Generic, Error, \
+    Operator
 
 Percent = Punctuation.Percent
 CurlyLeft = Punctuation.Curly.Left
@@ -16,11 +15,14 @@ Colon = Punctuation.Colon
 Heading = Generic.Heading
 TripleD = String.TripleD
 TripleS = String.TripleS
+Assign = Operator.Assign
 BlankLine = Whitespace.BlankLine
 Variable = Name.Variable
 PayloadKey = String.Symbol
 TipsMinor = Generic.TipsMinor
 EOF = Whitespace.EOF
+
+VARIABLE_PATTERN = r'\b[_a-zA-Z]+[_a-zA-Z0-9]*\b'
 
 
 class PeekStyle(Style):
@@ -59,50 +61,105 @@ def sqs(ttype):
     ]
 
 
-class PayloadLexer(RegexLexer):
-    name = 'PAYLOAD'
-    aliases = ['payload']
+DoubleNLPop = (r'(\s*)(\n\s*\n)', bygroups(Whitespace, BlankLine), '#pop')
+W = r'[ \t\r\f\v]'
+
+
+# Whitespace should be consumed in parent state, so that child state can simply pop on default no matching
+# If there is a signature pattern to signal a #pop, use it and it's ok to consume whitespace. Otherwise,
+# default to pop and do not allow consuming whitespace standalone.
+
+class PeekLexer(RegexLexer):
+    name = 'ES'
+    aliases = ['es']
+    filenames = ['*.es']
 
     flags = re.MULTILINE
 
     tokens = {
         'root': [
             (r'//.*', Comment.Single),
-            (r'{', CurlyLeft, 'dict-key'),
+            (r'(?i)(GET|POST|PUT|DELETE)\b', Keyword, 'api_path'),
+            (VARIABLE_PATTERN, Variable, 'func_args'),
+            # TODO: more keywords
             (r'\s+', Whitespace),
         ],
-        'dict-key': [
+        'api_path': [
+            (r'(' + W + r'*)(\S+)', bygroups(Whitespace, Literal), ('#pop', 'opts')),
+        ],
+        'opts': [
+            DoubleNLPop,
+            (r'\n', Whitespace, ('#pop', 'payload')),
             (r'//.*', Comment.Single),
-            (r'}', CurlyRight, '#pop'),  # empty dict
-            (r'"', PayloadKey, 'dqs-key'),
-            (r"'", PayloadKey, 'sqs-key'),
-            (r':', Colon, ('#pop', 'dict-value')),
+            (r'(' + VARIABLE_PATTERN + r')(' + W + r'*)(=)(' + W + r'*)',
+             bygroups(Name, Whitespace, Assign, Whitespace), 'expr'),
+            (W + r'+', Whitespace),
+        ],
+        'expr': [
+            # Name, Value and expression
+            (VARIABLE_PATTERN, Name),
+            include('value'),
+            default('#pop'),
+        ],
+        'payload': [
+            DoubleNLPop,
+            (r'(//.*)(\n)', bygroups(Comment.Single, Whitespace)),
+            (r'(\n' + W + r'*)(?={)', Whitespace, 'dict'),
+            (r'(' + W + r'*)(?={)', Whitespace, 'dict'),
+            default('#pop'),
+        ],
+
+        'func_args': [
+            (r'\n', BlankLine, '#pop'),
+            (r'//.*', Comment.Single),
+            (r'(' + VARIABLE_PATTERN + r')(' + W + r'*)(=)(' + W + r'*)',
+             bygroups(Name, Whitespace, Assign, Whitespace), 'expr'),
+            (VARIABLE_PATTERN, Name),
+            include('value'),
+            (W + r'+', Whitespace),
+            default('#pop'),
+        ],
+        'dict': [
+            (r'({)(\s*)', bygroups(CurlyLeft, Whitespace), 'dict_key'),
+            (r'//.*', Comment.Single),
             (r'\s+', Whitespace),
-        ],
-        'dict-value': [
-            (r',', Comma, ('#pop', 'dict-key')),
             (r'}', CurlyRight, '#pop'),
-            include('value'),
+            (r'(,)(\s*)', bygroups(Comma, Whitespace), 'dict_key'),
         ],
-        'array-values': [
-            (r',', Comma),
+        'dict_key': [
+            (r'(\s*)(//.*)(\s*)', bygroups(Whitespace, Comment.Single, Whitespace)),
+            (r'"', PayloadKey, 'dqs_key'),
+            (r"'", PayloadKey, 'sqs_key'),
+            (r'(\s*)(:)(\s*)', bygroups(Whitespace, Colon, Whitespace), ('#pop', 'dict_value')),
+            default('#pop'),
+        ],
+        'dict_value': [
+            (r'(\s*)(//.*)(\s*)', bygroups(Whitespace, Comment.Single, Whitespace)),
+            include('expr'),
+        ],
+        'array': [
+            (r'(\[)(\s*)', bygroups(BracketLeft, Whitespace), 'array_value'),
+            (r'//.*', Comment.Single),
+            (r'\s+', Whitespace),
             (r']', BracketRight, '#pop'),
-            include('value'),
+            (r'(,)(\s*)', bygroups(Comma, Whitespace), 'array_value'),
+        ],
+        'array_value': [
+            (r'(\s*)(//.*)(\s*)', bygroups(Whitespace, Comment.Single, Whitespace)),
+            include('expr'),
         ],
         'value': [
-            (r'//.*', Comment.Single),
-            (r'{', CurlyLeft, 'dict-key'),
-            (r'\[', BracketLeft, 'array-values'),
+            (r'(' + W + r'*)(?={)', Whitespace, 'dict'),
+            (r'(' + W + r'*)(?=\[)', Whitespace, 'array'),
             (r'"""', TripleD, 'tdqs'),
             (r"'''", TripleS, 'tsqs'),
             (r'"', String.Double, 'dqs'),
             (r"'", String.Single, 'sqs'),
             (words(('true', 'false', 'null'), suffix=r'\b'), Name.Builtin),
             include('numbers'),
-            (r'\s+', Whitespace),
         ],
-        'dqs-key': dqs(PayloadKey),
-        'sqs-key': sqs(PayloadKey),
+        'dqs_key': dqs(PayloadKey),
+        'sqs_key': sqs(PayloadKey),
         'dqs': dqs(String.Double),
         'sqs': sqs(String.Single),
         'tdqs': [
@@ -126,34 +183,10 @@ class PayloadLexer(RegexLexer):
         ],
     }
 
+    def __init__(self, stack=None, **options):
+        super().__init__(**options)
+        self.stack = stack or ('root',)
 
-class PeekLexer(RegexLexer):
-    name = 'ES'
-    aliases = ['es']
-    filenames = ['*.es']
-
-    flags = re.MULTILINE
-
-    tokens = {
-        'root': [
-            (r'//.*', Comment.Single),
-            (r'\s+', Whitespace),
-            (words(HTTP_METHODS, prefix=r'(?i)', suffix=r'\b'), Keyword, ('#pop', 'path')),
-            # TODO: more keywords
-            (r'[_a-zA-Z]+[_a-zA-Z0-9]*', Name.Variable, ('#pop', 'func_args')),
-        ],
-        'path': [
-            (r'\s+', Whitespace),
-            (r'\S+', Literal, ('#pop', 'payload')),
-        ],
-        'payload': [
-            (r'(?s)(.*?)(\n\s*\n)', bygroups(using(PayloadLexer), BlankLine), '#pop'),
-            (r'(?s)(.*)', bygroups(using(PayloadLexer)), '#pop'),
-        ],
-        'func_args': [
-            (r'\n', BlankLine, '#pop'),
-            (r'//.*', Comment.Single),
-            (r'\S+', Literal),
-            (r'\s+', Whitespace),
-        ],
-    }
+    def get_tokens_unprocessed(self, text, stack=None):
+        stack = stack or self.stack
+        return super().get_tokens_unprocessed(text, stack)

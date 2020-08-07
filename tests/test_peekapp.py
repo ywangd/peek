@@ -34,14 +34,22 @@ post abc/_doc
 conn foo=bar
 get abc
 """
-    stmts = []
+    nodes = []
     peek = PeekApp(batch_mode=True)
-    peek.execute_stmt = lambda stmt: stmts.append(stmt)
+    peek.execute_stmt = lambda stmt: nodes.append(stmt)
     peek.process_input(text)
 
-    assert [str(stmt) for stmt in stmts] == [
-        'GET /abc',
-        'POST /abc/_doc\n{ "foo" : "bar" }\n',
-        "conn {'foo': 'bar'}",
-        'GET /abc',
+    for n in nodes:
+        print(n)
+
+    assert [str(n) for n in nodes] == [
+        r'''get abc {}
+''',
+        r'''post abc/_doc {}
+{"foo":"bar"}
+''',
+        r'''conn [] {foo:bar}
+''',
+        r'''get abc {}
+''',
     ]

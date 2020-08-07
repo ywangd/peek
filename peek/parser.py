@@ -1,162 +1,20 @@
 import ast
 import json
 import logging
-from abc import ABCMeta, abstractmethod
-from typing import List, NamedTuple, Iterable
+from typing import List
 
-from pygments.token import Token, Whitespace, String, Comment, Literal, Keyword, Number, Name, _TokenType
+from pygments.token import Token, Whitespace, String, Comment, Literal, Keyword, Number, Name
 
-from peek.errors import PeekSyntaxError, PeekError
-from peek.lexers import PeekLexer, BlankLine, HTTP_METHODS, CurlyLeft, PayloadKey, Colon, \
-    CurlyRight, Comma, BracketLeft, BracketRight, TripleS, TripleD, EOF, Variable
+from peek.ast import NameNode, FuncCallNode, KeyValueNode, EsApiCallNode, StringNode, NumberNode, TextNode, DictNode, \
+    ArrayNode
+from peek.common import PeekToken
+from peek.errors import PeekSyntaxError
+from peek.lexers import PeekLexer, BlankLine, CurlyLeft, PayloadKey, Colon, \
+    CurlyRight, Comma, BracketLeft, BracketRight, TripleS, TripleD, EOF, Variable, Assign
 
 _logger = logging.getLogger(__name__)
 
-PeekToken = NamedTuple('PeekToken', [('index', int), ('ttype', _TokenType), ('value', str)])
-
-
-class Stmt(metaclass=ABCMeta):
-
-    @abstractmethod
-    def execute(self, vm):
-        pass
-
-    @abstractmethod
-    def format_compact(self):
-        pass
-
-    @abstractmethod
-    def format_pretty(self):
-        pass
-
-    def __repr__(self):
-        return str(self)
-
-
-class FuncCallStmt(Stmt):
-
-    def __init__(self, func_token: PeekToken, options_tokens: Iterable[PeekToken]):
-        self.func_token = func_token
-        self.options_tokens = options_tokens
-
-    @property
-    def func_name(self):
-        return self.func_token.value
-
-    @property
-    def options(self):
-        # TODO: more feature rich and robust argument parsing
-        options = {}
-        for t in self.options_tokens:
-            try:
-                k, v = t.value.split('=', 1)
-            except ValueError as e:
-                raise PeekError(e)
-            options[k] = v
-        return options
-
-    def execute(self, vm):
-        return vm.execute_func_call(self)
-
-    def format_compact(self):
-        # Always use the raw token here to preserve user input (case, quotes etc)
-        parts = ['%', self.func_token.value]
-        for option_token in self.options_tokens:
-            parts.append(option_token.value)
-        parts.append('\n')
-        return ' '.join(parts)
-
-    def format_pretty(self):
-        return self.format_compact()
-
-    def __str__(self):
-        return f'{self.func_name} {self.options}'
-
-
-class EsApiStmt(Stmt):
-
-    def __init__(self,
-                 method_token: PeekToken,
-                 path_token: PeekToken,
-                 payload_tokens: List[List[PeekToken]]):
-        self.method_token = method_token
-        self.path_token = path_token
-        self.payload_tokens = payload_tokens
-
-    @property
-    def method(self):
-        return self.method_token.value.upper()
-
-    @property
-    def path(self):
-        return (self.path_token.value if self.path_token.value.startswith('/')
-                else ('/' + self.path_token.value))
-
-    @property
-    def payload(self):
-        lines = []
-        for tokens in self.payload_tokens:
-            parts = []
-            for t in tokens:
-                if t.ttype in (PayloadKey, String.Double, String.Single, TripleS, TripleD):
-                    parts.append(normalise_string(t.value))
-                else:
-                    parts.append(t.value)
-            lines.append(' '.join(parts))
-        return '\n'.join(lines) + '\n' if lines else None
-
-    def execute(self, vm):
-        return vm.execute_es_api_call(self)
-
-    def format_compact(self):
-        parts = [self.method_token.value, ' ', self.path_token.value, '\n']
-        for tokens in self.payload_tokens:
-            parts += [t.value for t in tokens]
-            parts.append('\n')
-        parts.append('\n')
-        return ''.join(parts)
-
-    def format_pretty(self):
-        parts = [self.method_token.value, ' ', self.path_token.value, '\n']
-        for tokens in self.payload_tokens:
-            parts += self._format_pretty_helper(tokens)
-        parts.append('\n')
-        return ''.join(parts)
-
-    def _format_pretty_helper(self, tokens: List[PeekToken]):
-        parts = []
-        indent_level = 0
-        for i, t in enumerate(tokens):
-            assert indent_level >= 0
-            # comma or colon always directly follow
-            if t.ttype is Comma:
-                parts += [t.value, '\n']
-            elif t.ttype is Colon:
-                parts += [t.value, ' ']
-            elif tokens[i - 1].ttype is Colon:  # single space after colon
-                parts += [t.value]
-            elif t.ttype not in (CurlyRight, BracketRight):
-                if indent_level > 0:
-                    parts.append('  ' * indent_level)
-                parts.append(t.value)
-
-            if t.ttype in (CurlyLeft, BracketLeft):
-                # We can be sure there is i+1 token since parser guarantees it
-                if tokens[i + 1].ttype not in (CurlyRight, BracketRight):
-                    parts.append('\n')
-                    indent_level += 1
-            elif t.ttype in (CurlyRight, BracketRight):
-                if tokens[i - 1].ttype not in (CurlyLeft, BracketLeft):
-                    parts.append('\n')
-                    indent_level -= 1
-                    if indent_level > 0:
-                        parts.append('  ' * indent_level)
-                parts.append(t.value)
-        parts.append('\n')
-        return parts
-
-    def __str__(self):
-        return f'{self.method} {self.path}' + ('\n' + self.payload if self.payload else '')
+HTTP_METHODS = ['GET', 'PUT', 'POST', 'DELETE']
 
 
 class PeekParser:
@@ -180,81 +38,74 @@ class PeekParser:
                 raise PeekSyntaxError(self.text, token)
         self.tokens = process_tokens(unprocessed_tokens)
 
-        stmts = []
+        nodes = []
         while self._peek_token().ttype is not EOF:
             token = self._peek_token()
             if token.ttype is BlankLine:
                 self._consume_token(BlankLine)
             elif token.ttype is Variable:
-                stmts.append(self._parse_func_call())
+                nodes.append(self._parse_func_call())
             elif token.ttype is Keyword:
-                stmts.append(self._parse_es_api_call())
+                nodes.append(self._parse_es_api_call())
             else:
                 raise PeekSyntaxError(
                     self.text, token,
                     title='Invalid token',
-                    message='Expect either a "%" or HTTP method')
-        return stmts
+                    message='Expect beginning of a statement')
+        return nodes
 
     def _parse_es_api_call(self):
         method_token = self._consume_token(Keyword)
+        method_node = NameNode(method_token)
         if method_token.value.upper() not in HTTP_METHODS:
             raise PeekSyntaxError(
                 self.text, method_token,
                 title='Invalid HTTP method',
                 message=f'Expect HTTP method of value in {HTTP_METHODS!r}, got {method_token.value!r}')
-        path_token = self._consume_token(Literal)
-        payloads = []
+        path_node = NameNode(self._consume_token(Literal))
+        option_nodes = []
+        while self._peek_token().ttype is Name:
+            n = NameNode(self._consume_token(Name))
+            self._consume_token(Assign)
+            option_nodes.append(KeyValueNode(n, self._parse_expr()))
+
+        dict_nodes = []
         while self._peek_token().ttype is not EOF:
             if self._peek_token().ttype is BlankLine:
                 self._consume_token(BlankLine)
                 break
-            payloads.append(self._parse_json_object())
-        return EsApiStmt(method_token, path_token, payloads)
+            dict_nodes.append(self._parse_json_object())
+        return EsApiCallNode(method_node, path_node, DictNode(option_nodes), dict_nodes)
 
     def _parse_json_object(self):
-        tokens = [self._consume_token(CurlyLeft)]
-        has_trailing_comma = False
+        kv_nodes = []
+        self._consume_token(CurlyLeft)
         while self._peek_token().ttype is not CurlyRight:
-            tokens += self._parse_json_kv()
+            kv_nodes.append(self._parse_json_kv())
             if self._peek_token().ttype is Comma:
-                has_trailing_comma = True
-                tokens.append(self._consume_token(Comma))
+                self._consume_token(Comma)
             else:
-                has_trailing_comma = False
                 break
-
-        if has_trailing_comma:
-            tokens.pop()
-        tokens.append(self._consume_token(CurlyRight))
-
-        return tokens
+        self._consume_token(CurlyRight)
+        return DictNode(kv_nodes)
 
     def _parse_json_kv(self):
-        tokens = [
-            self._consume_token(PayloadKey),
-            self._consume_token(Colon)
-        ]
-        tokens += self._parse_json_value()
-        return tokens
+        key_node = StringNode(self._consume_token(PayloadKey))
+        self._consume_token(Colon)
+        value_node = self._parse_expr()
+        return KeyValueNode(key_node, value_node)
 
     def _parse_json_array(self):
-        tokens = [self._consume_token(BracketLeft)]
-        has_trailing_comma = False
+        value_nodes = []
+        self._consume_token(BracketLeft)
         while self._peek_token().ttype is not BracketRight:
-            tokens += self._parse_json_value()
+            value_nodes.append(self._parse_expr())
             if self._peek_token().ttype is Comma:
-                has_trailing_comma = True
-                tokens.append(self._consume_token(Comma))
+                self._consume_token(Comma)
             else:
-                has_trailing_comma = False
                 break
-
-        if has_trailing_comma:
-            tokens.pop()
-        tokens.append(self._consume_token(BracketRight))
-
-        return tokens
+        self._consume_token(BracketRight)
+        return ArrayNode(value_nodes)
 
     def _parse_json_value(self):
         token = self._peek_token()
@@ -262,22 +113,40 @@ class PeekParser:
             return self._parse_json_object()
         elif token.ttype is BracketLeft:
             return self._parse_json_array()
-        elif token.ttype in Number or token.ttype is Name.Builtin:
-            return [self._consume_token(token.ttype)]
+        elif token.ttype in Number:
+            return NumberNode(self._consume_token(token.ttype))
+        elif token.ttype is Name.Builtin:
+            return TextNode(self._consume_token(token.ttype))
         elif token.ttype in (String.Double, String.Single, TripleS, TripleD):
-            return [self._consume_token(token.ttype)]
+            return StringNode(self._consume_token(token.ttype))
         else:
             raise PeekSyntaxError(self.text, token)
 
     def _parse_func_call(self):
-        func_token = self._consume_token(Variable)
-        options_tokens = []
+        name_node = NameNode(self._consume_token(Variable))
+        arg_nodes = []
+        kwarg_nodes = []
         while self._peek_token().ttype is not EOF:
             if self._peek_token().ttype is BlankLine:
                 self._consume_token(BlankLine)
                 break
-            options_tokens.append(self._consume_token(Literal))
-        return FuncCallStmt(func_token, options_tokens)
+            if self._peek_token().ttype is Name:
+                n = NameNode(self._consume_token(Name))
+                if self._peek_token().ttype is Assign:
+                    self._consume_token(Assign)
+                    kwarg_nodes.append(KeyValueNode(n, self._parse_expr()))
+                else:
+                    arg_nodes.append(n)
+            else:
+                arg_nodes.append(self._parse_expr())
+
+        return FuncCallNode(name_node, ArrayNode(arg_nodes), DictNode(kwarg_nodes))
+
+    def _parse_expr(self):
+        if self._peek_token().ttype is Name:
+            return NameNode(self._consume_token(Name))
+        else:
+            return self._parse_json_value()
 
     def _peek_token(self) -> PeekToken:
         if self.position >= len(self.tokens):
@@ -329,5 +198,5 @@ def process_tokens(tokens: List[PeekToken]):
     if current_token is not None:
         processed_tokens.append(current_token)
 
-    _logger.debug(f'merged tokens: {processed_tokens}')
+    _logger.debug(f'processed tokens: {processed_tokens}')
     return processed_tokens

@@ -3,8 +3,11 @@ import logging
 import sys
 from typing import List
 
-from prompt_toolkit.application import get_app
-from prompt_toolkit.enums import DEFAULT_BUFFER
+from prompt_toolkit import PromptSession, print_formatted_text, prompt
+from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
+from prompt_toolkit.formatted_text import FormattedText
+from prompt_toolkit.lexers import PygmentsLexer
+from prompt_toolkit.styles import style_from_pygments_cls
 
 from peek.common import NONE_NS
 from peek.completer import PeekCompleter
@@ -15,14 +18,9 @@ from peek.errors import PeekError, PeekSyntaxError
 from peek.history import SqLiteHistory
 from peek.key_bindings import key_bindings
 from peek.lexers import PeekLexer, PeekStyle, Heading, TipsMinor
-from peek.parser import PeekParser
 from peek.names import func_connect
+from peek.parser import PeekParser
 from peek.vm import PeekVM
-from prompt_toolkit import PromptSession, print_formatted_text, prompt
-from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
-from prompt_toolkit.formatted_text import FormattedText
-from prompt_toolkit.lexers import PygmentsLexer
-from prompt_toolkit.styles import style_from_pygments_cls
 
 _logger = logging.getLogger(__name__)
 
@@ -91,9 +89,7 @@ class PeekApp:
     def execute_stmt(self, stmt):
         if not self.batch_mode:
             print_formatted_text(OUTPUT_HEADER)
-            self.es_client
-        response = self.vm.execute_stmt(stmt)
-        self.display.show(response)
+        self.vm.execute_node(stmt)
 
     def signal_exit(self):
         self._should_exit = True
@@ -113,13 +109,19 @@ class PeekApp:
     def es_client(self):
         return self.es_client_manager.current
 
-    def request_input(self, message='', is_secret=False):
+    def input(self, message='', is_secret=False):
         return prompt(message=message, is_password=is_secret)
 
+    def output(self, response):
+        self.display.show(response)
+
     def _get_message(self):
+        info_line = f' [{self.es_client_manager.index_current}] {self.es_client}'
+        if len(info_line) > 100:
+            info_line = info_line[:97] + '...'
         return FormattedText([
             (PeekStyle.styles[Heading], '>>>'),
-            (PeekStyle.styles[TipsMinor], f' [{self.es_client_manager._current}] {self.es_client}\n'),
+            (PeekStyle.styles[TipsMinor], info_line + '\n'),
         ])
 
     def _get_default_text(self):

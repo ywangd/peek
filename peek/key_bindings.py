@@ -9,6 +9,7 @@ from prompt_toolkit.key_binding import KeyBindings
 
 from peek.common import HTTP_METHODS
 from peek.errors import PeekSyntaxError, PeekError
+from peek.visitors import FormattingVisitor
 
 _logger = logging.getLogger(__name__)
 
@@ -36,8 +37,8 @@ def key_bindings(app):
         _logger.debug('Reformatting payload json')
         try:
             texts = []
-            for stmt in app.parser.parse(event.current_buffer.text):
-                texts.append(stmt.format_pretty() if not app.is_pretty else stmt.format_compact())
+            for node in app.parser.parse(event.current_buffer.text):
+                texts.append(FormattingVisitor(pretty=app.is_pretty).visit(node))
             event.current_buffer.text = ''.join(texts)
             app.is_pretty = not app.is_pretty
         except PeekSyntaxError as e:
@@ -52,6 +53,7 @@ def key_bindings(app):
             event.current_buffer.validate_and_handle()
         except PeekError as e:
             app.display.show(e)
+
     for i in range(5):
         kb.add('escape', f'{i}')(switch_connection)
 

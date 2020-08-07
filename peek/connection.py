@@ -65,6 +65,7 @@ class EsClient(BaseClient):
         )
 
     def perform_request(self, method, path, payload, deserialize_it=False):
+        _logger.debug(f'Performing request: {method!r}, {path!r}, {payload!r}')
         deserializer = self.es.transport.deserializer
         try:
             if not deserialize_it:
@@ -142,29 +143,41 @@ class EsClientManger:
 
     def __init__(self):
         self._clients = []
-        self._current = None
+        self._index_current = None
 
     def add(self, client):
         self._clients.append(client)
-        self._current = len(self._clients) - 1
+        self._index_current = len(self._clients) - 1
         # TODO: maintain size
 
     @property
     def current(self):
-        if self._current is None:
+        if self._index_current is None:
             raise PeekError('No ES client is configured')
-        if self._current < 0 or self._current >= len(self._clients):
-            raise PeekError(f'Attempt to get ES client at invalid index [{self._current}]')
-        return self._clients[self._current]
+        if self._index_current < 0 or self._index_current >= len(self._clients):
+            raise PeekError(f'Attempt to get ES client at invalid index [{self._index_current}]')
+        return self._clients[self._index_current]
 
     @current.setter
     def current(self, i):
         if i < 0 or i >= len(self._clients):
             raise PeekError(f'Attempt to set ES client at invalid index [{i}]')
-        self._current = i
+        self._index_current = i
+
+    @property
+    def index_current(self):
+        return self._index_current
 
     def clients(self):
         return self._clients
+
+    def __str__(self):
+        lines = []
+        for i, client in enumerate(self.clients()):
+            prefix = '*' if client == self.current else ' '
+            index = f'[{i}]'
+            lines.append(f'{prefix} {index:>4} {client}')
+        return '\n'.join(lines)
 
 
 class AuthType(Enum):
@@ -212,7 +225,7 @@ def _connect_userpass(app, **options):
         raise PeekError(f'Username is required for userpass authentication')
 
     if options['force_prompt']:
-        password = app.request_input(message='Please enter password: ', is_secret=True)
+        password = app.input(message='Please enter password: ', is_secret=True)
 
     if username and not password:
         password = os.environ.get('PEEK_PASSWORD', None)
@@ -222,12 +235,12 @@ def _connect_userpass(app, **options):
                 if not password:
                     if options['no_prompt']:
                         raise PeekError('Password is not found and password prompt is disabled')
-                    password = app.request_input(message='Please enter password: ', is_secret=True)
+                    password = app.input(message='Please enter password: ', is_secret=True)
 
             else:
                 if options['no_prompt']:
                     raise PeekError('Password is not found and password prompt is disabled')
-                password = app.request_input(message='Please enter password: ', is_secret=True)
+                password = app.input(message='Please enter password: ', is_secret=True)
 
     if username and password and app.config.as_bool('use_keyring'):
         _keyring(service_name, username, password)
