@@ -31,8 +31,7 @@ class PeekParser:
         self.tokens = []
 
         unprocessed_tokens = []
-        for t in self.lexer.get_tokens_unprocessed(self.text):
-            token = PeekToken(*t)
+        for token in self.lexer.get_tokens_unprocessed(self.text):
             unprocessed_tokens.append(token)
             if token.ttype in Token.Error:
                 raise PeekSyntaxError(self.text, token)

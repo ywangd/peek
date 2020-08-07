@@ -41,9 +41,15 @@ def func_connect(app, **options):
     return str(app.es_client_manager)
 
 
-def func_connections(app, **options):
-    if 'current' in options:
+def func_connections(app, current=None, **options):
+    if current is not None:
+        app.es_client_manager.current = int(current)
+    elif 'current' in options:
         app.es_client_manager.current = int(options['current'])
+
+    if 'remove' in options:
+        app.es_client_manager.remove_client(int(options['remove']))
+
     return str(app.es_client_manager)
 
 

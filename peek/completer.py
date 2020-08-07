@@ -7,13 +7,15 @@ from prompt_toolkit.application import get_app
 from prompt_toolkit.completion import Completer, CompleteEvent, Completion, WordCompleter
 from prompt_toolkit.document import Document
 from prompt_toolkit.enums import DEFAULT_BUFFER
-from pygments.token import Whitespace, Comment, Token
+from pygments.token import Whitespace, Comment, Token, Keyword
 
-from peek.lexers import Percent, PeekLexer
+from peek.lexers import Percent, PeekLexer, Variable
 
 _logger = logging.getLogger(__name__)
 
 _HTTP_METHOD_COMPLETER = WordCompleter(['GET', 'POST', 'PUT', 'DELETE'], ignore_case=True)
+
+_FUNC_NAME_COMPLETER = WordCompleter(['connect', 'connections'])
 
 
 class PeekCompleter(Completer):
@@ -32,13 +34,13 @@ class PeekCompleter(Completer):
         tokens = []
         error_token = None
         for token in self.lexer.get_tokens_unprocessed(text):
-            if token[1] in (Whitespace, Comment.Single):
+            if token.ttype in (Whitespace, Comment.Single):
                 if error_token is not None:
                     tokens.append(error_token)
                     error_token = None
-            elif token[1] is Token.Error:
+            elif token.ttype is Token.Error:
                 error_token = token if error_token is None else (
-                    error_token[0], error_token[1], error_token[2] + token[2])
+                    error_token.index, error_token.ttype, error_token.value + token.value)
             else:
                 if error_token is not None:
                     tokens.append(error_token)
@@ -51,14 +53,17 @@ class PeekCompleter(Completer):
         if len(tokens) == 0:
             return []
 
-        elif len(tokens) == 1 and tokens[0] == Percent:
+        elif len(tokens) == 1 and tokens[0].ttype is Variable and \
+            tokens[0].index + len(tokens[0].value) >= document.cursor_position:
             return self._complete_func_call(document, complete_event)
 
-        elif len(tokens) == 1 and (tokens[0][0] + len(tokens[0][2]) >= document.cursor_position):
+        elif len(tokens) == 1 and tokens[0].ttype is Keyword and \
+            tokens[0].index + len(tokens[0].value) >= document.cursor_position:
             _logger.debug('HTTP method completing')
             return _HTTP_METHOD_COMPLETER.get_completions(document, complete_event)
 
-        elif len(tokens) == 2 or (len(tokens) == 1 and get_app().layout.get_buffer_by_name(DEFAULT_BUFFER).document.cursor_position > document.cursor_position):
+        elif len(tokens) == 2 or (
+            len(tokens) == 1 and get_app().layout.get_buffer_by_name(DEFAULT_BUFFER).document.cursor_position > document.cursor_position):
             return self._complete_path(tokens, document, complete_event)
 
         else:
@@ -67,10 +72,10 @@ class PeekCompleter(Completer):
     def _complete_path(self, tokens, document: Document, complete_event: CompleteEvent) -> Iterable[Completion]:
         method_token, path_token = tokens
         # If there are whitespaces after path, provide no completion
-        if path_token[0] + len(path_token[2]) < document.cursor_position:
+        if path_token.index + len(path_token.value) < document.cursor_position:
             return []
-        method = method_token[2].upper()
-        path = path_token[2]
+        method = method_token.value.upper()
+        path = path_token.value
         _logger.debug(f'Path completing: {repr(path)}')
         ret = []
         # TODO: handle placeholder in path
@@ -88,7 +93,7 @@ class PeekCompleter(Completer):
 
     def _complete_func_call(self, document: Document, complete_event: CompleteEvent) -> Iterable[Completion]:
         # TODO: function call completion
-        return []
+        return _FUNC_NAME_COMPLETER.get_completions(document, complete_event)
 
 
 def load_rest_api_spec():

@@ -36,7 +36,7 @@ get abc
 """
     nodes = []
     peek = PeekApp(batch_mode=True)
-    peek.execute_stmt = lambda stmt: nodes.append(stmt)
+    peek.execute_node = lambda stmt: nodes.append(stmt)
     peek.process_input(text)
 
     for n in nodes:

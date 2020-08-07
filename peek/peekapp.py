@@ -75,21 +75,21 @@ class PeekApp:
         highlight. It maybe better if it can be merged somehow (TODO)
         """
         try:
-            stmts = self.parser.parse(text)
+            nodes = self.parser.parse(text)
         except PeekSyntaxError as e:
             print(e)
             return
 
-        for stmt in stmts:
+        for node in nodes:
             try:
-                self.execute_stmt(stmt)
+                self.execute_node(node)
             except PeekError as e:
                 print(e)
 
-    def execute_stmt(self, stmt):
+    def execute_node(self, node):
         if not self.batch_mode:
             print_formatted_text(OUTPUT_HEADER)
-        self.vm.execute_node(stmt)
+        self.vm.execute_node(node)
 
     def signal_exit(self):
         self._should_exit = True

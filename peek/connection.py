@@ -176,6 +176,20 @@ class EsClientManger:
             raise PeekError(f'Attempt to set ES client at invalid index [{i}]')
         return self._clients[i]
 
+    def remove_client(self, i):
+        if len(self._clients) == 1:
+            raise PeekError('Cannot delete the last connection')
+        if i < 0 or i >= len(self._clients):
+            raise PeekError(f'Attempt to remove ES client at invalid index [{i}]')
+        self._clients.pop(i)
+        if not self._clients:
+            self._index_current = None
+            return
+        if i < self._index_current:
+            self._index_current -= 1
+        elif i == self._index_current:
+            self._index_current = 0
+
     def __str__(self):
         lines = []
         for i, client in enumerate(self.clients()):

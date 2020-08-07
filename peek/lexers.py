@@ -5,6 +5,8 @@ from pygments.style import Style
 from pygments.token import Keyword, Literal, String, Number, Punctuation, Name, Comment, Whitespace, Generic, Error, \
     Operator
 
+from peek.common import PeekToken
+
 Percent = Punctuation.Percent
 CurlyLeft = Punctuation.Curly.Left
 CurlyRight = Punctuation.Curly.Right
@@ -187,6 +189,7 @@ class PeekLexer(RegexLexer):
         super().__init__(**options)
         self.stack = stack or ('root',)
 
-    def get_tokens_unprocessed(self, text, stack=None):
+    def get_tokens_unprocessed(self, text, stack=None) -> PeekToken:
         stack = stack or self.stack
-        return super().get_tokens_unprocessed(text, stack)
+        for t in super().get_tokens_unprocessed(text, stack):
+            yield PeekToken(*t)
