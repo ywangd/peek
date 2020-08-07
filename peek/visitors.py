@@ -37,7 +37,7 @@ class FormattingVisitor(Visitor):
             dict_node.accept(self)
             self.consume('\n')
         self.pop_consumer()
-        self.text = ''.join(parts) + '\n'
+        self.text = ''.join(parts)
 
     def visit_func_call_node(self, node: FuncCallNode):
         assert isinstance(node, FuncCallNode)

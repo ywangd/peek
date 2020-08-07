@@ -64,7 +64,7 @@ def key_bindings(app):
             nodes = app.parser.parse(event.current_buffer.text)
             for j, node in enumerate(nodes):
                 texts.append(FormattingVisitor(pretty=app.is_pretty).visit(node))
-            event.current_buffer.text = ''.join(texts)
+            event.current_buffer.text = '\n'.join(texts)
             app.is_pretty = not app.is_pretty
         except PeekSyntaxError as e:
             _logger.debug(f'Cannot reformat for invalid/incomplete input: {e}')

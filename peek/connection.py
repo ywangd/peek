@@ -229,7 +229,9 @@ def connect(app, **options):
         options['auth_type'] = AuthType(options['auth_type'])
     final_options.update({k: v for k, v in options.items() if v is not None})
 
-    if final_options['auth_type'] is AuthType.USERPASS:
+    if final_options['auth_type'] is AuthType.APIKEY or final_options['api_key']:
+        return _connect_api_key(app, **final_options)
+    elif final_options['auth_type'] is AuthType.USERPASS:
         return _connect_userpass(app, **final_options)
     else:
         raise NotImplementedError(f'{final_options["auth_type"]}')
@@ -273,6 +275,19 @@ def _connect_userpass(app, **options):
         ca_certs=options['ca_certs'],
         client_cert=options['client_cert'],
         client_key=options['client_key'])
+
+
+def _connect_api_key(app, **options):
+    _logger.debug(f'Connecting with API key')
+    return EsClient(
+        hosts=options['hosts'],
+        api_key=options['api_key'].split(':'),
+        use_ssl=options['use_ssl'],
+        verify_certs=options['verify_certs'],
+        ca_certs=options['ca_certs'],
+        client_cert=options['client_cert'],
+        client_key=options['client_key'],
+    )
 
 
 KEYRING = None
