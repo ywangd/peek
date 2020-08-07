@@ -7,6 +7,7 @@ from prompt_toolkit.enums import DEFAULT_BUFFER
 from prompt_toolkit.filters import Condition, completion_is_selected, is_searching
 from prompt_toolkit.key_binding import KeyBindings
 
+from peek.ast import EsApiCallNode
 from peek.common import HTTP_METHODS
 from peek.errors import PeekSyntaxError, PeekError
 from peek.visitors import FormattingVisitor
@@ -20,6 +21,31 @@ def key_bindings(app):
     @kb.add('enter', filter=~(completion_is_selected | is_searching) & buffer_should_be_handled(app))
     def _(event):
         event.current_buffer.validate_and_handle()
+
+    @kb.add('enter', filter=~(completion_is_selected | is_searching) & ~buffer_should_be_handled(app))
+    def _(event):
+        b = event.current_buffer
+        c = b.document.current_char
+        _logger.debug(f'not handling enter, current char {c!r}')
+
+        if c == '}':
+            last_nl = b.document.text.rfind('\n', 0, b.document.cursor_position)
+            if last_nl == -1:
+                text = b.document.text[:b.document.cursor_position]
+            else:
+                text = b.document.text[last_nl + 1: b.document.cursor_position]
+
+            existing_indent = 0
+            for x in text:
+                if x.isspace():
+                    existing_indent += 1
+                else:
+                    break
+            b.insert_text('\n')
+            b.insert_text(' ' * (existing_indent + 2))
+            b.insert_text('\n' + ' ' * existing_indent, move_cursor=False)
+        else:
+            b.insert_text('\n')
 
     @kb.add('escape', 'enter', filter=~(completion_is_selected | is_searching))
     def _(event):
@@ -37,7 +63,8 @@ def key_bindings(app):
         _logger.debug('Reformatting payload json')
         try:
             texts = []
-            for node in app.parser.parse(event.current_buffer.text):
+            nodes = app.parser.parse(event.current_buffer.text)
+            for j, node in enumerate(nodes):
                 texts.append(FormattingVisitor(pretty=app.is_pretty).visit(node))
             event.current_buffer.text = ''.join(texts)
             app.is_pretty = not app.is_pretty
