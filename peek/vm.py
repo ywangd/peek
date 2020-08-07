@@ -45,19 +45,22 @@ class PeekVM(Visitor):
         payload = ('\n'.join(lines) + '\n') if lines else None
         try:
             headers = {}
-            if options.get('run_as') is not None:
-                headers['es-security-runas-user'] = options['run_as']
+            if options.get('runas') is not None:
+                headers['es-security-runas-user'] = options.pop('runas')
             if options.get('conn') is not None:
-                es_client = self.app.es_client_manager.get_client(int(options['conn']))
+                es_client = self.app.es_client_manager.get_client(int(options.pop('conn')))
             else:
                 es_client = self.app.es_client
-            self.app.output(es_client.perform_request(
+            if options:
+                raise PeekError(f'Unknown options: {options}')
+            self.app.display.info(es_client.perform_request(
                 node.method, node.path, payload,
                 headers=headers if headers else None))
         except Exception as e:
-            if getattr(e, 'info', None):
-                self.app.output(e.info)
-            self.app.output(e)
+            if getattr(e, 'info', None) and isinstance(getattr(e, 'status_code', None), int):
+                self.app.display.info(e.info)
+            else:
+                self.app.display.error(e)
 
     def visit_func_call_node(self, node: FuncCallNode):
         func_name = node.name_node.token.value
@@ -77,9 +80,9 @@ class PeekVM(Visitor):
         self._do_visit_dict_node(node.kwargs_node, resolve_key_name=False)
         self.pop_consumer()
         try:
-            self.app.output(func(self.app, *func_args.get(), **func_kwargs.get()))
+            self.app.display.info(func(self.app, *func_args.get(), **func_kwargs.get()))
         except Exception as e:
-            self.app.output(e)
+            self.app.display.info(e)
 
     def visit_key_value_node(self, node: KeyValueNode):
         node.key_node.accept(self)

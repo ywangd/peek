@@ -12,8 +12,9 @@ HIST_MAX = 10_000
 
 class SqLiteHistory(History):
 
-    def __init__(self):
+    def __init__(self, history_max=HIST_MAX):
         super().__init__()
+        self.history_max = history_max
         db_file = expanduser(config_location() + 'history')
         ensure_dir_exists(db_file)
         self.conn = sqlite3.connect(db_file)
@@ -28,9 +29,10 @@ class SqLiteHistory(History):
     def _maintain_size(self):
         c = self.conn.cursor()
         res = c.execute('SELECT COUNT(*) from history').fetchone()
-        if res is None or res[0] < 10_000:
+        if res is None or res[0] < self.history_max:
             return
-        c.execute('DELETE FROM history where id in (SELECT id FROM history ORDER BY id limit ?)', (res[0] - HIST_MAX,))
+        c.execute('DELETE FROM history where id in (SELECT id FROM history ORDER BY id limit ?)',
+                  (res[0] - self.history_max,))
 
     def load_history_strings(self) -> Iterable[str]:
         strings: List[str] = []

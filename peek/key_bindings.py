@@ -7,7 +7,6 @@ from prompt_toolkit.enums import DEFAULT_BUFFER
 from prompt_toolkit.filters import Condition, completion_is_selected, is_searching
 from prompt_toolkit.key_binding import KeyBindings
 
-from peek.ast import EsApiCallNode
 from peek.common import HTTP_METHODS
 from peek.errors import PeekSyntaxError, PeekError
 from peek.visitors import FormattingVisitor
@@ -41,8 +40,7 @@ def key_bindings(app):
                     existing_indent += 1
                 else:
                     break
-            b.insert_text('\n')
-            b.insert_text(' ' * (existing_indent + 2))
+            b.insert_text('\n' + ' ' * (existing_indent + 2))
             b.insert_text('\n' + ' ' * existing_indent, move_cursor=False)
         else:
             b.insert_text('\n')
@@ -79,7 +77,7 @@ def key_bindings(app):
             event.current_buffer.reset()
             event.current_buffer.validate_and_handle()
         except PeekError as e:
-            app.display.show(e)
+            app.display.error(e)
 
     for i in range(5):
         kb.add('escape', f'{i}')(switch_connection)

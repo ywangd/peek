@@ -24,8 +24,6 @@ from peek.vm import PeekVM
 
 _logger = logging.getLogger(__name__)
 
-OUTPUT_HEADER = FormattedText([(PeekStyle.styles[Heading], '===')])
-
 
 class PeekApp:
 
@@ -77,18 +75,16 @@ class PeekApp:
         try:
             nodes = self.parser.parse(text)
         except PeekSyntaxError as e:
-            print(e)
+            self.display.error(e)
             return
 
         for node in nodes:
             try:
                 self.execute_node(node)
             except PeekError as e:
-                print(e)
+                self.display.error(e)
 
     def execute_node(self, node):
-        if not self.batch_mode:
-            print_formatted_text(OUTPUT_HEADER)
         self.vm.execute_node(node)
 
     def signal_exit(self):
@@ -102,9 +98,6 @@ class PeekApp:
     def preserved_text(self, value: str):
         self._preserved_text = value
 
-    def add_es_client(self, es_client):
-        self.es_client_manager.add(es_client)
-
     @property
     def es_client(self):
         return self.es_client_manager.current
@@ -113,7 +106,7 @@ class PeekApp:
         return prompt(message=message, is_password=is_secret)
 
     def output(self, response):
-        self.display.show(response)
+        self.display.info(response)
 
     def _get_message(self):
         info_line = f' [{self.es_client_manager.index_current}] {self.es_client}'
@@ -164,7 +157,7 @@ class PeekApp:
                 lexer=PygmentsLexer(PeekLexer),
                 auto_suggest=AutoSuggestFromHistory(),
                 completer=PeekCompleter(),
-                history=SqLiteHistory(),
+                history=SqLiteHistory(self.config.as_int('history_max')),
                 multiline=True,
                 key_bindings=key_bindings(self),
                 enable_open_in_editor=True,

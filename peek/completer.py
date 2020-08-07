@@ -9,6 +9,7 @@ from prompt_toolkit.document import Document
 from prompt_toolkit.enums import DEFAULT_BUFFER
 from pygments.token import Whitespace, Comment, Token, Keyword
 
+from peek.common import PeekToken
 from peek.lexers import Percent, PeekLexer, Variable
 
 _logger = logging.getLogger(__name__)
@@ -39,7 +40,7 @@ class PeekCompleter(Completer):
                     tokens.append(error_token)
                     error_token = None
             elif token.ttype is Token.Error:
-                error_token = token if error_token is None else (
+                error_token = token if error_token is None else PeekToken(
                     error_token.index, error_token.ttype, error_token.value + token.value)
             else:
                 if error_token is not None:

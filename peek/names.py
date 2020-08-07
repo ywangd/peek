@@ -37,7 +37,7 @@ def func_config(app, **options):
 
 
 def func_connect(app, **options):
-    app.add_es_client(connect(app, **options))
+    app.es_client_manager.add(connect(app, **options))
     return str(app.es_client_manager)
 
 
@@ -60,7 +60,7 @@ def func_saml_authenticate(app, **options):
         realm,
         options.get('callback_port', '5601'),
     )
-    app.add_es_client(saml_es_client)
+    app.es_client_manager.add(saml_es_client)
     return json.dumps({'username': saml_es_client.username, 'realm': 'realm'})
 
 

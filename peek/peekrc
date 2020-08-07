@@ -3,5 +3,5 @@ log_file = log
 log_level = warning
 use_keyring = True
 pretty_print = True
-
+history_max = 10000
 extension_path =
