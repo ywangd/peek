@@ -29,6 +29,12 @@ class PeekVM(Visitor):
         node.accept(self)
 
     def visit_es_api_call_node(self, node: EsApiCallNode):
+        options = Ref()
+        self.push_consumer(lambda v: options.set(v))
+        self._do_visit_dict_node(node.options_node)
+        self.pop_consumer()
+        options = options.get()
+
         dicts = []
         self.push_consumer(lambda v: dicts.append(v))
         for dict_node in node.dict_nodes:
@@ -38,7 +44,16 @@ class PeekVM(Visitor):
         lines = [json.dumps(d) for d in dicts]
         payload = ('\n'.join(lines) + '\n') if lines else None
         try:
-            self.app.output(self.app.es_client.perform_request(node.method, node.path, payload))
+            headers = {}
+            if options.get('run_as') is not None:
+                headers['es-security-runas-user'] = options['run_as']
+            if options.get('conn') is not None:
+                es_client = self.app.es_client_manager.get_client(int(options['conn']))
+            else:
+                es_client = self.app.es_client
+            self.app.output(es_client.perform_request(
+                node.method, node.path, payload,
+                headers=headers if headers else None))
         except Exception as e:
             if getattr(e, 'info', None):
                 self.app.output(e.info)

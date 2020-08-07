@@ -26,7 +26,7 @@ noopDeserializer = NoopDeserializer()
 class BaseClient(metaclass=ABCMeta):
 
     @abstractmethod
-    def perform_request(self, method, path, payload, deserialize_it=False):
+    def perform_request(self, method, path, payload, deserialize_it=False, **kwargs):
         pass
 
 
@@ -64,14 +64,14 @@ class EsClient(BaseClient):
             **kwargs,
         )
 
-    def perform_request(self, method, path, payload, deserialize_it=False):
+    def perform_request(self, method, path, payload, deserialize_it=False, **kwargs):
         _logger.debug(f'Performing request: {method!r}, {path!r}, {payload!r}')
         deserializer = self.es.transport.deserializer
         try:
             if not deserialize_it:
                 # Avoid deserializing the response since we parse it with the main loop for syntax highlighting
                 self.es.transport.deserializer = noopDeserializer
-            return self.es.transport.perform_request(method, path, body=payload)
+            return self.es.transport.perform_request(method, path, body=payload, **kwargs)
         finally:
             if not deserialize_it:
                 self.es.transport.deserializer = deserializer
@@ -106,9 +106,9 @@ class RefreshingEsClient(BaseClient):
         self.expires_in = expires_in
         self.delegate = self._build_delegate()
 
-    def perform_request(self, method, path, payload, deserialize_it=False):
+    def perform_request(self, method, path, payload, deserialize_it=False, **kwargs):
         try:
-            return self.delegate.perform_request(method, path, payload, deserialize_it)
+            return self.delegate.perform_request(method, path, payload, deserialize_it, **kwargs)
         except AuthenticationException as e:
             if e.status_code == 401:
                 response = self.parent.perform_request(
@@ -122,7 +122,7 @@ class RefreshingEsClient(BaseClient):
                 self.refresh_token = response['refresh_token']
                 self.expires_in = response['expires_in']
                 self._build_delegate()
-                self.perform_request(method, path, payload, deserialize_it=deserialize_it)
+                self.perform_request(method, path, payload, deserialize_it=deserialize_it, **kwargs)
 
     def __str__(self):
         return self.username + str(self.delegate)
@@ -170,6 +170,11 @@ class EsClientManger:
 
     def clients(self):
         return self._clients
+
+    def get_client(self, i):
+        if i < 0 or i >= len(self._clients):
+            raise PeekError(f'Attempt to set ES client at invalid index [{i}]')
+        return self._clients[i]
 
     def __str__(self):
         lines = []
