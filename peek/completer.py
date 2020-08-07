@@ -1,83 +1,88 @@
+import itertools
 import json
 import logging
 import os
+import urllib
 from typing import Iterable
 
-from prompt_toolkit.application import get_app
-from prompt_toolkit.completion import Completer, CompleteEvent, Completion, WordCompleter
+from prompt_toolkit.completion import Completer, CompleteEvent, Completion, WordCompleter, FuzzyCompleter
 from prompt_toolkit.document import Document
-from prompt_toolkit.enums import DEFAULT_BUFFER
-from pygments.token import Whitespace, Comment, Token, Keyword
+from pygments.token import Keyword
 
-from peek.common import PeekToken
-from peek.lexers import Percent, PeekLexer, Variable
+from peek.errors import PeekError
+from peek.lexers import PeekLexer, UrlPathLexer, PathPart, ParamName, ParamValue, Ampersand, QuestionMark, Slash
+from peek.names import NAMES
+from peek.parser import process_tokens
 
 _logger = logging.getLogger(__name__)
 
 _HTTP_METHOD_COMPLETER = WordCompleter(['GET', 'POST', 'PUT', 'DELETE'], ignore_case=True)
 
-_FUNC_NAME_COMPLETER = WordCompleter(['connect', 'connections'])
+_FUNC_NAME_COMPLETER = WordCompleter(list(NAMES.keys()))
 
 
 class PeekCompleter(Completer):
 
     def __init__(self):
         self.lexer = PeekLexer()
+        self.url_path_lexer = UrlPathLexer()
         self.specs = load_rest_api_spec()
 
     def get_completions(self, document: Document, complete_event: CompleteEvent) -> Iterable[Completion]:
         _logger.debug(f'doc: {document}, event: {complete_event}')
 
         text = document.text[:document.cursor_position]
-        _logger.debug(f'text: {repr(text)}')
+        _logger.debug(f'text: {text!r}')
 
         # Merge consecutive error tokens
-        tokens = []
-        error_token = None
-        for token in self.lexer.get_tokens_unprocessed(text):
-            if token.ttype in (Whitespace, Comment.Single):
-                if error_token is not None:
-                    tokens.append(error_token)
-                    error_token = None
-            elif token.ttype is Token.Error:
-                error_token = token if error_token is None else PeekToken(
-                    error_token.index, error_token.ttype, error_token.value + token.value)
-            else:
-                if error_token is not None:
-                    tokens.append(error_token)
-                    error_token = None
-                tokens.append(token)
-        if error_token is not None:
-            tokens.append(error_token)
+        tokens = process_tokens(self.lexer.get_tokens_unprocessed(text))
         _logger.debug(f'tokens: {tokens}')
 
         if len(tokens) == 0:
             return []
 
-        elif len(tokens) == 1 and tokens[0].ttype is Variable and \
-            tokens[0].index + len(tokens[0].value) >= document.cursor_position:
-            return self._complete_func_call(document, complete_event)
+        # Find which token to complete
+        for i, t in enumerate(tokens):
+            if t.index < document.cursor_position <= (t.index + len(t.value)):
+                break
+        else:
+            return []
 
-        elif len(tokens) == 1 and tokens[0].ttype is Keyword and \
-            tokens[0].index + len(tokens[0].value) >= document.cursor_position:
-            _logger.debug('HTTP method completing')
-            return _HTTP_METHOD_COMPLETER.get_completions(document, complete_event)
+        if i == 0:
+            _logger.debug(f'Completing function/http method name: {t}')
+            return itertools.chain(
+                _HTTP_METHOD_COMPLETER.get_completions(document, complete_event),
+                _FUNC_NAME_COMPLETER.get_completions(document, complete_event))
 
-        elif len(tokens) == 2 or (
-            len(tokens) == 1 and get_app().layout.get_buffer_by_name(DEFAULT_BUFFER).document.cursor_position > document.cursor_position):
+        if i == 1 and tokens[0].ttype is Keyword:
             return self._complete_path(tokens, document, complete_event)
 
-        else:
-            return self._complete_payload(document, complete_event)
+        return []
 
     def _complete_path(self, tokens, document: Document, complete_event: CompleteEvent) -> Iterable[Completion]:
         method_token, path_token = tokens
-        # If there are whitespaces after path, provide no completion
-        if path_token.index + len(path_token.value) < document.cursor_position:
-            return []
         method = method_token.value.upper()
-        path = path_token.value
-        _logger.debug(f'Path completing: {repr(path)}')
+        cursor_position = document.cursor_position - path_token.index
+        path = path_token.value[:cursor_position]
+        _logger.debug(f'Completing http path: {path}')
+        path_tokens = list(self.url_path_lexer.get_tokens_unprocessed(path))
+        if not path_tokens:  # empty, should not happen
+            return []
+
+        cursor_token = path_tokens[-1]
+        _logger.debug(f'cursor_token: {cursor_token}')
+        if cursor_token.ttype in (PathPart, Slash):
+            return self._complete_path_part(method, path_tokens, document, complete_event)
+        elif cursor_token.ttype is ParamName:
+            pass
+        elif cursor_token.ttype is ParamValue:
+            return []
+
+        elif cursor_token.ttype in (QuestionMark, Ampersand):
+            pass  # complete for param name
+        else:  # skip for param value
+            return []
+
         ret = []
         # TODO: handle placeholder in path
         # TODO: complete parameters
@@ -88,13 +93,47 @@ class PeekCompleter(Completer):
                         ret.append(Completion(p['path'], start_position=-len(path)))
         return ret
 
+    def _complete_path_part(self, method, path_tokens, document: Document, complete_event: CompleteEvent):
+        cursor_token = path_tokens[-1]
+        _logger.debug(f'Completing path part: {cursor_token}')
+        ts = [t.value for t in path_tokens if t.ttype is not Slash]
+        if cursor_token.ttype is PathPart:
+            ts.pop()
+        _logger.debug(f'ts: {ts}')
+        candidates = []
+        for api_name, api_spec in self.specs.items():
+            for api_path in api_spec['url']['paths']:
+                if method not in api_path['methods']:
+                    continue
+                ps = [p for p in api_path['path'].split('/') if p]
+                _logger.debug(f'ts: {ts}, fs: {ps}')
+                # Nothing to complete if the candidate is shorter than current input
+                if len(ps) <= len(ts):
+                    continue
+                for t, p in zip(ts, ps):
+                    if t != p:
+                        if t.startswith('_'):
+                            break
+                        if not (p.startswith('{') and p.endswith('}')):
+                            break
+                else:
+                    candidate = '/'.join(ps[len(ts):])
+                    candidates.append(Completion(candidate, start_position=0))
+
+        return FuzzyCompleter(ConstantCompleter(candidates)).get_completions(document, complete_event)
+
     def _complete_payload(self, document: Document, complete_event: CompleteEvent) -> Iterable[Completion]:
         # TODO: payload completion
         return []
 
-    def _complete_func_call(self, document: Document, complete_event: CompleteEvent) -> Iterable[Completion]:
-        # TODO: function call completion
-        return _FUNC_NAME_COMPLETER.get_completions(document, complete_event)
+
+class ConstantCompleter(Completer):
+
+    def __init__(self, candidates):
+        self.candidates = candidates
+
+    def get_completions(self, document: Document, complete_event: CompleteEvent) -> Iterable[Completion]:
+        return self.candidates
 
 
 def load_rest_api_spec():

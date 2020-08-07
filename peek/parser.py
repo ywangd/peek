@@ -3,7 +3,7 @@ import json
 import logging
 from typing import List
 
-from pygments.token import Token, Whitespace, String, Comment, Literal, Keyword, Number, Name
+from pygments.token import Token, Whitespace, String, Comment, Literal, Keyword, Number, Name, Error
 
 from peek.ast import NameNode, FuncCallNode, KeyValueNode, EsApiCallNode, StringNode, NumberNode, TextNode, DictNode, \
     ArrayNode
@@ -30,12 +30,10 @@ class PeekParser:
         self.position = 0
         self.tokens = []
 
-        unprocessed_tokens = []
-        for token in self.lexer.get_tokens_unprocessed(self.text):
-            unprocessed_tokens.append(token)
+        self.tokens = process_tokens(self.lexer.get_tokens_unprocessed(self.text))
+        for token in self.tokens:
             if token.ttype in Token.Error:
                 raise PeekSyntaxError(self.text, token)
-        self.tokens = process_tokens(unprocessed_tokens)
 
         nodes = []
         while self._peek_token().ttype is not EOF:
@@ -171,7 +169,7 @@ def normalise_string(value):
 def process_tokens(tokens: List[PeekToken]):
     """
     Process tokens by filtering out whitespaces and merging tokens that
-    should be represented as one, e.g. Strings, BlankLine.
+    should be represented as one, e.g. Strings, BlankLine, Error.
     """
     processed_tokens = []
     current_token = None
@@ -180,7 +178,7 @@ def process_tokens(tokens: List[PeekToken]):
             if current_token is not None:
                 processed_tokens.append(current_token)
                 current_token = None
-        elif token.ttype in String or token.ttype is BlankLine:
+        elif token.ttype in String or token.ttype is BlankLine or token.ttype is Error:
             if current_token is not None and current_token.ttype is token.ttype:
                 current_token = PeekToken(
                     current_token.index, current_token.ttype, current_token.value + token.value)

@@ -1,7 +1,7 @@
 import pytest
 from pygments.token import Token
 
-from peek.lexers import PeekLexer
+from peek.lexers import PeekLexer, UrlPathLexer
 
 
 @pytest.fixture
@@ -14,10 +14,10 @@ def payload_lexer():
     return PeekLexer(stack=('dict',))
 
 
-def do_test(peek_lexer, text, error_tokens=None):
+def do_test(lexer, text, error_tokens=None):
     error_tokens = error_tokens or []
     tokens = []
-    for t in peek_lexer.get_tokens_unprocessed(text):
+    for t in lexer.get_tokens_unprocessed(text):
         print(t)
         tokens.append(t)
         if t[1] is Token.Error and error_tokens:
@@ -105,3 +105,23 @@ def test_minimal(peek_lexer):
 
 def test_func_call_connect(peek_lexer):
     do_test(peek_lexer, text="""connect hosts='https://localhost:9200' username='foo'""")
+
+
+@pytest.fixture
+def url_path_lexer():
+    return UrlPathLexer()
+
+
+def test_url_path_empty(url_path_lexer):
+    do_test(url_path_lexer, '')
+
+
+def test_url_path_only(url_path_lexer):
+    do_test(url_path_lexer, '/a/b/c')
+    do_test(url_path_lexer, 'a/b/c/')
+    do_test(url_path_lexer, '/a/b/c?')
+
+
+def test_url_with_query(url_path_lexer):
+    do_test(url_path_lexer, '/a/b/c?foo=bar&hello=42')
+    do_test(url_path_lexer, '/a/b/c?foo=bar&name&pretty=')

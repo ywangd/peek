@@ -3,7 +3,7 @@ import re
 from pygments.lexer import RegexLexer, words, include, bygroups, default
 from pygments.style import Style
 from pygments.token import Keyword, Literal, String, Number, Punctuation, Name, Comment, Whitespace, Generic, Error, \
-    Operator
+    Operator, Text
 
 from peek.common import PeekToken
 
@@ -191,5 +191,41 @@ class PeekLexer(RegexLexer):
 
     def get_tokens_unprocessed(self, text, stack=None) -> PeekToken:
         stack = stack or self.stack
+        for t in super().get_tokens_unprocessed(text, stack):
+            yield PeekToken(*t)
+
+
+Slash = Punctuation.Slash
+PathPart = Text.PathPart
+QuestionMark = Punctuation.QuestionMark
+Ampersand = Punctuation.Ampersand
+Pound = Punctuation.Pound
+ParamName = Name.ParamName
+ParamValue = Text.ParamValue
+
+
+class UrlPathLexer(RegexLexer):
+    name = 'URLPATH'
+    aliases = ['url_path']
+
+    tokens = {
+        'root': [
+            (r'/', Slash),
+            (r'[^/?\s]+', PathPart),
+            (r'\?', QuestionMark, 'query')
+        ],
+        'query': [
+            (r'&', Ampersand),
+            (r'([^=&\s]+)(=)?([^&#\s]+)?', bygroups(ParamName, Assign, ParamValue)),
+            (r'#', Pound, ('#pop', 'fragment')),
+            default('#pop'),
+        ],
+        'fragment': [
+            (r'\S+', Text),
+            default('#pop'),
+        ],
+    }
+
+    def get_tokens_unprocessed(self, text, stack=('root',)) -> PeekToken:
         for t in super().get_tokens_unprocessed(text, stack):
             yield PeekToken(*t)
