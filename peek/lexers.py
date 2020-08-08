@@ -22,6 +22,8 @@ BlankLine = Whitespace.BlankLine
 FuncName = Name.Variable
 HttpMethod = Keyword.HttpMethod
 PayloadKey = String.Symbol
+KeyName = Name.Symbol
+
 TipsMinor = Generic.TipsMinor
 EOF = Whitespace.EOF
 
@@ -93,7 +95,7 @@ class PeekLexer(RegexLexer):
             (r'\n', Whitespace, ('#pop', 'payload')),
             (r'//.*', Comment.Single),
             (r'(' + VARIABLE_PATTERN + r')(' + W + r'*)(=)(' + W + r'*)',
-             bygroups(Name, Whitespace, Assign, Whitespace), 'expr'),
+             bygroups(KeyName, Whitespace, Assign, Whitespace), 'expr'),
             (W + r'+', Whitespace),
         ],
         'expr': [
@@ -116,7 +118,7 @@ class PeekLexer(RegexLexer):
             (r'\n', BlankLine, '#pop'),
             (r'//.*', Comment.Single),
             (r'(' + VARIABLE_PATTERN + r')(' + W + r'*)(=)(' + W + r'*)',
-             bygroups(Name, Whitespace, Assign, Whitespace), 'expr'),
+             bygroups(KeyName, Whitespace, Assign, Whitespace), 'expr'),
             (VARIABLE_PATTERN, Name),
             include('value'),
             (W + r'+', Whitespace),

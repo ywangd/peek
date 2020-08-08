@@ -6,10 +6,10 @@ from typing import Iterable
 
 from prompt_toolkit.completion import Completer, CompleteEvent, Completion, WordCompleter, FuzzyCompleter
 from prompt_toolkit.document import Document
-from pygments.token import Name, Error
+from pygments.token import Error, Name
 
 from peek.lexers import PeekLexer, UrlPathLexer, PathPart, ParamName, Ampersand, QuestionMark, Slash, HttpMethod, \
-    FuncName, BlankLine
+    FuncName, BlankLine, KeyName, Assign
 from peek.names import NAMES
 from peek.parser import process_tokens
 
@@ -45,13 +45,16 @@ class PeekCompleter(Completer):
         # Find which token to complete
         for i, t in enumerate(tokens):
             if t.index < document.cursor_position <= (t.index + len(t.value)):
+                _logger.debug(f'Found token {t} at {i} for completion')
                 break
         else:
+            _logger.debug(f'cursor is after the last token')
             # Cursor is on whitespace after the last non-white token
             if text[tokens[-1].index + len(tokens[-1].value):].find('\n') != -1:
-                return []  # cursor is no separate line
+                return []  # cursor is on separate line
             else:
                 # Cursor is at the end of an ES API or func call
+                _logger.debug('cursor is at the end of a statement')
                 return self._complete_options(tokens, document, complete_event)
 
         if t.ttype in (HttpMethod, FuncName):
@@ -64,8 +67,8 @@ class PeekCompleter(Completer):
         if i > 0 and tokens[i - 1].ttype is HttpMethod:
             return self._complete_path(tokens, document, complete_event)
 
-        # The token is a Name or Error (incomplete k=v form), try complete for options
-        if t.ttype in (Error, Name):
+        # The token is a KeyName or Error (incomplete k=v form), try complete for options
+        if t.ttype in (Error, KeyName, Name):
             return self._complete_options(tokens[:-1], document, complete_event)
 
         return []
@@ -133,6 +136,13 @@ class PeekCompleter(Completer):
             [Completion(c, start_position=0) for c in candidates])).get_completions(document, complete_event)
 
     def _complete_options(self, tokens, document: Document, complete_event: CompleteEvent):
+        _logger.debug('Completing for options')
+        # If directly after a =, it is a value, no completion needed
+        if len(tokens) > 0 and tokens[-1].ttype is Assign:
+            # TODO: complete for variable names
+            return []
+
+        # TODO: For future handle the KeyName or Name is inside a function call, e.g. f(name=..)
         for t in tokens[::-1]:
             if t.ttype is HttpMethod:
                 return _ES_API_CALL_OPTION_COMPLETER.get_completions(document, complete_event)
