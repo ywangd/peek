@@ -7,7 +7,8 @@ from typing import Iterable
 from prompt_toolkit.completion import Completer, CompleteEvent, Completion, WordCompleter, FuzzyCompleter
 from prompt_toolkit.document import Document
 
-from peek.lexers import PeekLexer, UrlPathLexer, PathPart, ParamName, Ampersand, QuestionMark, Slash, HttpMethod
+from peek.lexers import PeekLexer, UrlPathLexer, PathPart, ParamName, Ampersand, QuestionMark, Slash, HttpMethod, \
+    FuncName
 from peek.names import NAMES
 from peek.parser import process_tokens
 
@@ -45,19 +46,19 @@ class PeekCompleter(Completer):
         else:
             return []
 
-        if i == 0:
+        if t.ttype in (HttpMethod, FuncName):
             _logger.debug(f'Completing function/http method name: {t}')
             return itertools.chain(
                 _HTTP_METHOD_COMPLETER.get_completions(document, complete_event),
                 _FUNC_NAME_COMPLETER.get_completions(document, complete_event))
 
-        if i == 1 and tokens[0].ttype is HttpMethod:
+        if i > 0 and tokens[i - 1].ttype is HttpMethod:
             return self._complete_path(tokens, document, complete_event)
 
         return []
 
     def _complete_path(self, tokens, document: Document, complete_event: CompleteEvent) -> Iterable[Completion]:
-        method_token, path_token = tokens
+        method_token, path_token = tokens[-2], tokens[-1]
         method = method_token.value.upper()
         cursor_position = document.cursor_position - path_token.index
         path = path_token.value[:cursor_position]
