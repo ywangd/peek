@@ -188,16 +188,23 @@ def buffer_should_be_handled(app):
     def cond():
         doc = get_app().layout.get_buffer_by_name(DEFAULT_BUFFER).document
         _logger.debug(f'current doc: {doc}')
+        # Always handle empty text
         if doc.text.strip() == '':
             return True
-        elif doc.text.lstrip().split(maxsplit=1)[0].upper() not in HTTP_METHODS:
-            return True
 
-        # Handle ES API call when an empty line is entered
+        # Do not handle if there are chars after the cursor position
+        if doc.text[doc.cursor_position:].strip() != '':
+            return False
+
+        # Handle if extra blank line found
         last_linesep_position = doc.text.rfind(os.linesep)
         if last_linesep_position != -1 and doc.text[last_linesep_position:].strip() == '':
             return True
 
-        return False
+        # If there are existing lines already, do not handle
+        if doc.text.count('\n') > 0:
+            return False
+        else:  # If this is the 1st line, do not handle if it is ES API call
+            return doc.text.lstrip().split(maxsplit=1)[0].upper() not in HTTP_METHODS
 
     return cond
