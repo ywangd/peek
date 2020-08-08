@@ -17,9 +17,9 @@ _logger = logging.getLogger(__name__)
 
 _HTTP_METHOD_COMPLETER = WordCompleter(['GET', 'POST', 'PUT', 'DELETE'], ignore_case=True)
 
-_FUNC_NAME_COMPLETER = WordCompleter(list(NAMES.keys()))
+_FUNC_NAME_COMPLETER = WordCompleter(sorted(NAMES.keys()))
 
-_ES_API_CALL_OPTION_COMPLETER = WordCompleter([w + '=' for w in ['conn', 'runas']])
+_ES_API_CALL_OPTION_COMPLETER = WordCompleter([w + '=' for w in sorted(['conn', 'runas'])])
 
 
 class PeekCompleter(Completer):
@@ -150,7 +150,7 @@ class PeekCompleter(Completer):
                 func = NAMES.get(t.value)
                 if func is None or not getattr(func, 'option_names', None):
                     return []
-                return WordCompleter([n + '=' for n in func.option_names]).get_completions(
+                return WordCompleter(sorted([n + '=' for n in func.option_names])).get_completions(
                     document, complete_event)
             elif t.ttype is BlankLine:
                 return []
