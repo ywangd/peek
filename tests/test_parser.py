@@ -53,9 +53,16 @@ post abc/_doc
 
 conn foo=bar  // comment
 get abc
+post xyz/_doc
+{"index": "asfa"}
+// comment
+{"again": [{"ok": 1}]}
+get xyz/_doc/1 // comment
+conn
+get foo
 """
     nodes = parser.parse(text)
-    assert len(nodes) == 4
+    assert len(nodes) == 8
 
 
 def test_parser_normal_payload(parser):
@@ -162,16 +169,6 @@ def test_parser_bulk_index(parser):
 {"update":{"_id":"1","_index":"test"}}
 {"doc":{"field2":"value2"}}
 '''
-
-
-def test_parser_invalid(parser):
-    text = """get abc
-qrs"""
-
-    with pytest.raises(PeekSyntaxError) as e:
-        parser.parse(text)
-
-    assert 'qrs' in str(e.value)
 
 
 def test_parser_invalid_missing_comma(parser):

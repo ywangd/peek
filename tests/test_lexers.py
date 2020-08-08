@@ -1,6 +1,7 @@
 import pytest
 from pygments.token import Token
 
+from peek.common import PeekToken
 from peek.lexers import PeekLexer, UrlPathLexer
 
 
@@ -53,6 +54,34 @@ get /yet/another // comment
 """)
 
 
+def test_es_api_calls_2(peek_lexer):
+    do_test(peek_lexer, """get abc
+
+post abc/_doc
+{ "foo":
+         "bar"
+}
+
+conn foo=bar  // comment
+get abc
+""")
+
+
+def test_es_api_call_payloads(peek_lexer):
+    do_test(peek_lexer, """get abc
+  // comment is ok
+ { }
+    // another comment is fine
+  {}
+// yet another one
+{ }
+
+get xyz
+{}
+{}
+""")
+
+
 def test_func_calls(peek_lexer):
     do_test(peek_lexer, """conn 1
 conn "a" foo=1 c=bar
@@ -66,9 +95,29 @@ g 1 b=[3,4] x={
  1} // ok""")
 
 
+def test_continuous_statements(peek_lexer):
+    do_test(peek_lexer, """get abc
+get xyz
+connect 1 2 3
+put xyz/_doc
+{}
+post qwer/_doc
+{
+  "a": "b",
+}""")
+
+
 def test_invalid_000(peek_lexer):
     do_test(peek_lexer, """conn 1 2 3 foo=bar /""", error_tokens=[(19, Token.Error, '/')])
     do_test(peek_lexer, """get / /""", error_tokens=[(6, Token.Error, '/')])
+
+
+def test_invalid_001(peek_lexer):
+    do_test(peek_lexer, """get /abc
+
+{}
+""", error_tokens=[PeekToken(index=10, ttype=Token.Error, value='{'),
+                   PeekToken(index=11, ttype=Token.Error, value='}')])
 
 
 def test_es_api_and_func_calls(peek_lexer):

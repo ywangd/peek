@@ -64,7 +64,6 @@ def sqs(ttype):
     ]
 
 
-DoubleNLPop = (r'(\s*)(\n\s*\n)', bygroups(Whitespace, BlankLine), '#pop')
 W = r'[ \t\r\f\v]'
 
 
@@ -91,7 +90,6 @@ class PeekLexer(RegexLexer):
             (r'(' + W + r'*)(\S+)', bygroups(Whitespace, Literal), ('#pop', 'opts')),
         ],
         'opts': [
-            DoubleNLPop,
             (r'\n', Whitespace, ('#pop', 'payload')),
             (r'//.*', Comment.Single),
             (r'(' + VARIABLE_PATTERN + r')(' + W + r'*)(=)(' + W + r'*)',
@@ -105,13 +103,15 @@ class PeekLexer(RegexLexer):
             default('#pop'),
         ],
         'payload': [
-            DoubleNLPop,
-            (r'(//.*)(\n)', bygroups(Comment.Single, Whitespace)),
-            (r'(\n' + W + r'*)(?={)', Whitespace, 'dict'),
-            (r'(' + W + r'*)(?={)', Whitespace, 'dict'),
+            (r'(' + W + '*)' + r'(//.*)(\n)', bygroups(Whitespace, Comment.Single, Whitespace)),
+            (r'(' + W + r'*)(?={)', Whitespace, ('#pop', 'payload_cont', 'dict')),
             default('#pop'),
         ],
-
+        'payload_cont': [
+            (r'(\n' + W + r'*)(//.*)', bygroups(Whitespace, Comment.Single)),
+            (r'(\n' + W + r'*)(?={)', Whitespace, 'dict'),
+            default('#pop'),
+        ],
         'func_args': [
             (r'\n', BlankLine, '#pop'),
             (r'//.*', Comment.Single),

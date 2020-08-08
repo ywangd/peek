@@ -68,10 +68,10 @@ class PeekParser:
 
         dict_nodes = []
         while self._peek_token().ttype is not EOF:
-            if self._peek_token().ttype is BlankLine:
-                self._consume_token(BlankLine)
+            if self._peek_token().ttype is CurlyLeft:
+                dict_nodes.append(self._parse_json_object())
+            else:
                 break
-            dict_nodes.append(self._parse_json_object())
         return EsApiCallNode(method_node, path_node, DictNode(option_nodes), dict_nodes)
 
     def _parse_json_object(self):
