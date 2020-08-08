@@ -6,9 +6,10 @@ from typing import Iterable
 
 from prompt_toolkit.completion import Completer, CompleteEvent, Completion, WordCompleter, FuzzyCompleter
 from prompt_toolkit.document import Document
+from pygments.token import Name, Error
 
 from peek.lexers import PeekLexer, UrlPathLexer, PathPart, ParamName, Ampersand, QuestionMark, Slash, HttpMethod, \
-    FuncName
+    FuncName, BlankLine
 from peek.names import NAMES
 from peek.parser import process_tokens
 
@@ -17,6 +18,8 @@ _logger = logging.getLogger(__name__)
 _HTTP_METHOD_COMPLETER = WordCompleter(['GET', 'POST', 'PUT', 'DELETE'], ignore_case=True)
 
 _FUNC_NAME_COMPLETER = WordCompleter(list(NAMES.keys()))
+
+_ES_API_CALL_OPTION_COMPLETER = WordCompleter([w + '=' for w in ['conn', 'runas']])
 
 
 class PeekCompleter(Completer):
@@ -44,7 +47,12 @@ class PeekCompleter(Completer):
             if t.index < document.cursor_position <= (t.index + len(t.value)):
                 break
         else:
-            return []
+            # Cursor is on whitespace after the last non-white token
+            if text[tokens[-1].index + len(tokens[-1].value):].find('\n') != -1:
+                return []  # cursor is no separate line
+            else:
+                # Cursor is at the end of an ES API or func call
+                return self._complete_options(tokens, document, complete_event)
 
         if t.ttype in (HttpMethod, FuncName):
             _logger.debug(f'Completing function/http method name: {t}')
@@ -52,8 +60,13 @@ class PeekCompleter(Completer):
                 _HTTP_METHOD_COMPLETER.get_completions(document, complete_event),
                 _FUNC_NAME_COMPLETER.get_completions(document, complete_event))
 
+        # The token right before cursor is HttpMethod, go for path completion
         if i > 0 and tokens[i - 1].ttype is HttpMethod:
             return self._complete_path(tokens, document, complete_event)
+
+        # The token is a Name or Error (incomplete k=v form), try complete for options
+        if t.ttype in (Error, Name):
+            return self._complete_options(tokens[:-1], document, complete_event)
 
         return []
 
@@ -118,6 +131,19 @@ class PeekCompleter(Completer):
 
         return FuzzyCompleter(ConstantCompleter(
             [Completion(c, start_position=0) for c in candidates])).get_completions(document, complete_event)
+
+    def _complete_options(self, tokens, document: Document, complete_event: CompleteEvent):
+        for t in tokens[::-1]:
+            if t.ttype is HttpMethod:
+                return _ES_API_CALL_OPTION_COMPLETER.get_completions(document, complete_event)
+            elif t.ttype is FuncName:
+                func = NAMES.get(t.value)
+                if func is None or not getattr(func, 'option_names', None):
+                    return []
+                return WordCompleter([n + '=' for n in func.option_names]).get_completions(
+                    document, complete_event)
+            elif t.ttype is BlankLine:
+                return []
 
     def _complete_payload(self, document: Document, complete_event: CompleteEvent) -> Iterable[Completion]:
         # TODO: payload completion

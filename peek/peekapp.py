@@ -3,7 +3,7 @@ import logging
 import sys
 from typing import List
 
-from prompt_toolkit import PromptSession, print_formatted_text, prompt
+from prompt_toolkit import PromptSession, prompt
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.formatted_text import FormattedText
 from prompt_toolkit.lexers import PygmentsLexer
@@ -18,7 +18,7 @@ from peek.errors import PeekError, PeekSyntaxError
 from peek.history import SqLiteHistory
 from peek.key_bindings import key_bindings
 from peek.lexers import PeekLexer, PeekStyle, Heading, TipsMinor
-from peek.names import func_connect
+from peek.names import ConnectFunc
 from peek.parser import PeekParser
 from peek.vm import PeekVM
 
@@ -167,7 +167,7 @@ class PeekApp:
             )
 
     def _init_es_client(self):
-        func_connect(
+        ConnectFunc()(
             self,
             hosts=self.cli_ns.hosts,
             auth_type=AuthType.USERPASS if self.cli_ns.auth_type is None else AuthType(self.cli_ns.auth_type.upper()),

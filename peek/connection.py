@@ -209,21 +209,24 @@ class AuthType(Enum):
     PKI = 'PKI'
 
 
+DEFAULT_OPTIONS = {
+    'hosts': 'localhost:9200',
+    'auth_type': AuthType.USERPASS,
+    'username': None,
+    'password': None,
+    'api_key': None,
+    'use_ssl': None,
+    'verify_certs': False,
+    'ca_certs': None,
+    'client_cert': None,
+    'client_key': None,
+    'force_prompt': False,
+    'no_prompt': False,
+}
+
+
 def connect(app, **options):
-    final_options = {
-        'hosts': 'localhost:9200',
-        'auth_type': AuthType.USERPASS,
-        'username': None,
-        'password': None,
-        'api_key': None,
-        'use_ssl': None,
-        'verify_certs': False,
-        'ca_certs': None,
-        'client_cert': None,
-        'client_key': None,
-        'force_prompt': False,
-        'no_prompt': False,
-    }
+    final_options = dict(DEFAULT_OPTIONS)
 
     if 'auth_type' in options:
         options['auth_type'] = AuthType(options['auth_type'])
