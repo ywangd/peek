@@ -33,6 +33,7 @@ class BaseClient(metaclass=ABCMeta):
 class EsClient(BaseClient):
 
     def __init__(self,
+                 name=None,
                  hosts='localhost:9200',
                  username=None,
                  password=None,
@@ -41,8 +42,11 @@ class EsClient(BaseClient):
                  ca_certs=None,
                  client_cert=None,
                  client_key=None,
+                 api_key=None,
+                 token=None,
                  **kwargs):
 
+        self.name = name
         self.hosts = ['localhost:9200'] if hosts is None else hosts.split(',')
         self.auth = f'{username}:{password}' if username and password else None
         self.use_ssl = use_ssl
@@ -50,6 +54,9 @@ class EsClient(BaseClient):
         self.ca_certs = ca_certs
         self.client_cert = client_cert
         self.client_key = client_key
+        self.api_key_id = api_key[0] if api_key else None
+        self.token = token
+        headers = {'Authorization': f'Bearer {token}'} if token else None
 
         self.es = Elasticsearch(
             hosts=self.hosts,
@@ -61,6 +68,8 @@ class EsClient(BaseClient):
             client_key=client_key,
             ssl_show_warn=False,
             timeout=Timeout(connect=None, read=None),
+            api_key=api_key,
+            headers=headers,
             **kwargs,
         )
 
@@ -84,9 +93,19 @@ class EsClient(BaseClient):
             else:
                 hosts.append(('https://' if self.use_ssl else 'http://') + host)
 
+        if self.name:
+            return f'{self.name}'
+
         hosts = ','.join(hosts)
-        username = '' if self.auth is None else self.auth.split(':')[0]
-        return f'{username} @ {hosts}'
+        if self.api_key_id:
+            return f'K-{self.api_key_id[:10]} @ {hosts}'
+        elif self.token:
+            return f'T-{self.token[:10]} @ {hosts}'
+        elif self.auth:
+            username = self.auth.split(':')[0]
+            return f'{username} @ {hosts}'
+        else:
+            return f'{hosts}'
 
 
 class RefreshingEsClient(BaseClient):
@@ -210,11 +229,13 @@ class AuthType(Enum):
 
 
 DEFAULT_OPTIONS = {
+    'name': None,
     'hosts': 'localhost:9200',
     'auth_type': AuthType.USERPASS,
     'username': None,
     'password': None,
     'api_key': None,
+    'token': None,
     'use_ssl': None,
     'verify_certs': False,
     'ca_certs': None,
@@ -234,6 +255,8 @@ def connect(app, **options):
 
     if final_options['auth_type'] is AuthType.APIKEY or final_options['api_key']:
         return _connect_api_key(app, **final_options)
+    elif final_options['auth_type'] is AuthType.TOKEN or final_options['token']:
+        return _connect_token(app, **final_options)
     elif final_options['auth_type'] is AuthType.USERPASS:
         return _connect_userpass(app, **final_options)
     else:
@@ -270,6 +293,7 @@ def _connect_userpass(app, **options):
         _keyring(service_name, username, password)
 
     return EsClient(
+        name=options['name'],
         hosts=options['hosts'],
         username=username,
         password=password,
@@ -283,8 +307,23 @@ def _connect_userpass(app, **options):
 def _connect_api_key(app, **options):
     _logger.debug(f'Connecting with API key')
     return EsClient(
+        name=options['name'],
         hosts=options['hosts'],
         api_key=options['api_key'].split(':'),
+        use_ssl=options['use_ssl'],
+        verify_certs=options['verify_certs'],
+        ca_certs=options['ca_certs'],
+        client_cert=options['client_cert'],
+        client_key=options['client_key'],
+    )
+
+
+def _connect_token(app, **options):
+    _logger.debug(f'Connecting with token')
+    return EsClient(
+        name=options['name'],
+        hosts=options['hosts'],
+        token=options['token'],
         use_ssl=options['use_ssl'],
         verify_certs=options['verify_certs'],
         ca_certs=options['ca_certs'],

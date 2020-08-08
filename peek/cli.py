@@ -16,6 +16,8 @@ def main():
     parser.add_argument('-e', '--extra-config-option', action='append',
                         help='Extra configuration option to override')
 
+    parser.add_argument('--name',
+                        help='A friendly name for the connection')
     parser.add_argument('--hosts', default='localhost:9200',
                         help='ES hosts to connect to')
     parser.add_argument('--auth_type', default='userpass',
@@ -27,6 +29,8 @@ def main():
                         help='Password')
     parser.add_argument('--api_key',
                         help='API key of format id:key')
+    parser.add_argument('--token',
+                        help='Token for authentication')
     parser.add_argument('--use_ssl', action='store_true',
                         help='Enable TLS for connecting to ES')
     parser.add_argument('--verify_certs', action='store_true',

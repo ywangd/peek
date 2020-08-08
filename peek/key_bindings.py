@@ -194,6 +194,7 @@ def buffer_should_be_handled(app):
 
         # Do not handle if there are chars after the cursor position
         if doc.text[doc.cursor_position:].strip() != '':
+            _logger.debug('Extra non-white chars found after cursor')
             return False
 
         # Handle if extra blank line found
@@ -203,6 +204,7 @@ def buffer_should_be_handled(app):
 
         # If there are existing lines already, do not handle
         if doc.text.count('\n') > 0:
+            _logger.debug('Existing line found above current line')
             return False
         else:  # If this is the 1st line, do not handle if it is ES API call
             return doc.text.lstrip().split(maxsplit=1)[0].upper() not in HTTP_METHODS

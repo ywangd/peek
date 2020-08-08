@@ -100,8 +100,8 @@ class PeekLexer(RegexLexer):
         ],
         'expr': [
             # Name, Value and expression
-            (VARIABLE_PATTERN, Name),
             include('value'),
+            (VARIABLE_PATTERN, Name),
             default('#pop'),
         ],
         'payload': [
@@ -119,8 +119,8 @@ class PeekLexer(RegexLexer):
             (r'//.*', Comment.Single),
             (r'(' + VARIABLE_PATTERN + r')(' + W + r'*)(=)(' + W + r'*)',
              bygroups(KeyName, Whitespace, Assign, Whitespace), 'expr'),
-            (VARIABLE_PATTERN, Name),
             include('value'),
+            (VARIABLE_PATTERN, Name),
             (W + r'+', Whitespace),
             default('#pop'),
         ],

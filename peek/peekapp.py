@@ -169,11 +169,13 @@ class PeekApp:
     def _init_es_client(self):
         ConnectFunc()(
             self,
+            name=self.cli_ns.name,
             hosts=self.cli_ns.hosts,
             auth_type=AuthType.USERPASS if self.cli_ns.auth_type is None else AuthType(self.cli_ns.auth_type.upper()),
             username=self.cli_ns.username,
             password=self.cli_ns.password,
             api_key=self.cli_ns.api_key,
+            token=self.cli_ns.token,
             use_ssl=self.cli_ns.use_ssl,
             verify_certs=self.cli_ns.verify_certs,
             ca_certs=self.cli_ns.ca_certs,

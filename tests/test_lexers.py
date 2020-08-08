@@ -1,5 +1,5 @@
 import pytest
-from pygments.token import Token
+from pygments.token import Token, Name
 
 from peek.common import PeekToken
 from peek.lexers import PeekLexer, UrlPathLexer
@@ -26,6 +26,7 @@ def do_test(lexer, text, error_tokens=None):
             error_tokens.pop(0)
             continue
         assert t[1] is not Token.Error
+    return tokens
 
 
 def test_numbers(payload_lexer):
@@ -154,6 +155,11 @@ def test_minimal(peek_lexer):
 
 def test_func_call_connect(peek_lexer):
     do_test(peek_lexer, text="""connect hosts='https://localhost:9200' username='foo'""")
+
+
+def test_builtin_as_kv_value(peek_lexer):
+    tokens = do_test(peek_lexer, text="""connect use_ssl=true""")
+    assert tokens[-1][1] is Name.Builtin
 
 
 @pytest.fixture
