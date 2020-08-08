@@ -6,9 +6,8 @@ from typing import Iterable
 
 from prompt_toolkit.completion import Completer, CompleteEvent, Completion, WordCompleter, FuzzyCompleter
 from prompt_toolkit.document import Document
-from pygments.token import Keyword
 
-from peek.lexers import PeekLexer, UrlPathLexer, PathPart, ParamName, Ampersand, QuestionMark, Slash
+from peek.lexers import PeekLexer, UrlPathLexer, PathPart, ParamName, Ampersand, QuestionMark, Slash, HttpMethod
 from peek.names import NAMES
 from peek.parser import process_tokens
 
@@ -52,7 +51,7 @@ class PeekCompleter(Completer):
                 _HTTP_METHOD_COMPLETER.get_completions(document, complete_event),
                 _FUNC_NAME_COMPLETER.get_completions(document, complete_event))
 
-        if i == 1 and tokens[0].ttype is Keyword:
+        if i == 1 and tokens[0].ttype is HttpMethod:
             return self._complete_path(tokens, document, complete_event)
 
         return []

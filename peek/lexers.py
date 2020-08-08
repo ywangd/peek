@@ -19,7 +19,8 @@ TripleD = String.TripleD
 TripleS = String.TripleS
 Assign = Operator.Assign
 BlankLine = Whitespace.BlankLine
-Variable = Name.Variable
+FuncName = Name.Variable
+HttpMethod = Keyword.HttpMethod
 PayloadKey = String.Symbol
 TipsMinor = Generic.TipsMinor
 EOF = Whitespace.EOF
@@ -36,7 +37,7 @@ class PeekStyle(Style):
         PayloadKey: '#bff',  # '#28b',
         String: '#395',
         Name.Builtin: '#77f',
-        Variable: '#77f',
+        FuncName: '#77f',
         Number: '#07a',
         Heading: '#F6D845',
         TipsMinor: '#4C4447',
@@ -81,8 +82,8 @@ class PeekLexer(RegexLexer):
     tokens = {
         'root': [
             (r'//.*', Comment.Single),
-            (r'(?i)(GET|POST|PUT|DELETE)\b', Keyword, 'api_path'),
-            (VARIABLE_PATTERN, Variable, 'func_args'),
+            (r'(?i)(GET|POST|PUT|DELETE)\b', HttpMethod, 'api_path'),
+            (VARIABLE_PATTERN, FuncName, 'func_args'),
             # TODO: more keywords
             (r'\s+', Whitespace),
         ],

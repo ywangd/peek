@@ -3,14 +3,14 @@ import json
 import logging
 from typing import List
 
-from pygments.token import Token, Whitespace, String, Comment, Literal, Keyword, Number, Name, Error
+from pygments.token import Token, Whitespace, String, Comment, Literal, Number, Name, Error
 
 from peek.ast import NameNode, FuncCallNode, KeyValueNode, EsApiCallNode, StringNode, NumberNode, TextNode, DictNode, \
     ArrayNode
 from peek.common import PeekToken
 from peek.errors import PeekSyntaxError
 from peek.lexers import PeekLexer, BlankLine, CurlyLeft, PayloadKey, Colon, \
-    CurlyRight, Comma, BracketLeft, BracketRight, TripleS, TripleD, EOF, Variable, Assign
+    CurlyRight, Comma, BracketLeft, BracketRight, TripleS, TripleD, EOF, FuncName, Assign, HttpMethod
 
 _logger = logging.getLogger(__name__)
 
@@ -40,9 +40,9 @@ class PeekParser:
             token = self._peek_token()
             if token.ttype is BlankLine:
                 self._consume_token(BlankLine)
-            elif token.ttype is Variable:
+            elif token.ttype is FuncName:
                 nodes.append(self._parse_func_call())
-            elif token.ttype is Keyword:
+            elif token.ttype is HttpMethod:
                 nodes.append(self._parse_es_api_call())
             else:
                 raise PeekSyntaxError(
@@ -52,7 +52,7 @@ class PeekParser:
         return nodes
 
     def _parse_es_api_call(self):
-        method_token = self._consume_token(Keyword)
+        method_token = self._consume_token(HttpMethod)
         method_node = NameNode(method_token)
         if method_token.value.upper() not in HTTP_METHODS:
             raise PeekSyntaxError(
@@ -120,7 +120,7 @@ class PeekParser:
             raise PeekSyntaxError(self.text, token)
 
     def _parse_func_call(self):
-        name_node = NameNode(self._consume_token(Variable))
+        name_node = NameNode(self._consume_token(FuncName))
         arg_nodes = []
         kwarg_nodes = []
         while self._peek_token().ttype is not EOF:
