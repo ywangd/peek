@@ -4,6 +4,7 @@ import logging
 from configobj import ConfigObj
 
 from peek.connection import connect, DEFAULT_OPTIONS
+from peek.oidc import oidc_authenticate
 from peek.saml import saml_authenticate
 
 _logger = logging.getLogger(__name__)
@@ -82,9 +83,26 @@ class SamlAuthenticateFunc:
         return ['realm', 'callback_port']
 
 
+class OidcAuthenticateFunc:
+    def __call__(self, app, **options):
+        realm = options.get('realm', 'oidc1')
+        oidc_es_client = oidc_authenticate(
+            app.es_client,
+            realm,
+            options.get('callback_port', '5601'),
+        )
+        app.es_client_manager.add(oidc_es_client)
+        return json.dumps({'username': oidc_es_client.username, 'realm': 'realm'})
+
+    @property
+    def option_names(self):
+        return ['realm', 'callback_port']
+
+
 NAMES = {
     'connect': ConnectFunc(),
     'config': ConfigFunc(),
     'session': SessionFunc(),
     'saml_authenticate': SamlAuthenticateFunc(),
+    'oidc_authenticate': OidcAuthenticateFunc(),
 }

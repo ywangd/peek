@@ -44,6 +44,7 @@ class EsClient(BaseClient):
                  client_key=None,
                  api_key=None,
                  token=None,
+                 headers=None,
                  **kwargs):
 
         self.name = name
@@ -56,7 +57,12 @@ class EsClient(BaseClient):
         self.client_key = client_key
         self.api_key_id = api_key[0] if api_key else None
         self.token = token
-        headers = {'Authorization': f'Bearer {token}'} if token else None
+        if token:
+            token_header = {'Authorization': f'Bearer {token}'}
+            if headers:
+                headers.update(token_header)
+            else:
+                headers = token_header
 
         self.es = Elasticsearch(
             hosts=self.hosts,
@@ -86,15 +92,15 @@ class EsClient(BaseClient):
                 self.es.transport.deserializer = deserializer
 
     def __str__(self):
+        if self.name:
+            return f'{self.name}'
+
         hosts = []
         for host in self.hosts:
             if host.startswith('https://') or host.startswith('http://'):
                 hosts.append(host)
             else:
                 hosts.append(('https://' if self.use_ssl else 'http://') + host)
-
-        if self.name:
-            return f'{self.name}'
 
         hosts = ','.join(hosts)
         if self.api_key_id:
@@ -144,11 +150,11 @@ class RefreshingEsClient(BaseClient):
                 self.perform_request(method, path, payload, deserialize_it=deserialize_it, **kwargs)
 
     def __str__(self):
-        return self.username + str(self.delegate)
+        return f'{self.username} @ {self.delegate}'
 
     def _build_delegate(self):
         return EsClient(
-            ','.join(self.parent.hosts),
+            hosts=','.join(self.parent.hosts),
             use_ssl=self.parent.use_ssl,
             verify_certs=self.parent.verify_certs,
             ca_certs=self.parent.ca_certs,
