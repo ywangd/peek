@@ -10,7 +10,7 @@ from peek.ast import NameNode, FuncCallNode, KeyValueNode, EsApiCallNode, String
 from peek.common import PeekToken
 from peek.errors import PeekSyntaxError
 from peek.lexers import PeekLexer, BlankLine, CurlyLeft, PayloadKey, Colon, \
-    CurlyRight, Comma, BracketLeft, BracketRight, TripleS, TripleD, EOF, FuncName, Assign, HttpMethod, KeyName
+    CurlyRight, Comma, BracketLeft, BracketRight, TripleS, TripleD, EOF, FuncName, Assign, HttpMethod, OptionName
 
 _logger = logging.getLogger(__name__)
 
@@ -61,8 +61,8 @@ class PeekParser:
                 message=f'Expect HTTP method of value in {HTTP_METHODS!r}, got {method_token.value!r}')
         path_node = NameNode(self._consume_token(Literal))
         option_nodes = []
-        while self._peek_token().ttype is KeyName:
-            n = NameNode(self._consume_token(KeyName))
+        while self._peek_token().ttype is OptionName:
+            n = NameNode(self._consume_token(OptionName))
             self._consume_token(Assign)
             option_nodes.append(KeyValueNode(n, self._parse_expr()))
 
@@ -127,8 +127,8 @@ class PeekParser:
             if self._peek_token().ttype is BlankLine:
                 self._consume_token(BlankLine)
                 break
-            if self._peek_token().ttype is KeyName:
-                n = NameNode(self._consume_token(KeyName))
+            if self._peek_token().ttype is OptionName:
+                n = NameNode(self._consume_token(OptionName))
                 self._consume_token(Assign)
                 kwarg_nodes.append(KeyValueNode(n, self._parse_expr()))
             else:

@@ -3,8 +3,13 @@ from typing import Iterable
 
 from prompt_toolkit.completion import CompleteEvent, Completion
 from prompt_toolkit.document import Document
+from pygments.token import Literal
 
-from peek.completer import load_specs, PeekCompleter
+from peek.common import PeekToken
+from peek.completer import load_specs, PeekCompleter, find_beginning_token, matchable_specs
+from peek.lexers import HttpMethod, FuncName, BlankLine
+
+completer = PeekCompleter()
 
 
 def equivalent_completions(c0: Completion, c1: Completion):
@@ -12,17 +17,18 @@ def equivalent_completions(c0: Completion, c1: Completion):
 
 
 def completions_has(cs: Iterable[Completion], *cc: Completion):
+    if not completer.specs:
+        return True
+
     actual = set((x.text, x.start_position) for x in cs)
     expected = set((x.text, x.start_position) for x in cc)
     ret = actual.issuperset(expected)
     if ret is False:
         print(f'actual: {actual!r} is not superset of {expected!r}')
-
     return ret
 
 
 def get_completions(document: Document):
-    completer = PeekCompleter()
     return completer.get_completions(document, CompleteEvent(True))
 
 
@@ -32,10 +38,35 @@ def test_load_specs():
     kibana_dir = os.path.join(package_root, 'specs', 'kibana-7.8.1')
     specs = load_specs(kibana_dir)
     # Skip the test if no specs are found
-    if specs:
-        # Make sure loading and merging work
-        print(specs['indices.create']['data_autocomplete_rules'])
-        print(specs['security.put_user']['data_autocomplete_rules'])
+    if not specs:
+        return
+
+    # Make sure loading and merging work
+    print(specs['indices.create']['data_autocomplete_rules'])
+    print(specs['security.put_user']['data_autocomplete_rules'])
+
+    next(matchable_specs('POST', ['_security', 'api_key'], specs))
+
+    next(matchable_specs('POST', ['_security', 'oauth2', 'token'], specs,
+                         required_field='data_autocomplete_rules'))
+
+
+def test_find_beginning_token():
+    tokens = [
+        PeekToken(index=0, ttype=HttpMethod, value='get'),
+        PeekToken(index=4, ttype=Literal, value='abc'),
+        PeekToken(index=8, ttype=FuncName, value='ge')
+    ]
+    i, t = find_beginning_token(tokens)
+    assert i == 2
+
+    tokens = [
+        PeekToken(index=0, ttype=FuncName, value='connect'),
+        PeekToken(index=7, ttype=BlankLine, value='\n'),
+        PeekToken(index=8, ttype=FuncName, value='session')
+    ]
+    i, t = find_beginning_token(tokens)
+    assert i == 2
 
 
 def test_complete_http_method_and_func_name():
@@ -142,10 +173,74 @@ get _cluster/health c''')),
         Completion(text='conn=', start_position=-1),
     )
 
+    assert len(list(get_completions(Document('''post _security/api_key
+{"role_descriptors": }''', 44)))) == 0
 
-def test_completer():
-    completer = PeekCompleter()
 
-    document = Document("""post _security/api_key
-{ u }""", 26)
-    print(list(completer.get_completions(document, CompleteEvent(True))))
+def test_not_complete_http_options():
+    assert len(list(get_completions(Document('''POST _security/oauth2/token
+''')))) == 0
+
+
+def test_payload_completion_000():
+    assert completions_has(
+        get_completions(Document('''POST _security/api_key
+{""}''', 25)),
+        Completion(text="role_descriptors", start_position=0),
+    )
+
+
+def test_payload_completion_001():
+    assert completions_has(
+        get_completions(Document('''POST _security/api_key
+{
+  "role_descriptors": {
+    "role_name": {
+      "indices": [
+        {""}
+      ]
+    }
+  }
+}''', 97)),
+        Completion(text="field_security", start_position=0),
+    )
+
+
+def test_payload_completion_002():
+    assert completions_has(
+        get_completions(Document('''POST _security/api_key
+{
+  "role_descriptors": {
+    "role_name": {
+      "indices": [
+        {"field_security": ""}
+      ]
+    }
+  },
+  "n"
+}''', 141)),
+        Completion(text="name", start_position=-1),
+    )
+
+
+def test_payload_completion_003():
+    assert completions_has(
+        get_completions(Document('''POST _security/api_key
+{
+  "role_descriptors": {
+    "role_name": {
+      "cluster": [],
+      ""
+    }
+  }
+}''', 97)),
+        Completion(text="indices"),
+    )
+
+
+def test_payload_completion_004():
+    assert completions_has(
+        get_completions(Document('''POST _security/oauth2/token
+{""}''', 30)),
+        Completion(text="scope", start_position=0),
+    )
