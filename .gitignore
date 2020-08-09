@@ -106,3 +106,4 @@ ENV/
 
 .idea
 peek/rest-api-spec
+peek/specs

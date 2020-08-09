@@ -26,9 +26,12 @@ BROWSER := python -c "$$BROWSER_PYSCRIPT"
 help:
 	@python -c "$$PRINT_HELP_PYSCRIPT" < $(MAKEFILE_LIST)
 
-get-rest-api-spec:
-	curl https://repo1.maven.org/maven2/org/elasticsearch/rest-api-spec/7.8.0/rest-api-spec-7.8.0.jar -o $$TMPDIR/rest-api-spec-7.8.0.jar
-	unzip -o $$TMPDIR/rest-api-spec-7.8.0.jar -d peek -x 'rest-api-spec/test/*' 'META-INF/*' 'schema.json'
+get-specs:
+	rm -rf $$TMPDIR/kibana-7.8.1.zip
+	curl -L https://github.com/elastic/kibana/archive/v7.8.1.zip -o $$TMPDIR/kibana-7.8.1.zip
+	mkdir -p peek/specs
+	unzip -o $$TMPDIR/kibana-7.8.1.zip -d peek/specs '*/lib/spec_definitions/j*'
+	rm -rf $$TMPDIR/kibana-7.8.1.zip
 
 clean: clean-build clean-pyc clean-test ## remove all build, test, coverage and Python artifacts
 

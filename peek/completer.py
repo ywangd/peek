@@ -27,7 +27,10 @@ class PeekCompleter(Completer):
     def __init__(self):
         self.lexer = PeekLexer()
         self.url_path_lexer = UrlPathLexer()
-        self.specs = load_rest_api_spec()
+        from peek import __file__ as package_root
+        package_root = os.path.dirname(package_root)
+        kibana_dir = os.path.join(package_root, 'specs', 'kibana-7.8.1')
+        self.specs = load_specs(kibana_dir)
 
     def get_completions(self, document: Document, complete_event: CompleteEvent) -> Iterable[Completion]:
         _logger.debug(f'doc: {document}, event: {complete_event}')
@@ -101,10 +104,10 @@ class PeekCompleter(Completer):
         _logger.debug(f'ts: {ts}')
         candidates = []
         for api_name, api_spec in self.specs.items():
-            for api_path in api_spec['url']['paths']:
-                if method not in api_path['methods']:
-                    continue
-                ps = [p for p in api_path['path'].split('/') if p]
+            if method not in api_spec['methods']:
+                continue
+            for api_path in api_spec['patterns']:
+                ps = [p for p in api_path.split('/') if p]
                 # Nothing to complete if the candidate is shorter than current input
                 if len(ts) >= len(ps):
                     continue
@@ -120,17 +123,17 @@ class PeekCompleter(Completer):
         ts = [t.value for t in path_tokens if t.ttype is PathPart]
         candidates = set()
         for api_name, api_spec in self.specs.items():
-            for api_path in api_spec['url']['paths']:
-                if method not in api_path['methods']:
-                    continue
-                if not api_spec.get('params', None):
-                    continue
-                ps = [p for p in api_path['path'].split('/') if p]
+            if method not in api_spec['methods']:
+                continue
+            if not api_spec.get('url_params', None):
+                continue
+            for api_path in api_spec['patterns']:
+                ps = [p for p in api_path.split('/') if p]
                 if len(ts) != len(ps):
                     continue
                 if not can_match(ts, ps):
                     continue
-                candidates.update(api_spec['params'].keys())
+                candidates.update(api_spec['url_params'].keys())
 
         return FuzzyCompleter(ConstantCompleter(
             [Completion(c, start_position=0) for c in candidates])).get_completions(document, complete_event)
@@ -193,4 +196,41 @@ def load_rest_api_spec():
             continue
         with open(os.path.join(spec_dir, spec_file)) as ins:
             specs.update(json.load(ins))
+    return specs
+
+
+def load_specs(kibana_dir):
+    oss_path = os.path.join(
+        kibana_dir, 'src', 'plugins', 'console', 'server', 'lib', 'spec_definitions')
+    xpack_path = os.path.join(
+        kibana_dir, 'x-pack', 'plugins', 'console_extensions', 'server', 'lib', 'spec_definitions')
+    specs = _load_json_specs(os.path.join(oss_path, 'json'))
+    specs.update(_load_json_specs(os.path.join(xpack_path, 'json')))
+    return specs
+
+
+def _load_json_specs(base_dir):
+    specs = {}
+    for sub_dir in ('generated', 'overrides'):
+        d = os.path.join(base_dir, sub_dir)
+        if not os.path.exists(d):
+            _logger.warning(f'JSON specs directory does not exist: {d}')
+            continue
+        for f in os.listdir(d):
+            if f == '_common.json':
+                continue
+            with open(os.path.join(d, f)) as ins:
+                spec = json.load(ins)
+            if sub_dir == 'generated':
+                specs.update(spec)
+            else:
+                for k, v in spec.items():
+                    if k in specs:
+                        specs[k].update(v)
+                    else:
+                        if k.startswith('xpack.'):
+                            specs[k[6:]].update(v)
+                        else:
+                            specs['xpack.' + k].update(v)
+
     return specs
