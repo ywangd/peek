@@ -78,6 +78,8 @@ class PeekCompleter(Completer):
 
     def _complete_path(self, tokens, document: Document, complete_event: CompleteEvent) -> Iterable[Completion]:
         method_token, path_token = tokens[-2], tokens[-1]
+        if path_token.ttype is Error:
+            return []
         method = method_token.value.upper()
         cursor_position = document.cursor_position - path_token.index
         path = path_token.value[:cursor_position]
@@ -93,7 +95,7 @@ class PeekCompleter(Completer):
         elif cursor_token.ttype in (ParamName, QuestionMark, Ampersand):
             return self._complete_query_param_name(method, path_tokens, document, complete_event)
         else:  # skip for param value
-            return []
+            return self._comoplete_query_param_value(method, path_tokens, document, complete_event)
 
     def _complete_path_part(self, method, path_tokens, document: Document, complete_event: CompleteEvent):
         cursor_token = path_tokens[-1]
@@ -135,6 +137,37 @@ class PeekCompleter(Completer):
                     continue
                 candidates.update(api_spec['url_params'].keys())
 
+        return FuzzyCompleter(ConstantCompleter(
+            [Completion(c, start_position=0) for c in candidates])).get_completions(document, complete_event)
+
+    def _comoplete_query_param_value(self, method, path_tokens, document: Document, complete_event: CompleteEvent):
+        _logger.debug(f'Completing query param value: {path_tokens[-1]}')
+        try:
+            param_name_token = path_tokens[-2] if path_tokens[-1].ttype is Assign else path_tokens[-3]
+        except IndexError as e:
+            _logger.error(f'{path_tokens}')
+            _logger.error(e)
+        _logger.debug(f'Param name token: {param_name_token}')
+        ts = [t.value for t in path_tokens if t.ttype is PathPart]
+        candidates = set()
+        for api_name, api_spec in self.specs.items():
+            if method not in api_spec['methods']:
+                continue
+            if not api_spec.get('url_params', None):
+                continue
+            for api_path in api_spec['patterns']:
+                ps = [p for p in api_path.split('/') if p]
+                if len(ts) != len(ps):
+                    continue
+                if not can_match(ts, ps):
+                    continue
+                v = api_spec['url_params'].get(param_name_token.value, None)
+                if v is None:
+                    continue
+                if v == '__flag__':
+                    candidates.update(('true', 'false'))
+                elif isinstance(v, list) and len(v) > 0:
+                    candidates.update(v)
         return FuzzyCompleter(ConstantCompleter(
             [Completion(c, start_position=0) for c in candidates])).get_completions(document, complete_event)
 
