@@ -55,6 +55,8 @@ class PeekCompleter(Completer):
             # Cursor is on whitespace after the last non-white token
             if text[tokens[-1].index + len(tokens[-1].value):].find('\n') != -1:
                 return []  # cursor is on separate line
+            elif tokens[-1].ttype is HttpMethod:  # do not complete yet, wait for first char for path
+                return []
             else:
                 # Cursor is at the end of an ES API or func call
                 _logger.debug('cursor is at the end of a statement')
@@ -78,8 +80,6 @@ class PeekCompleter(Completer):
 
     def _complete_path(self, tokens, document: Document, complete_event: CompleteEvent) -> Iterable[Completion]:
         method_token, path_token = tokens[-2], tokens[-1]
-        if path_token.ttype is Error:
-            return []
         method = method_token.value.upper()
         cursor_position = document.cursor_position - path_token.index
         path = path_token.value[:cursor_position]

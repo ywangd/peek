@@ -141,13 +141,13 @@ class PeekVM(Visitor):
         """
         Load extra variables from external paths
         """
-        extension_path = self.app.config['extension_path']
-        if not extension_path:
+        extension_dir = self.app.config['extension_dir']
+        if not extension_dir:
             return
 
         sys_path = sys.path[:]
         try:
-            for p in extension_path.split(':'):
+            for p in extension_dir.split(':'):
                 if os.path.isfile(p):
                     self._load_one_extension(p)
                 elif os.path.isdir(p):

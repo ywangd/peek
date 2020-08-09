@@ -83,13 +83,13 @@ class PeekLexer(RegexLexer):
     tokens = {
         'root': [
             (r'//.*', Comment.Single),
-            (r'(?i)(GET|POST|PUT|DELETE)\b', HttpMethod, 'api_path'),
+            (r'(?i)(GET|POST|PUT|DELETE)\b(' + W + '*)', bygroups(HttpMethod, Whitespace), 'api_path'),
             (VARIABLE_PATTERN, FuncName, 'func_args'),
             # TODO: more keywords
             (r'\s+', Whitespace),
         ],
         'api_path': [
-            (r'(' + W + r'*)(\S+)', bygroups(Whitespace, Literal), ('#pop', 'opts')),
+            (r'\S+', Literal, ('#pop', 'opts')),
         ],
         'opts': [
             (r'\n', Whitespace, ('#pop', 'payload')),
