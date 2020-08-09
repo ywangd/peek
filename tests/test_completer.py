@@ -1,6 +1,29 @@
 import os
+from typing import Iterable
 
-from peek.completer import load_specs
+from prompt_toolkit.completion import CompleteEvent, Completion
+from prompt_toolkit.document import Document
+
+from peek.completer import load_specs, PeekCompleter
+
+
+def equivalent_completions(c0: Completion, c1: Completion):
+    return c0.text == c1.text and c0.start_position == c1.start_position
+
+
+def completions_has(cs: Iterable[Completion], *cc: Completion):
+    actual = set((x.text, x.start_position) for x in cs)
+    expected = set((x.text, x.start_position) for x in cc)
+    ret = actual.issuperset(expected)
+    if ret is False:
+        print(f'actual: {actual!r} is not superset of {expected!r}')
+
+    return ret
+
+
+def get_completions(document: Document):
+    completer = PeekCompleter()
+    return completer.get_completions(document, CompleteEvent(True))
 
 
 def test_load_specs():
@@ -13,3 +36,116 @@ def test_load_specs():
         # Make sure loading and merging work
         print(specs['indices.create']['data_autocomplete_rules'])
         print(specs['security.put_user']['data_autocomplete_rules'])
+
+
+def test_complete_http_method_and_func_name():
+    assert completions_has(
+        get_completions(Document('po')),
+        Completion(text='POST', start_position=-2),
+    )
+
+    assert completions_has(
+        get_completions(Document('''get abc
+ge''')),
+        Completion(text='GET', start_position=-2),
+    )
+
+    assert completions_has(
+        get_completions(Document('con')),
+        Completion(text='config', start_position=-3),
+        Completion(text='connect', start_position=-3),
+    )
+
+    assert completions_has(
+        get_completions(Document('''config
+sa''')),
+        Completion(text='saml_authenticate', start_position=-2),
+    )
+
+
+def test_complete_func_option_name():
+    assert completions_has(
+        get_completions(Document('connect ')),
+        Completion(text='hosts=', start_position=0),
+        Completion(text='api_key=', start_position=0),
+    )
+
+    assert completions_has(
+        get_completions(Document('''connect
+session ''')),
+        Completion(text='current=', start_position=0),
+        Completion(text='remove=', start_position=0),
+    )
+
+    assert completions_has(
+        get_completions(Document('connect user')),
+        Completion(text='username=', start_position=-4),
+    )
+
+    assert completions_has(
+        get_completions(Document('''config
+saml_authenticate r''')),
+        Completion(text='realm=', start_position=-1),
+    )
+
+
+def test_complete_http_path():
+    assert completions_has(
+        get_completions(Document('get _secapi')),
+        Completion(text='_security/api_key', start_position=-7),
+        Completion(text='_security/role_mapping', start_position=-7),
+    )
+
+    assert completions_has(
+        get_completions(Document('get _security/api_key?')),
+        Completion(text='name', start_position=0),
+        Completion(text='realm_name', start_position=0),
+    )
+
+    assert completions_has(
+        get_completions(Document('get _security/api_key?o')),
+        Completion(text='owner', start_position=-1),
+    )
+
+    assert completions_has(
+        get_completions(Document('get _security/api_key?owner=')),
+        Completion(text='true', start_position=0),
+    )
+
+    assert completions_has(
+        get_completions(Document('post _security/api_key?refresh=')),
+        Completion(text='wait_for', start_position=0),
+    )
+
+    assert completions_has(
+        get_completions(Document('''get _security/api_key
+post token''')),
+        Completion(text='_security/oauth2/token', start_position=-5),
+    )
+
+
+def test_complete_http_options():
+    assert completions_has(
+        get_completions(Document('get _search ')),
+        Completion(text='conn=', start_position=0),
+        Completion(text='runas=', start_position=0),
+    )
+
+    assert completions_has(
+        get_completions(Document('get _search r')),
+        Completion(text='runas=', start_position=-1),
+    )
+
+    assert completions_has(
+        get_completions(Document('''get _search
+get _cluster/health c''')),
+        Completion(text='conn=', start_position=-1),
+    )
+
+
+def test_completer():
+    completer = PeekCompleter()
+
+    document = Document("""post _security/api_key
+{ u }""", 26)
+    print(list(completer.get_completions(document, CompleteEvent(True))))
