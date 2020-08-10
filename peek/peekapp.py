@@ -55,7 +55,7 @@ class PeekApp:
                     message=self._get_message(),
                     default=self._get_default_text(),
                 )
-                _logger.debug(f'input: {repr(text)}')
+                _logger.debug(f'input: {text!r}')
                 if self._should_exit:
                     raise EOFError()
                 if text.strip() == '':
@@ -67,11 +67,6 @@ class PeekApp:
                 break
 
     def process_input(self, text):
-        """
-        Process the input text, split it if it contains multiple commands.
-        Note the multiple commands support here is separate from the syntax
-        highlight. It maybe better if it can be merged somehow (TODO)
-        """
         try:
             nodes = self.parser.parse(text)
         except PeekSyntaxError as e:

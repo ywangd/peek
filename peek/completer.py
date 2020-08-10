@@ -69,13 +69,9 @@ class PeekCompleter(Completer):
 
             # The token is a KeyName or Error (incomplete k=v form), try complete for options
             if last_token.ttype in (Error, OptionName, Name):
-                return self._complete_options(tokens[:-1], document, complete_event)
+                return self._complete_options(head_token, last_token, document, complete_event)
 
-            # If this is not a HTTP call, no need to consider payload
-            if head_token.ttype is not HttpMethod:
-                return []
-
-            if last_token.ttype is PayloadKey:
+            if head_token.ttype is HttpMethod and last_token.ttype is PayloadKey:
                 return self._complete_payload(tokens[idx_head_token:-1], document, complete_event)
 
             return []
@@ -83,14 +79,13 @@ class PeekCompleter(Completer):
         else:  # Cursor is on a whitespace
             _logger.debug(f'cursor is after the last token')
             # Cursor is on whitespace after the last non-white token
-            if pos_head_token[0] != pos_cursor[0]:
-                return []  # cursor is on separate line TODO: payload
-            elif last_token.ttype is HttpMethod:  # do not complete yet, wait for first char for path
+            if pos_head_token[0] != pos_cursor[0] or last_token.ttype is HttpMethod:
+                # Cursor is on separate line or immediately after http method
                 return []
             else:
-                # Cursor is at the end of an ES API or func call  TODO: payload
+                # Cursor is on the same line and at the end of an ES API or func call
                 _logger.debug('cursor is at the end of a statement')
-                return self._complete_options(tokens, document, complete_event)
+                return self._complete_options(head_token, last_token, document, complete_event)
 
     def _complete_path(self, tokens, document: Document, complete_event: CompleteEvent) -> Iterable[Completion]:
         method_token, path_token = tokens[-2], tokens[-1]
@@ -162,24 +157,24 @@ class PeekCompleter(Completer):
         return FuzzyCompleter(ConstantCompleter(
             [Completion(c, start_position=0) for c in candidates])).get_completions(document, complete_event)
 
-    def _complete_options(self, tokens, document: Document, complete_event: CompleteEvent):
+    def _complete_options(self, head_token: PeekToken, last_token: PeekToken,
+                          document: Document, complete_event: CompleteEvent):
         _logger.debug('Completing for options')
-        # If directly after a =, it is a value, no completion needed yet
-        if len(tokens) > 0 and tokens[-1].ttype is Assign:
-            return []
 
         # TODO: For future handle the KeyName or Name is inside a function call, e.g. f(name=..)
-        for t in tokens[::-1]:
-            if t.ttype is HttpMethod:
-                return _ES_API_CALL_OPTION_COMPLETER.get_completions(document, complete_event)
-            elif t.ttype is FuncName:
-                func = NAMES.get(t.value)
-                if func is None or not getattr(func, 'option_names', None):
-                    return []
-                return WordCompleter(sorted([n + '=' for n in func.option_names])).get_completions(
-                    document, complete_event)
-            elif t.ttype is BlankLine:
+        if last_token.ttype is Assign:
+            # TODO: completion for option value
+            return []
+        elif head_token.ttype is HttpMethod:
+            return _ES_API_CALL_OPTION_COMPLETER.get_completions(document, complete_event)
+        elif head_token.ttype is FuncName:
+            func = NAMES.get(head_token.value)
+            if func is None or not getattr(func, 'option_names', None):
                 return []
+            return WordCompleter(sorted([n + '=' for n in func.option_names])).get_completions(
+                document, complete_event)
+        else:
+            return []
 
     def _complete_payload(self,
                           tokens: List[PeekToken],

@@ -162,7 +162,7 @@ class PeekVM(Visitor):
         import importlib
         fields = os.path.splitext(p)
         if len(fields) != 2 or fields[1] != '.py':
-            _logger.warning(f'Extension must be python files, got: {p}')
+            _logger.warning(f'Extension must be python files, got: {p!r}')
             return
         sys.path.insert(0, os.path.dirname(fields[0]))
         try:
@@ -171,6 +171,6 @@ class PeekVM(Visitor):
                 self.names.update(m.EXPORTS)
                 _logger.info(f'Loaded extension: {p!r}')
             else:
-                _logger.warning(f'Ignore extension {p!r} since EXPORTS is not a dict, but: {m.NAMES!r}')
+                _logger.warning(f'Ignore extension {p!r} since EXPORTS is not a dict, but: {m.EXPORTS!r}')
         except Exception as e:
             _logger.warning(f'Error on loading extension: {p!r}, {e}')
