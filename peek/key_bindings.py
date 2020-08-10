@@ -2,7 +2,7 @@ import logging
 import os
 
 from prompt_toolkit.application import get_app
-from prompt_toolkit.buffer import ValidationState
+from prompt_toolkit.buffer import ValidationState, Buffer
 from prompt_toolkit.enums import DEFAULT_BUFFER
 from prompt_toolkit.filters import Condition, completion_is_selected, is_searching
 from prompt_toolkit.key_binding import KeyBindings
@@ -23,27 +23,22 @@ def key_bindings(app):
 
     @kb.add('enter', filter=~(completion_is_selected | is_searching) & ~buffer_should_be_handled(app))
     def _(event):
-        b = event.current_buffer
+        b = event.current_buffer  # type: Buffer
         c = b.document.current_char
         _logger.debug(f'not handling enter, current char {c!r}')
 
-        if c == '}':
-            last_nl = b.document.text.rfind('\n', 0, b.document.cursor_position)
-            if last_nl == -1:
-                text = b.document.text[:b.document.cursor_position]
+        # When cursor is on the right curly bracket, just use the ident of the current line
+        existing_indent = 0
+        for x in b.document.current_line:
+            if x.isspace():
+                existing_indent += 1
             else:
-                text = b.document.text[last_nl + 1: b.document.cursor_position]
-
-            existing_indent = 0
-            for x in text:
-                if x.isspace():
-                    existing_indent += 1
-                else:
-                    break
+                break
+        if c == '}':
             b.insert_text('\n' + ' ' * (existing_indent + 2))
             b.insert_text('\n' + ' ' * existing_indent, move_cursor=False)
         else:
-            b.insert_text('\n')
+            b.insert_text('\n' + ' ' * existing_indent)
 
     @kb.add('escape', 'enter', filter=~(completion_is_selected | is_searching))
     def _(event):
