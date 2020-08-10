@@ -6,6 +6,7 @@ from typing import List
 from prompt_toolkit import PromptSession, prompt
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.formatted_text import FormattedText
+from prompt_toolkit.layout.processors import HighlightMatchingBracketProcessor
 from prompt_toolkit.lexers import PygmentsLexer
 from prompt_toolkit.styles import style_from_pygments_cls
 
@@ -159,6 +160,9 @@ class PeekApp:
                 enable_system_prompt=True,
                 enable_suspend=True,
                 search_ignore_case=True,
+                input_processors=[
+                    HighlightMatchingBracketProcessor(chars="[](){}"),
+                ],
             )
 
     def _init_es_client(self):
