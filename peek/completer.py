@@ -55,7 +55,9 @@ class PeekCompleter(Completer):
         pos_cursor = document.translate_index_to_position(document.cursor_position)
 
         # Cursor is on a non-white token
-        if last_token.index < document.cursor_position <= (last_token.index + len(last_token.value)):
+        is_cursor_on_non_white_token = (last_token.index < document.cursor_position
+                                        <= (last_token.index + len(last_token.value)))
+        if is_cursor_on_non_white_token:
             _logger.debug(f'Found token {last_token} on the cursor')
             if last_token.ttype in (HttpMethod, FuncName):
                 _logger.debug(f'Completing function/http method name: {last_token}')
@@ -65,14 +67,15 @@ class PeekCompleter(Completer):
 
             # The token right before cursor is HttpMethod, go for path completion
             if head_token.ttype is HttpMethod and idx_head_token == len(tokens) - 2:
-                return self._complete_path(tokens[-2:], document, complete_event)
+                return self._complete_path(document, complete_event, tokens[idx_head_token:])
 
             # The token is a KeyName or Error (incomplete k=v form), try complete for options
             if last_token.ttype in (Error, OptionName, Name):
-                return self._complete_options(tokens[idx_head_token:], document, complete_event)
+                return self._complete_options(document, complete_event, tokens[idx_head_token:],
+                                              is_cursor_on_non_white_token)
 
             if head_token.ttype is HttpMethod and last_token.ttype is PayloadKey:
-                return self._complete_payload(tokens[idx_head_token:-1], document, complete_event)
+                return self._complete_payload(document, complete_event, tokens[idx_head_token:])
 
             return []
 
@@ -85,9 +88,10 @@ class PeekCompleter(Completer):
             else:
                 # Cursor is on the same line and at the end of an ES API or func call
                 _logger.debug('cursor is at the end of a statement')
-                return self._complete_options(tokens[idx_head_token:], document, complete_event)
+                return self._complete_options(document, complete_event, tokens[idx_head_token:],
+                                              is_cursor_on_non_white_token)
 
-    def _complete_path(self, tokens, document: Document, complete_event: CompleteEvent) -> Iterable[Completion]:
+    def _complete_path(self, document: Document, complete_event: CompleteEvent, tokens) -> Iterable[Completion]:
         method_token, path_token = tokens[-2], tokens[-1]
         method = method_token.value.upper()
         cursor_position = document.cursor_position - path_token.index
@@ -103,13 +107,13 @@ class PeekCompleter(Completer):
         if cursor_token.ttype is Error:
             return []
         elif cursor_token.ttype in (PathPart, Slash):
-            return self._complete_path_part(method, path_tokens, document, complete_event)
+            return self._complete_path_part(document, complete_event, method, path_tokens)
         elif cursor_token.ttype in (ParamName, QuestionMark, Ampersand):
-            return self._complete_query_param_name(method, path_tokens, document, complete_event)
+            return self._complete_query_param_name(document, complete_event, method, path_tokens)
         else:  # skip for param value
-            return self._complete_query_param_value(method, path_tokens, document, complete_event)
+            return self._complete_query_param_value(document, complete_event, method, path_tokens)
 
-    def _complete_path_part(self, method, path_tokens, document: Document, complete_event: CompleteEvent):
+    def _complete_path_part(self, document: Document, complete_event: CompleteEvent, method, path_tokens):
         cursor_token = path_tokens[-1]
         _logger.debug(f'Completing path part: {cursor_token}')
         ts = [t.value for t in path_tokens if t.ttype is not Slash]
@@ -132,7 +136,7 @@ class PeekCompleter(Completer):
 
         return FuzzyCompleter(ConstantCompleter(candidates)).get_completions(document, complete_event)
 
-    def _complete_query_param_name(self, method, path_tokens, document: Document, complete_event: CompleteEvent):
+    def _complete_query_param_name(self, document: Document, complete_event: CompleteEvent, method, path_tokens):
         _logger.debug(f'Completing query param name: {path_tokens[-1]}')
         ts = [t.value for t in path_tokens if t.ttype is PathPart]
         candidates = set()
@@ -142,7 +146,7 @@ class PeekCompleter(Completer):
         return FuzzyCompleter(ConstantCompleter(
             [Completion(c, start_position=0) for c in candidates])).get_completions(document, complete_event)
 
-    def _complete_query_param_value(self, method, path_tokens, document: Document, complete_event: CompleteEvent):
+    def _complete_query_param_value(self, document: Document, complete_event: CompleteEvent, method, path_tokens):
         _logger.debug(f'Completing query param value: {path_tokens[-1]}')
         param_name_token = path_tokens[-2] if path_tokens[-1].ttype is Assign else path_tokens[-3]
         _logger.debug(f'Param name token: {param_name_token}')
@@ -160,30 +164,41 @@ class PeekCompleter(Completer):
         return FuzzyCompleter(ConstantCompleter(
             [Completion(c, start_position=0) for c in candidates])).get_completions(document, complete_event)
 
-    def _complete_options(self, tokens: List[PeekToken],
-                          document: Document, complete_event: CompleteEvent):
-        _logger.debug('Completing for options')
+    def _complete_options(self, document: Document, complete_event: CompleteEvent, tokens: List[PeekToken],
+                          is_cursor_on_non_white_token):
+        _logger.debug(f'Completing for options: {is_cursor_on_non_white_token}')
         head_token, last_token = tokens[0], tokens[-1]
 
+        def _get_option_name_for_value_completion():
+            if not is_cursor_on_non_white_token and last_token.ttype is Assign:
+                return tokens[-2].value
+            elif is_cursor_on_non_white_token and (len(tokens) > 1 and tokens[-2].ttype is Assign):
+                return tokens[-3].value
+            else:
+                return None
+
         # TODO: For future handle the KeyName or Name is inside a function call, e.g. f(name=..)
-        if last_token.ttype is Assign:
-            # TODO: completion for option value
-            return []
-        elif head_token.ttype is HttpMethod:
-            return _ES_API_CALL_OPTION_COMPLETER.get_completions(document, complete_event)
+        if head_token.ttype is HttpMethod:
+            option_name = _get_option_name_for_value_completion()
+            if option_name is not None:
+                return []  # TODO: complete for value
+            else:
+                return _ES_API_CALL_OPTION_COMPLETER.get_completions(document, complete_event)
         elif head_token.ttype is FuncName:
             func = EXPORTS.get(head_token.value)
             if func is None or not getattr(func, 'options', None):
                 return []
-            return WordCompleter(sorted([n + '=' for n in func.options.keys()])).get_completions(
-                document, complete_event)
+            option_name = _get_option_name_for_value_completion()
+            if option_name is not None:
+                return []  # TODO: complete for value
+            else:
+                return WordCompleter(sorted([n + '=' for n in func.options.keys()])).get_completions(
+                    document, complete_event)
         else:
             return []
 
-    def _complete_payload(self,
-                          tokens: List[PeekToken],
-                          document: Document,
-                          complete_event: CompleteEvent) -> Iterable[Completion]:
+    def _complete_payload(self, document: Document, complete_event: CompleteEvent,
+                          tokens: List[PeekToken]) -> Iterable[Completion]:
         _logger.debug(f'Completing for payload with tokens: {tokens}')
         method_token, path_token = tokens[0], tokens[1]
         path_tokens = list(self.url_path_lexer.get_tokens_unprocessed(path_token.value))
@@ -203,7 +218,7 @@ class PeekCompleter(Completer):
 
         payload_keys = []
         curly_level = 0
-        for t in tokens[2:]:
+        for t in tokens[2:-1]:
             if t.ttype is CurlyLeft:
                 curly_level += 1
             elif t.ttype is CurlyRight:

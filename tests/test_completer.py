@@ -22,7 +22,10 @@ def completions_has(cs: Iterable[Completion], *cc: Completion):
 
     actual = set((x.text, x.start_position) for x in cs)
     expected = set((x.text, x.start_position) for x in cc)
-    ret = actual.issuperset(expected)
+    if len(expected) == 0:
+        ret = len(actual) == 0
+    else:
+        ret = actual.issuperset(expected)
     if ret is False:
         print(f'actual: {actual!r} is not superset of {expected!r}')
     return ret
@@ -117,6 +120,24 @@ session ''')),
         get_completions(Document('''config
 saml_authenticate r''')),
         Completion(text='realm=', start_position=-1),
+    )
+
+
+def test_complete_option_name_should_not_be_in_value_place():
+    assert completions_has(
+        get_completions(Document('''connect hosts='''))
+    )
+
+    assert completions_has(
+        get_completions(Document('''connect hosts=h'''))
+    )
+
+    assert completions_has(
+        get_completions(Document('''get _search runas='''))
+    )
+
+    assert completions_has(
+        get_completions(Document('''get _search runas=r'''))
     )
 
 
