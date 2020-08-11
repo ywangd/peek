@@ -45,8 +45,8 @@ class ConnectFunc:
         return str(app.es_client_manager)
 
     @property
-    def option_names(self):
-        return list(DEFAULT_OPTIONS.keys())
+    def options(self):
+        return dict(DEFAULT_OPTIONS)
 
 
 class SessionFunc:
@@ -63,8 +63,8 @@ class SessionFunc:
         return str(app.es_client_manager)
 
     @property
-    def option_names(self):
-        return ['current', 'remove']
+    def options(self):
+        return {'current': None, 'remove': None}
 
 
 class SamlAuthenticateFunc:
@@ -79,8 +79,8 @@ class SamlAuthenticateFunc:
         return json.dumps({'username': saml_es_client.username, 'realm': 'realm'})
 
     @property
-    def option_names(self):
-        return ['realm', 'callback_port']
+    def options(self):
+        return {'realm': 'saml1', 'callback_port': '5601'}
 
 
 class OidcAuthenticateFunc:
@@ -95,11 +95,11 @@ class OidcAuthenticateFunc:
         return json.dumps({'username': oidc_es_client.username, 'realm': 'realm'})
 
     @property
-    def option_names(self):
-        return ['realm', 'callback_port']
+    def options(self):
+        return {'realm': 'oidc1', 'callback_port': '5601'}
 
 
-NAMES = {
+EXPORTS = {
     'connect': ConnectFunc(),
     'config': ConfigFunc(),
     'session': SessionFunc(),

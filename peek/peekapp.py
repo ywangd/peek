@@ -19,7 +19,7 @@ from peek.errors import PeekError, PeekSyntaxError
 from peek.history import SqLiteHistory
 from peek.key_bindings import key_bindings
 from peek.lexers import PeekLexer, PeekStyle, Heading, TipsMinor
-from peek.names import ConnectFunc
+from peek.natives import ConnectFunc
 from peek.parser import PeekParser
 from peek.vm import PeekVM
 

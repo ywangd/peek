@@ -221,11 +221,9 @@ class UrlPathLexer(RegexLexer):
             (r'&', Ampersand),
             (r'([^=&\s]+)(=)?([^&#\s]+)?', bygroups(ParamName, Assign, ParamValue)),
             (r'#', Pound, ('#pop', 'fragment')),
-            default('#pop'),
         ],
         'fragment': [
             (r'\S+', Text),
-            default('#pop'),
         ],
     }
 

@@ -12,15 +12,15 @@ from pygments.token import Error, Name
 from peek.common import PeekToken
 from peek.errors import PeekError
 from peek.lexers import PeekLexer, UrlPathLexer, PathPart, ParamName, Ampersand, QuestionMark, Slash, HttpMethod, \
-    FuncName, BlankLine, OptionName, Assign, CurlyLeft, CurlyRight, PayloadKey
-from peek.names import NAMES
+    FuncName, OptionName, Assign, CurlyLeft, CurlyRight, PayloadKey
+from peek.natives import EXPORTS
 from peek.parser import process_tokens
 
 _logger = logging.getLogger(__name__)
 
 _HTTP_METHOD_COMPLETER = WordCompleter(['GET', 'POST', 'PUT', 'DELETE'], ignore_case=True)
 
-_FUNC_NAME_COMPLETER = WordCompleter(sorted(NAMES.keys()))
+_FUNC_NAME_COMPLETER = WordCompleter(sorted(EXPORTS.keys()))
 
 _ES_API_CALL_OPTION_COMPLETER = WordCompleter([w + '=' for w in sorted(['conn', 'runas'])])
 
@@ -69,7 +69,7 @@ class PeekCompleter(Completer):
 
             # The token is a KeyName or Error (incomplete k=v form), try complete for options
             if last_token.ttype in (Error, OptionName, Name):
-                return self._complete_options(head_token, last_token, document, complete_event)
+                return self._complete_options(tokens[idx_head_token:], document, complete_event)
 
             if head_token.ttype is HttpMethod and last_token.ttype is PayloadKey:
                 return self._complete_payload(tokens[idx_head_token:-1], document, complete_event)
@@ -85,7 +85,7 @@ class PeekCompleter(Completer):
             else:
                 # Cursor is on the same line and at the end of an ES API or func call
                 _logger.debug('cursor is at the end of a statement')
-                return self._complete_options(head_token, last_token, document, complete_event)
+                return self._complete_options(tokens[idx_head_token:], document, complete_event)
 
     def _complete_path(self, tokens, document: Document, complete_event: CompleteEvent) -> Iterable[Completion]:
         method_token, path_token = tokens[-2], tokens[-1]
@@ -94,12 +94,15 @@ class PeekCompleter(Completer):
         path = path_token.value[:cursor_position]
         _logger.debug(f'Completing http path: {path}')
         path_tokens = list(self.url_path_lexer.get_tokens_unprocessed(path))
+        _logger.debug(f'path_tokens: {path_tokens}')
         if not path_tokens:  # empty, should not happen
             return []
 
         cursor_token = path_tokens[-1]
         _logger.debug(f'cursor_token: {cursor_token}')
-        if cursor_token.ttype in (PathPart, Slash):
+        if cursor_token.ttype is Error:
+            return []
+        elif cursor_token.ttype in (PathPart, Slash):
             return self._complete_path_part(method, path_tokens, document, complete_event)
         elif cursor_token.ttype in (ParamName, QuestionMark, Ampersand):
             return self._complete_query_param_name(method, path_tokens, document, complete_event)
@@ -157,9 +160,10 @@ class PeekCompleter(Completer):
         return FuzzyCompleter(ConstantCompleter(
             [Completion(c, start_position=0) for c in candidates])).get_completions(document, complete_event)
 
-    def _complete_options(self, head_token: PeekToken, last_token: PeekToken,
+    def _complete_options(self, tokens: List[PeekToken],
                           document: Document, complete_event: CompleteEvent):
         _logger.debug('Completing for options')
+        head_token, last_token = tokens[0], tokens[-1]
 
         # TODO: For future handle the KeyName or Name is inside a function call, e.g. f(name=..)
         if last_token.ttype is Assign:
@@ -168,10 +172,10 @@ class PeekCompleter(Completer):
         elif head_token.ttype is HttpMethod:
             return _ES_API_CALL_OPTION_COMPLETER.get_completions(document, complete_event)
         elif head_token.ttype is FuncName:
-            func = NAMES.get(head_token.value)
-            if func is None or not getattr(func, 'option_names', None):
+            func = EXPORTS.get(head_token.value)
+            if func is None or not getattr(func, 'options', None):
                 return []
-            return WordCompleter(sorted([n + '=' for n in func.option_names])).get_completions(
+            return WordCompleter(sorted([n + '=' for n in func.options.keys()])).get_completions(
                 document, complete_event)
         else:
             return []

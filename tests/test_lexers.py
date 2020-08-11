@@ -180,3 +180,9 @@ def test_url_path_only(url_path_lexer):
 def test_url_with_query(url_path_lexer):
     do_test(url_path_lexer, '/a/b/c?foo=bar&hello=42')
     do_test(url_path_lexer, '/a/b/c?foo=bar&name&pretty=')
+
+
+def test_invalid_url(url_path_lexer):
+    do_test(url_path_lexer, '/?=', error_tokens=[
+        PeekToken(index=2, ttype=Token.Error, value='=')
+    ])

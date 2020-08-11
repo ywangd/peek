@@ -7,7 +7,7 @@ import sys
 from peek.ast import Visitor, EsApiCallNode, DictNode, KeyValueNode, ArrayNode, NumberNode, \
     StringNode, Node, FuncCallNode, NameNode, TextNode
 from peek.errors import PeekError
-from peek.names import NAMES
+from peek.natives import EXPORTS
 from peek.visitors import Ref
 
 _logger = logging.getLogger(__name__)
@@ -18,8 +18,8 @@ class PeekVM(Visitor):
     def __init__(self, app):
         super().__init__()
         self.app = app
-        self.names = {}
-        self.builtin_names = NAMES
+        self.context = {}
+        self.builtins = EXPORTS
         self._load_extensions()
         self.es_api_payload_line = []
         self.func_args = []
@@ -130,9 +130,9 @@ class PeekVM(Visitor):
         self.consume(dict(zip(keys, values)))
 
     def _get_value_for_name(self, name):
-        value = self.builtin_names.get(name)
+        value = self.builtins.get(name)
         if value is None:
-            value = self.names.get(name)
+            value = self.context.get(name)
         if value is None:
             raise PeekError(f'Unknown name: {name!r}')
         return value
@@ -167,8 +167,8 @@ class PeekVM(Visitor):
         sys.path.insert(0, os.path.dirname(fields[0]))
         try:
             m = importlib.import_module(os.path.basename(fields[0]))
-            if isinstance(m.EXPORTS, dict):
-                self.names.update(m.EXPORTS)
+            if isinstance(getattr(m, 'EXPORTS', None), dict):
+                self.context.update(m.EXPORTS)
                 _logger.info(f'Loaded extension: {p!r}')
             else:
                 _logger.warning(f'Ignore extension {p!r} since EXPORTS is not a dict, but: {m.EXPORTS!r}')
