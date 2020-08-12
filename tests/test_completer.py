@@ -203,6 +203,12 @@ def test_not_complete_http_options():
 ''')))) == 0
 
 
+def test_not_complete_http_path():
+    assert completions_has(
+        get_completions(Document('''get
+''')))
+
+
 def test_payload_completion_000():
     assert completions_has(
         get_completions(Document('''POST _security/api_key

@@ -7,7 +7,7 @@ from typing import Iterable, List, Dict, Tuple, Optional
 
 from prompt_toolkit.completion import Completer, CompleteEvent, Completion, WordCompleter, FuzzyCompleter
 from prompt_toolkit.document import Document
-from pygments.token import Error, Name
+from pygments.token import Error, Name, Literal
 
 from peek.common import PeekToken
 from peek.errors import PeekError
@@ -66,7 +66,7 @@ class PeekCompleter(Completer):
                     _FUNC_NAME_COMPLETER.get_completions(document, complete_event))
 
             # The token right before cursor is HttpMethod, go for path completion
-            if head_token.ttype is HttpMethod and idx_head_token == len(tokens) - 2:
+            if head_token.ttype is HttpMethod and idx_head_token == len(tokens) - 2 and last_token.ttype is Literal:
                 return self._complete_path(document, complete_event, tokens[idx_head_token:])
 
             # The token is a KeyName or Error (incomplete k=v form), try complete for options
@@ -96,7 +96,7 @@ class PeekCompleter(Completer):
         method = method_token.value.upper()
         cursor_position = document.cursor_position - path_token.index
         path = path_token.value[:cursor_position]
-        _logger.debug(f'Completing http path: {path}')
+        _logger.debug(f'Completing http path: {path!r}')
         path_tokens = list(self.url_path_lexer.get_tokens_unprocessed(path))
         _logger.debug(f'path_tokens: {path_tokens}')
         if not path_tokens:  # empty, should not happen

@@ -187,6 +187,10 @@ def buffer_should_be_handled(app):
         if doc.text.strip() == '':
             return True
 
+        if doc.empty_line_count_at_the_end() + 1 == doc.line_count and doc.line_count > 1:
+            _logger.debug('Lines are all blank after the first one')
+            return True
+
         # Do not handle if there are chars after the cursor position
         if doc.text[doc.cursor_position:].strip() != '':
             _logger.debug('Extra non-white chars found after cursor')
