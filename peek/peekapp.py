@@ -13,7 +13,7 @@ from prompt_toolkit.styles import style_from_pygments_cls
 from peek.common import NONE_NS
 from peek.completer import PeekCompleter
 from peek.config import get_config, config_location
-from peek.connection import AuthType, EsClientManger
+from peek.connection import AuthType, EsClientManager
 from peek.display import Display
 from peek.errors import PeekError, PeekSyntaxError
 from peek.history import SqLiteHistory
@@ -39,7 +39,7 @@ class PeekApp:
         self.config = get_config(config_file, extra_config_options)
         self.cli_ns = cli_ns
         self._init_logging()
-        self.es_client_manager = EsClientManger()
+        self.es_client_manager = EsClientManager()
         self._init_es_client()
         self.prompt = self._init_prompt()
         self.display = Display(self)
@@ -67,7 +67,7 @@ class PeekApp:
             except EOFError:
                 break
 
-    def process_input(self, text, echo_input=False):
+    def process_input(self, text, echo=False):
         try:
             nodes = self.parser.parse(text)
         except PeekSyntaxError as e:
@@ -76,7 +76,7 @@ class PeekApp:
 
         for node in nodes:
             try:
-                if echo_input:
+                if echo:
                     self.display.info(str(node))
                 self.execute_node(node)
             except PeekError as e:

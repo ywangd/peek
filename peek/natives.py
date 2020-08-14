@@ -72,7 +72,7 @@ class RunFunc:
 
     def __call__(self, app, file, **options):
         with open(file) as ins:
-            app.process_input(ins.read(), echo_input=options.get('echo', False))
+            app.process_input(ins.read(), echo=options.get('echo', False))
 
     @property
     def options(self):

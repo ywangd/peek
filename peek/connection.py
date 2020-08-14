@@ -171,7 +171,7 @@ class RefreshingEsClient(BaseClient):
         )
 
 
-class EsClientManger:
+class EsClientManager:
 
     def __init__(self):
         self._clients = []
