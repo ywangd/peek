@@ -158,6 +158,11 @@ def test_comment(peek_lexer):
 """)
 
 
+def test_shellout(peek_lexer):
+    do_test(peek_lexer, text="""!ls
+""")
+
+
 def test_func_call_connect(peek_lexer):
     do_test(peek_lexer, text="""connect hosts='https://localhost:9200' username='foo'""")
 

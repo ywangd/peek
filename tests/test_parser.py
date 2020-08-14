@@ -3,7 +3,7 @@ import json
 import pytest
 from pygments.token import String, Whitespace, Comment
 
-from peek.ast import EsApiCallNode
+from peek.ast import EsApiCallNode, ShellOutNode
 from peek.errors import PeekSyntaxError
 from peek.lexers import CurlyLeft, CurlyRight
 from peek.parser import PeekParser, process_tokens, PeekToken
@@ -38,6 +38,16 @@ def test_parser_comment(parser):
 """
     nodes = parser.parse(text)
     assert len(nodes) == 0
+
+
+def test_parser_shellout(parser):
+    text = """!ls something another
+"""
+    nodes = parser.parse(text)
+    assert len(nodes) == 1
+    n = nodes[0]
+    assert isinstance(n, ShellOutNode)
+    assert n.command == 'ls something another'
 
 
 def test_parser_single_es_api_call(parser):
