@@ -4,6 +4,7 @@ import logging
 from configobj import ConfigObj
 
 from peek.connection import connect, DEFAULT_OPTIONS
+from peek.errors import PeekError
 from peek.oidc import oidc_authenticate
 from peek.saml import saml_authenticate
 
@@ -74,6 +75,19 @@ class RunFunc:
             app.process_input(ins.read(), echo_input=True)
 
 
+class HelpFunc:
+
+    def __call__(self, app, func=None):
+        if func is None:
+            return '\n'.join(EXPORTS.keys())
+
+        for k, v in EXPORTS.items():
+            if v == func:
+                return f'{k}\n{getattr(func, "options", {})}'
+        else:
+            raise PeekError(f'No such function: {func}')
+
+
 class SamlAuthenticateFunc:
     def __call__(self, app, **options):
         realm = options.get('realm', 'saml1')
@@ -111,6 +125,7 @@ EXPORTS = {
     'config': ConfigFunc(),
     'session': SessionFunc(),
     'run': RunFunc(),
+    'help': HelpFunc(),
     'saml_authenticate': SamlAuthenticateFunc(),
     'oidc_authenticate': OidcAuthenticateFunc(),
 }
