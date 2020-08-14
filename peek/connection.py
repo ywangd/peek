@@ -4,6 +4,7 @@ import os
 from abc import ABCMeta, abstractmethod
 from enum import Enum
 
+from configobj import Section
 from elasticsearch import Elasticsearch, AuthenticationException
 from urllib3 import Timeout
 
@@ -254,6 +255,9 @@ DEFAULT_OPTIONS = {
 
 def connect(app, **options):
     final_options = dict(DEFAULT_OPTIONS)
+
+    if isinstance(app.config.get('connection'), Section):
+        final_options.update({k: v for k, v in app.config.get('connection').dict().items() if v})
 
     if 'auth_type' in options:
         options['auth_type'] = AuthType(options['auth_type'])
