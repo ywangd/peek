@@ -9,7 +9,7 @@ from peek.common import PeekToken
 from peek.completer import load_specs, PeekCompleter, find_beginning_token, matchable_specs
 from peek.lexers import HttpMethod, FuncName, BlankLine
 
-completer = PeekCompleter()
+completer = PeekCompleter(None)
 
 
 def equivalent_completions(c0: Completion, c1: Completion):

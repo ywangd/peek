@@ -29,7 +29,8 @@ _PATH_COMPLETER = PathCompleter()
 
 class PeekCompleter(Completer):
 
-    def __init__(self):
+    def __init__(self, app):
+        self.app = app
         self.lexer = PeekLexer()
         self.url_path_lexer = UrlPathLexer()
         from peek import __file__ as package_root

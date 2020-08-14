@@ -83,9 +83,9 @@ class HelpFunc:
 
     def __call__(self, app, func=None):
         if func is None:
-            return '\n'.join(EXPORTS.keys())
+            return '\n'.join(app.vm.functions.keys())
 
-        for k, v in EXPORTS.items():
+        for k, v in app.vm.functions.items():
             if v == func:
                 return f'{k}\n{getattr(func, "options", {})}'
         else:

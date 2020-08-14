@@ -1,4 +1,5 @@
 import ast
+import itertools
 import json
 import logging
 import os
@@ -28,6 +29,10 @@ class PeekVM(Visitor):
         self.func_args = []
         self.func_kwargs = {}
 
+    @property
+    def functions(self):
+        return {k: v for k, v in itertools.chain(self.builtins.items(), self.context.items()) if callable(v)}
+
     def execute_node(self, node: Node):
         node.accept(self)
 
@@ -56,11 +61,12 @@ class PeekVM(Visitor):
                 es_client = self.app.es_client
             if options:
                 raise PeekError(f'Unknown options: {options}')
-            self.app.display.info(es_client.perform_request(
-                node.method, node.path, payload,
-                headers=headers if headers else None))
+            response = es_client.perform_request(node.method, node.path, payload, headers=headers if headers else None)
+            self.context['_'] = response
+            self.app.display.info(response)
         except Exception as e:
             if getattr(e, 'info', None) and isinstance(getattr(e, 'status_code', None), int):
+                self.context['_'] = e.info
                 self.app.display.info(e.info)
             else:
                 self.app.display.error(e)
@@ -159,20 +165,22 @@ class PeekVM(Visitor):
         """
         Load extra variables from external paths
         """
-        extension_dir = self.app.config['extension_dir']
-        if not extension_dir:
+        extension_path = self.app.config['extension_path']
+        if not extension_path:
             return
 
         sys_path = sys.path[:]
         try:
-            for p in extension_dir.split(':'):
+            for p in extension_path.split(':'):
                 if os.path.isfile(p):
                     self._load_one_extension(p)
                 elif os.path.isdir(p):
                     for f in os.listdir(p):
                         if not f.endswith('.py'):
                             continue
-                        self._load_one_extension(f)
+                        self._load_one_extension(os.path.join(p, f))
+                else:
+                    _logger.warning(f'Cannot load extension path: {p}')
         finally:
             sys.path = sys_path
 
