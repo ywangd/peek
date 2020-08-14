@@ -159,7 +159,7 @@ class PeekApp:
                 multiline=True,
                 key_bindings=key_bindings(self),
                 enable_open_in_editor=True,
-                enable_system_prompt=True,
+                enable_system_prompt=False,
                 enable_suspend=True,
                 search_ignore_case=True,
                 input_processors=[

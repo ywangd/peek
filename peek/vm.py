@@ -5,6 +5,8 @@ import os
 import sys
 from subprocess import Popen
 
+from pygments.token import Name
+
 from peek.ast import Visitor, EsApiCallNode, DictNode, KeyValueNode, ArrayNode, NumberNode, \
     StringNode, Node, FuncCallNode, NameNode, TextNode, ShellOutNode
 from peek.errors import PeekError
@@ -123,7 +125,10 @@ class PeekVM(Visitor):
         self.consume(values)
 
     def visit_text_node(self, node: TextNode):
-        self.consume(node.token.value)
+        if node.token.ttype is Name.Builtin:
+            self.consume({'true': True, 'false': False, 'null': None}[node.token.value])
+        else:
+            self.consume(node.token.value)
 
     def _do_visit_dict_node(self, node: DictNode, resolve_key_name=False):
         assert isinstance(node, DictNode)

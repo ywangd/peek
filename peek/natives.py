@@ -70,9 +70,13 @@ class SessionFunc:
 
 class RunFunc:
 
-    def __call__(self, app, file):
+    def __call__(self, app, file, **options):
         with open(file) as ins:
-            app.process_input(ins.read(), echo_input=True)
+            app.process_input(ins.read(), echo_input=options.get('echo', False))
+
+    @property
+    def options(self):
+        return {'echo': False}
 
 
 class HelpFunc:

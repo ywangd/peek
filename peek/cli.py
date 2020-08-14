@@ -10,6 +10,9 @@ def main():
     """Console script for peek."""
     parser = argparse.ArgumentParser()
 
+    parser.add_argument('input', nargs='*',
+                        help='script files')
+
     parser.add_argument('--config', default=config_location() + 'peekrc',
                         help='Configuration file to load')
 
@@ -49,17 +52,24 @@ def main():
     ns = parser.parse_args()
 
     isatty = sys.stdin.isatty()
+    batch_mode = (not isatty) or ns.input
+
     peek = PeekApp(
-        batch_mode=not isatty,
+        batch_mode=batch_mode,
         config_file=ns.config,
         extra_config_options=ns.extra_config_option,
         cli_ns=ns,
     )
-    if isatty:
+    if not batch_mode:
         peek.run()
     else:
-        stdin_read = sys.stdin.read()
-        peek.process_input(stdin_read)
+        if ns.input:
+            for f in ns.input:
+                with open(f) as ins:
+                    peek.process_input(ins.read())
+        else:
+            stdin_read = sys.stdin.read()
+            peek.process_input(stdin_read)
 
     return 0
 
