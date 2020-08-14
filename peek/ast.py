@@ -15,6 +15,9 @@ class Visitor(metaclass=ABCMeta):
     def visit_func_call_node(self, node):
         raise NotImplementedError()
 
+    def visit_shell_out_node(self, node):
+        raise NotImplementedError()
+
     def visit_name_node(self, node):
         raise NotImplementedError()
 
@@ -239,3 +242,19 @@ class FuncCallNode(Node):
     def __str__(self):
         parts = [str(self.name_node), ' ', str(self.args_node), ' ', str(self.kwargs_node), '\n']
         return ''.join(parts)
+
+
+class ShellOutNode(Node):
+
+    def __init__(self, text_node: TextNode):
+        self.text_node = text_node
+
+    def accept(self, visitor: Visitor):
+        visitor.visit_shell_out_node(self)
+
+    @property
+    def command(self):
+        return self.text_node.token.value
+
+    def tokens(self):
+        return self.text_node.tokens()

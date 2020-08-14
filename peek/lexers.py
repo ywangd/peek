@@ -21,6 +21,7 @@ Assign = Operator.Assign
 BlankLine = Whitespace.BlankLine
 FuncName = Name.Variable
 HttpMethod = Keyword.HttpMethod
+ShellOut = Punctuation.Bang
 PayloadKey = String.Symbol
 OptionName = Name.Symbol
 
@@ -82,6 +83,7 @@ class PeekLexer(RegexLexer):
 
     tokens = {
         'root': [
+            (r'(!)(.*)', bygroups(ShellOut, Literal)),
             (r'//.*', Comment.Single),
             (r'(?i)(GET|POST|PUT|DELETE)\b(' + W + '*)', bygroups(HttpMethod, Whitespace), 'api_path'),
             (VARIABLE_PATTERN, FuncName, 'func_args'),

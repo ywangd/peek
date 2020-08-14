@@ -3,9 +3,10 @@ import json
 import logging
 import os
 import sys
+from subprocess import Popen
 
 from peek.ast import Visitor, EsApiCallNode, DictNode, KeyValueNode, ArrayNode, NumberNode, \
-    StringNode, Node, FuncCallNode, NameNode, TextNode
+    StringNode, Node, FuncCallNode, NameNode, TextNode, ShellOutNode
 from peek.errors import PeekError
 from peek.natives import EXPORTS
 from peek.visitors import Ref
@@ -83,6 +84,18 @@ class PeekVM(Visitor):
             self.app.display.info(func(self.app, *func_args.get(), **func_kwargs.get()))
         except Exception as e:
             self.app.display.info(e)
+
+    def visit_shell_out_node(self, node: ShellOutNode):
+        try:
+            input_fd = self.app.prompt.input.fileno()
+        except AttributeError:
+            input_fd = sys.stdin.fileno()
+        try:
+            output_fd = self.app.prompt.output.fileno()
+        except AttributeError:
+            output_fd = sys.stdout.fileno()
+        p = Popen(node.command, shell=True, stdin=input_fd, stdout=output_fd)
+        p.wait()
 
     def visit_key_value_node(self, node: KeyValueNode):
         node.key_node.accept(self)

@@ -6,11 +6,12 @@ from typing import List
 from pygments.token import Token, Whitespace, String, Comment, Literal, Number, Name, Error
 
 from peek.ast import NameNode, FuncCallNode, KeyValueNode, EsApiCallNode, StringNode, NumberNode, TextNode, DictNode, \
-    ArrayNode
+    ArrayNode, ShellOutNode
 from peek.common import PeekToken
 from peek.errors import PeekSyntaxError
 from peek.lexers import PeekLexer, BlankLine, CurlyLeft, PayloadKey, Colon, \
-    CurlyRight, Comma, BracketLeft, BracketRight, TripleS, TripleD, EOF, FuncName, Assign, HttpMethod, OptionName
+    CurlyRight, Comma, BracketLeft, BracketRight, TripleS, TripleD, EOF, FuncName, Assign, HttpMethod, OptionName, \
+    ShellOut
 
 _logger = logging.getLogger(__name__)
 
@@ -44,6 +45,8 @@ class PeekParser:
                 nodes.append(self._parse_func_call())
             elif token.ttype is HttpMethod:
                 nodes.append(self._parse_es_api_call())
+            elif token.ttype is ShellOut:
+                nodes.append(self._parse_shell_command())
             else:
                 raise PeekSyntaxError(
                     self.text, token,
@@ -135,6 +138,10 @@ class PeekParser:
                 arg_nodes.append(self._parse_expr())
 
         return FuncCallNode(name_node, ArrayNode(arg_nodes), DictNode(kwarg_nodes))
+
+    def _parse_shell_command(self):
+        self._consume_token(ShellOut)
+        return ShellOutNode(TextNode(self._consume_token(Literal)))
 
     def _parse_expr(self):
         if self._peek_token().ttype is Name:
