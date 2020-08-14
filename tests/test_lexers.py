@@ -153,6 +153,11 @@ def test_minimal(peek_lexer):
     do_test(peek_lexer, text="""c 1 a=b""")
 
 
+def test_comment(peek_lexer):
+    do_test(peek_lexer, text="""// comment
+""")
+
+
 def test_func_call_connect(peek_lexer):
     do_test(peek_lexer, text="""connect hosts='https://localhost:9200' username='foo'""")
 

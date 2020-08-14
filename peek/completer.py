@@ -39,17 +39,21 @@ class PeekCompleter(Completer):
         _logger.debug(f'doc: {document}, event: {complete_event}')
 
         text = document.text_before_cursor
-        _logger.debug(f'text: {text!r}')
+        _logger.debug(f'text before cursor: {text!r}')
 
         # Parse tokens for only the text before cursor and merge certain consecutive tokens
         tokens = process_tokens(self.lexer.get_tokens_unprocessed(text))
-        _logger.debug(f'tokens: {tokens}')
+        _logger.debug(f'processed tokens: {tokens}')
 
         # Nothing to complete if no significant tokens are found
         if len(tokens) == 0:
             return []
 
         idx_head_token, head_token = find_beginning_token(tokens)
+        _logger.debug(f'head token: {head_token} at {idx_head_token}')
+        if head_token is None:
+            return []
+
         pos_head_token = document.translate_index_to_position(head_token.index)
         last_token = tokens[-1]
         pos_cursor = document.translate_index_to_position(document.cursor_position)

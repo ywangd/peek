@@ -1,7 +1,7 @@
 import json
 
 import pytest
-from pygments.token import String, Whitespace
+from pygments.token import String, Whitespace, Comment
 
 from peek.ast import EsApiCallNode
 from peek.errors import PeekSyntaxError
@@ -21,6 +21,7 @@ def test_process_tokens():
         (10, CurlyRight, '}'), (11, Whitespace, ' '), (12, CurlyRight, '}'),
         (13, String.Double, '"'), (14, String.Double, 'd'), (15, String.Double, '"'),
         (16, String.Single, "'"), (17, String.Single, 's'), (18, String.Single, "'"),
+        (19, Comment.Single, "# comment")
     )]
     processed_tokens = process_tokens(tokens)
     assert processed_tokens == [
@@ -30,6 +31,13 @@ def test_process_tokens():
         (13, String.Double, '"d"'),
         (16, String.Single, "'s'"),
     ]
+
+
+def test_parser_comment(parser):
+    text = """// comment
+"""
+    nodes = parser.parse(text)
+    assert len(nodes) == 0
 
 
 def test_parser_single_es_api_call(parser):

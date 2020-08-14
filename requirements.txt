@@ -3,3 +3,5 @@ Pygments~=2.6.1
 configobj~=5.0.6
 
 elasticsearch>=7.0.0,<8.0.0
+
+urllib3~=1.25.8
