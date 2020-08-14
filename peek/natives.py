@@ -67,6 +67,13 @@ class SessionFunc:
         return {'current': None, 'remove': None}
 
 
+class RunFunc:
+
+    def __call__(self, app, file):
+        with open(file) as ins:
+            app.process_input(ins.read(), echo_input=True)
+
+
 class SamlAuthenticateFunc:
     def __call__(self, app, **options):
         realm = options.get('realm', 'saml1')
@@ -103,6 +110,7 @@ EXPORTS = {
     'connect': ConnectFunc(),
     'config': ConfigFunc(),
     'session': SessionFunc(),
+    'run': RunFunc(),
     'saml_authenticate': SamlAuthenticateFunc(),
     'oidc_authenticate': OidcAuthenticateFunc(),
 }

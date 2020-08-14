@@ -67,7 +67,7 @@ class PeekApp:
             except EOFError:
                 break
 
-    def process_input(self, text):
+    def process_input(self, text, echo_input=False):
         try:
             nodes = self.parser.parse(text)
         except PeekSyntaxError as e:
@@ -76,6 +76,8 @@ class PeekApp:
 
         for node in nodes:
             try:
+                if echo_input:
+                    self.display.info(str(node))
                 self.execute_node(node)
             except PeekError as e:
                 self.display.error(e)
