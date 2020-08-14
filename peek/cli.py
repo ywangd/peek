@@ -23,6 +23,8 @@ def main():
                         help='A friendly name for the connection')
     parser.add_argument('--hosts', default='localhost:9200',
                         help='ES hosts to connect to')
+    parser.add_argument('--cloud_id',
+                        help='Elastic Cloud ID')
     parser.add_argument('--auth_type', default='userpass',
                         choices=('userpass', 'apikey', 'token', 'krb', 'pki'),
                         help='Authentication type')

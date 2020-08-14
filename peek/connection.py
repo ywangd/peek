@@ -35,7 +35,8 @@ class EsClient(BaseClient):
 
     def __init__(self,
                  name=None,
-                 hosts='localhost:9200',
+                 hosts=None,
+                 cloud_id=None,
                  username=None,
                  password=None,
                  use_ssl=False,
@@ -49,7 +50,8 @@ class EsClient(BaseClient):
                  **kwargs):
 
         self.name = name
-        self.hosts = ['localhost:9200'] if hosts is None else hosts.split(',')
+        self.hosts = hosts.split(',') if hosts else None
+        self.cloud_id = cloud_id
         self.auth = f'{username}:{password}' if username and password else None
         self.use_ssl = use_ssl
         self.verify_certs = verify_certs
@@ -67,6 +69,7 @@ class EsClient(BaseClient):
 
         self.es = Elasticsearch(
             hosts=self.hosts,
+            cloud_id=cloud_id,
             http_auth=self.auth,
             use_ssl=use_ssl,
             verify_certs=verify_certs,
@@ -97,11 +100,14 @@ class EsClient(BaseClient):
             return f'{self.name}'
 
         hosts = []
-        for host in self.hosts:
-            if host.startswith('https://') or host.startswith('http://'):
-                hosts.append(host)
-            else:
-                hosts.append(('https://' if self.use_ssl else 'http://') + host)
+        if self.hosts:
+            for host in self.hosts:
+                if host.startswith('https://') or host.startswith('http://'):
+                    hosts.append(host)
+                else:
+                    hosts.append(('https://' if self.use_ssl else 'http://') + host)
+        else:
+            hosts.append(self.cloud_id)
 
         hosts = ','.join(hosts)
         if self.api_key_id:
@@ -238,6 +244,7 @@ class AuthType(Enum):
 DEFAULT_OPTIONS = {
     'name': None,
     'hosts': 'localhost:9200',
+    'cloud_id': None,
     'auth_type': AuthType.USERPASS,
     'username': None,
     'password': None,
@@ -263,6 +270,9 @@ def connect(app, **options):
         options['auth_type'] = AuthType(options['auth_type'])
     final_options.update({k: v for k, v in options.items() if v is not None})
 
+    if final_options['cloud_id'] is not None:
+        final_options['hosts'] = None
+
     if final_options['auth_type'] is AuthType.APIKEY or final_options['api_key']:
         return _connect_api_key(app, **final_options)
     elif final_options['auth_type'] is AuthType.TOKEN or final_options['token']:
@@ -276,7 +286,10 @@ def connect(app, **options):
 def _connect_userpass(app, **options):
     username = options.get('username')
     password = options.get('password')
-    service_name = f'peek/{options["hosts"]}/userpass'
+    if options['hosts']:
+        service_name = f'peek/{options["hosts"]}/userpass'
+    else:
+        service_name = f'peek/{options["cloud_id"]}/userpass'
 
     if not username and password:
         raise PeekError(f'Username is required for userpass authentication')
@@ -305,6 +318,7 @@ def _connect_userpass(app, **options):
     return EsClient(
         name=options['name'],
         hosts=options['hosts'],
+        cloud_id=options['cloud_id'],
         username=username,
         password=password,
         use_ssl=options['use_ssl'],
@@ -319,6 +333,7 @@ def _connect_api_key(app, **options):
     return EsClient(
         name=options['name'],
         hosts=options['hosts'],
+        cloud_id=options['cloud_id'],
         api_key=options['api_key'].split(':'),
         use_ssl=options['use_ssl'],
         verify_certs=options['verify_certs'],
@@ -333,6 +348,7 @@ def _connect_token(app, **options):
     return EsClient(
         name=options['name'],
         hosts=options['hosts'],
+        cloud_id=options['cloud_id'],
         token=options['token'],
         use_ssl=options['use_ssl'],
         verify_certs=options['verify_certs'],

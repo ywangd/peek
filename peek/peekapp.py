@@ -172,6 +172,7 @@ class PeekApp:
             self,
             name=self.cli_ns.name,
             hosts=self.cli_ns.hosts,
+            cloud_id=self.cli_ns.cloud_id,
             auth_type=AuthType.USERPASS if self.cli_ns.auth_type is None else AuthType(self.cli_ns.auth_type.upper()),
             username=self.cli_ns.username,
             password=self.cli_ns.password,
