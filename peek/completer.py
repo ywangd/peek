@@ -7,7 +7,7 @@ from typing import Iterable, List, Dict, Tuple, Optional
 
 from prompt_toolkit.completion import Completer, CompleteEvent, Completion, WordCompleter, FuzzyCompleter, PathCompleter
 from prompt_toolkit.document import Document
-from pygments.token import Error, Name, Literal
+from pygments.token import Error, Name, Literal, String
 
 from peek.common import PeekToken
 from peek.errors import PeekError
@@ -23,6 +23,8 @@ _HTTP_METHOD_COMPLETER = WordCompleter(['GET', 'POST', 'PUT', 'DELETE'], ignore_
 _FUNC_NAME_COMPLETER = WordCompleter(sorted(EXPORTS.keys()))
 
 _ES_API_CALL_OPTION_COMPLETER = WordCompleter([w + '=' for w in sorted(['conn', 'runas'])])
+
+_PATH_COMPLETER = PathCompleter()
 
 
 class PeekCompleter(Completer):
@@ -56,7 +58,7 @@ class PeekCompleter(Completer):
 
         if head_token.ttype is ShellOut:
             _logger.debug(f'Completing for shell out')
-            return PathCompleter().get_completions(Document(document.text.split()[-1]), complete_event)
+            return _PATH_COMPLETER.get_completions(Document(text.split()[-1]), complete_event)
 
         pos_head_token = document.translate_index_to_position(head_token.index)
         last_token = tokens[-1]
@@ -75,7 +77,16 @@ class PeekCompleter(Completer):
 
             # The token right before cursor is HttpMethod, go for path completion
             if head_token.ttype is HttpMethod and idx_head_token == len(tokens) - 2 and last_token.ttype is Literal:
-                return self._complete_path(document, complete_event, tokens[idx_head_token:])
+                return self._complete_http_path(document, complete_event, tokens[idx_head_token:])
+
+            if head_token.value == 'run' and idx_head_token == len(tokens) - 2 and last_token.ttype in String:
+                arg = text.split()[-1]
+                if last_token.ttype in (String.Single, String.Double):
+                    doc = Document(arg[1:])
+                else:
+                    doc = Document(arg[3:])
+                _logger.debug(f'Completing for file path for run: {doc}')
+                return _PATH_COMPLETER.get_completions(doc, complete_event)
 
             # The token is a KeyName or Error (incomplete k=v form), try complete for options
             if last_token.ttype in (Error, OptionName, Name):
@@ -99,7 +110,7 @@ class PeekCompleter(Completer):
                 return self._complete_options(document, complete_event, tokens[idx_head_token:],
                                               is_cursor_on_non_white_token)
 
-    def _complete_path(self, document: Document, complete_event: CompleteEvent, tokens) -> Iterable[Completion]:
+    def _complete_http_path(self, document: Document, complete_event: CompleteEvent, tokens) -> Iterable[Completion]:
         method_token, path_token = tokens[-2], tokens[-1]
         method = method_token.value.upper()
         cursor_position = document.cursor_position - path_token.index
@@ -115,13 +126,13 @@ class PeekCompleter(Completer):
         if cursor_token.ttype is Error:
             return []
         elif cursor_token.ttype in (PathPart, Slash):
-            return self._complete_path_part(document, complete_event, method, path_tokens)
+            return self._complete_http_path_part(document, complete_event, method, path_tokens)
         elif cursor_token.ttype in (ParamName, QuestionMark, Ampersand):
             return self._complete_query_param_name(document, complete_event, method, path_tokens)
         else:  # skip for param value
             return self._complete_query_param_value(document, complete_event, method, path_tokens)
 
-    def _complete_path_part(self, document: Document, complete_event: CompleteEvent, method, path_tokens):
+    def _complete_http_path_part(self, document: Document, complete_event: CompleteEvent, method, path_tokens):
         cursor_token = path_tokens[-1]
         _logger.debug(f'Completing path part: {cursor_token}')
         ts = [t.value for t in path_tokens if t.ttype is not Slash]
