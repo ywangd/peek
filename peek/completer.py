@@ -5,14 +5,14 @@ import logging
 import os
 from typing import Iterable, List, Dict, Tuple, Optional
 
-from prompt_toolkit.completion import Completer, CompleteEvent, Completion, WordCompleter, FuzzyCompleter
+from prompt_toolkit.completion import Completer, CompleteEvent, Completion, WordCompleter, FuzzyCompleter, PathCompleter
 from prompt_toolkit.document import Document
 from pygments.token import Error, Name, Literal
 
 from peek.common import PeekToken
 from peek.errors import PeekError
 from peek.lexers import PeekLexer, UrlPathLexer, PathPart, ParamName, Ampersand, QuestionMark, Slash, HttpMethod, \
-    FuncName, OptionName, Assign, CurlyLeft, CurlyRight, PayloadKey
+    FuncName, OptionName, Assign, CurlyLeft, CurlyRight, PayloadKey, ShellOut
 from peek.natives import EXPORTS
 from peek.parser import process_tokens
 
@@ -53,6 +53,10 @@ class PeekCompleter(Completer):
         _logger.debug(f'head token: {head_token} at {idx_head_token}')
         if head_token is None:
             return []
+
+        if head_token.ttype is ShellOut:
+            _logger.debug(f'Completing for shell out')
+            return PathCompleter().get_completions(Document(document.text.split()[-1]), complete_event)
 
         pos_head_token = document.translate_index_to_position(head_token.index)
         last_token = tokens[-1]
@@ -268,7 +272,7 @@ def _maybe_unwrap_for_dict(rules):
 
 def find_beginning_token(tokens) -> Tuple[Optional[int], Optional[PeekToken]]:
     for i, t in zip(reversed(range(len(tokens))), tokens[::-1]):
-        if t.ttype in (HttpMethod, FuncName):
+        if t.ttype in (HttpMethod, FuncName, ShellOut):
             return i, t
     return None, None
 

@@ -1,7 +1,7 @@
 import logging
 
 from peek.ast import Visitor, EsApiCallNode, DictNode, KeyValueNode, ArrayNode, NumberNode, \
-    StringNode, FuncCallNode, NameNode, TextNode
+    StringNode, FuncCallNode, NameNode, TextNode, ShellOutNode
 
 _logger = logging.getLogger(__name__)
 
@@ -69,6 +69,10 @@ class FormattingVisitor(Visitor):
         if kwargs_parts:
             parts += [''.join(kwargs_parts)]
         self.text = ''.join(parts)
+
+    def visit_shell_out_node(self, node: ShellOutNode):
+        assert isinstance(node, ShellOutNode)
+        self.text = f'!{node.command}'
 
     def visit_string_node(self, node: StringNode):
         self.consume(node.token.value)
