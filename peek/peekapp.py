@@ -1,5 +1,6 @@
 """Main module."""
 import logging
+import logging.handlers
 import sys
 from typing import List
 
@@ -132,7 +133,9 @@ class PeekApp:
         elif log_file == 'stdout':
             handler = logging.StreamHandler(sys.stdout)
         else:
-            handler = logging.FileHandler(config_location() + log_file)
+            handler = logging.handlers.RotatingFileHandler(
+                config_location() + log_file,
+                maxBytes=10 * 1024 * 1024, backupCount=5)
 
         log_level = getattr(logging, log_level, logging.WARNING)
 
