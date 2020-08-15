@@ -162,6 +162,7 @@ class PeekApp:
                 enable_system_prompt=False,
                 enable_suspend=True,
                 search_ignore_case=True,
+                swap_light_and_dark_colors=self.config.as_bool('swap_colour'),
                 input_processors=[
                     HighlightMatchingBracketProcessor(chars="[](){}"),
                 ],
