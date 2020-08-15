@@ -41,6 +41,7 @@ class PeekApp:
         self._init_logging()
         self.es_client_manager = EsClientManager()
         self._init_es_client()
+        self.history = SqLiteHistory(self.config.as_int('history_max'))
         self.prompt = self._init_prompt()
         self.display = Display(self)
         self.parser = PeekParser()
@@ -155,7 +156,7 @@ class PeekApp:
                 lexer=PygmentsLexer(PeekLexer),
                 auto_suggest=AutoSuggestFromHistory(),
                 completer=PeekCompleter(self),
-                history=SqLiteHistory(self.config.as_int('history_max')),
+                history=self.history,
                 multiline=True,
                 key_bindings=key_bindings(self),
                 enable_open_in_editor=True,

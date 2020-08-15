@@ -43,3 +43,15 @@ class SqLiteHistory(History):
     def store_string(self, string: str) -> None:
         self.conn.execute("INSERT INTO history(content, timestamp) VALUES (?, ?)", (string, datetime.datetime.now()))
         self.conn.commit()
+
+    def load_recent(self, size=100):
+        lines = []
+        for row in self.conn.execute("select * from history where id > (select max(id) from history) - ?", (size,)):
+            lines.append((row[0], row[1]))
+        return lines
+
+    def get_entry(self, index):
+        for row in self.conn.execute('select * from history where id = ?', (index,)):
+            return row[0], row[1]
+        else:
+            return None

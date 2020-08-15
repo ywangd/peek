@@ -79,6 +79,21 @@ class RunFunc:
         return {'echo': False}
 
 
+class HistoryFunc:
+
+    def __call__(self, app, index=None, **options):
+        if index is None:
+            history = []
+            for entry in app.history.load_recent():
+                history.append(f'{entry[0]:>6} {entry[1]!r}')
+            return '\n'.join(history)
+        else:
+            entry = app.history.get_entry(index)
+            if entry is None:
+                raise PeekError(f'History not found for index: {index}')
+            app.process_input(entry[1])
+
+
 class HelpFunc:
 
     def __call__(self, app, func=None):
@@ -129,6 +144,7 @@ EXPORTS = {
     'config': ConfigFunc(),
     'session': SessionFunc(),
     'run': RunFunc(),
+    'history': HistoryFunc(),
     'help': HelpFunc(),
     'saml_authenticate': SamlAuthenticateFunc(),
     'oidc_authenticate': OidcAuthenticateFunc(),
