@@ -24,7 +24,8 @@ class PeekVM(Visitor):
         self.app = app
         self.context = {}
         self.builtins = EXPORTS
-        self._load_extensions()
+        if self.app.config.as_bool('load_extension'):
+            self._load_extensions()
         self.es_api_payload_line = []
         self.func_args = []
         self.func_kwargs = {}
@@ -185,6 +186,7 @@ class PeekVM(Visitor):
             sys.path = sys_path
 
     def _load_one_extension(self, p):
+        _logger.debug(f'Loading extension: {p!r}')
         import importlib
         fields = os.path.splitext(p)
         if len(fields) != 2 or fields[1] != '.py':

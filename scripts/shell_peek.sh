@@ -11,4 +11,4 @@ while read line; do
     Payload="$Payload\n$line"
 done
 
-echo -e $Payload | peek
+echo -e $Payload | peek -e load_extension=False -e load_api_specs=False

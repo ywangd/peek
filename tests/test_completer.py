@@ -13,6 +13,7 @@ from peek.natives import EXPORTS
 
 mockApp = MagicMock(name='PeekApp')
 mockApp.vm.functions = {k: v for k, v in EXPORTS.items() if callable(v)}
+mockApp.config.as_bool.return_value = True
 
 completer = PeekCompleter(mockApp)
 

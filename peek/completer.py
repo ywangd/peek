@@ -33,7 +33,10 @@ class PeekCompleter(Completer):
         from peek import __file__ as package_root
         package_root = os.path.dirname(package_root)
         kibana_dir = os.path.join(package_root, 'specs', 'kibana-7.8.1')
-        self.specs = load_specs(kibana_dir)
+        if self.app.config.as_bool('load_api_specs'):
+            self.specs = load_specs(kibana_dir)
+        else:
+            self.specs = {}
 
     def get_completions(self, document: Document, complete_event: CompleteEvent) -> Iterable[Completion]:
         _logger.debug(f'doc: {document}, event: {complete_event}')
@@ -343,6 +346,7 @@ def load_specs(kibana_dir):
 
 
 def _load_json_specs(base_dir):
+    _logger.debug(f'Loading json specs from: {base_dir!r}')
     specs = {}
     for sub_dir in ('generated', 'overrides'):
         d = os.path.join(base_dir, sub_dir)

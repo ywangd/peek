@@ -4,6 +4,8 @@ log_level = warning
 use_keyring = True
 pretty_print = True
 history_max = 10000
+load_api_specs = True
+load_extension = True
 extension_path =
 
 swap_colour = False
