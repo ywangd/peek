@@ -1,5 +1,6 @@
 import os
 from typing import Iterable
+from unittest.mock import MagicMock
 
 from prompt_toolkit.completion import CompleteEvent, Completion
 from prompt_toolkit.document import Document
@@ -8,8 +9,12 @@ from pygments.token import Literal
 from peek.common import PeekToken
 from peek.completer import load_specs, PeekCompleter, find_beginning_token, matchable_specs
 from peek.lexers import HttpMethod, FuncName, BlankLine
+from peek.natives import EXPORTS
 
-completer = PeekCompleter(None)
+mockApp = MagicMock(name='PeekApp')
+mockApp.vm.functions = {k: v for k, v in EXPORTS.items() if callable(v)}
+
+completer = PeekCompleter(mockApp)
 
 
 def equivalent_completions(c0: Completion, c1: Completion):

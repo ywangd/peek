@@ -13,14 +13,11 @@ from peek.common import PeekToken
 from peek.errors import PeekError
 from peek.lexers import PeekLexer, UrlPathLexer, PathPart, ParamName, Ampersand, QuestionMark, Slash, HttpMethod, \
     FuncName, OptionName, Assign, CurlyLeft, CurlyRight, PayloadKey, ShellOut
-from peek.natives import EXPORTS
 from peek.parser import process_tokens
 
 _logger = logging.getLogger(__name__)
 
 _HTTP_METHOD_COMPLETER = WordCompleter(['GET', 'POST', 'PUT', 'DELETE'], ignore_case=True)
-
-_FUNC_NAME_COMPLETER = WordCompleter(sorted(EXPORTS.keys()))
 
 _ES_API_CALL_OPTION_COMPLETER = WordCompleter([w + '=' for w in sorted(['conn', 'runas'])])
 
@@ -74,7 +71,7 @@ class PeekCompleter(Completer):
                 _logger.debug(f'Completing function/http method name: {last_token}')
                 return itertools.chain(
                     _HTTP_METHOD_COMPLETER.get_completions(document, complete_event),
-                    _FUNC_NAME_COMPLETER.get_completions(document, complete_event))
+                    WordCompleter(self.app.vm.functions.keys()).get_completions(document, complete_event))
 
             # The token right before cursor is HttpMethod, go for path completion
             if head_token.ttype is HttpMethod and idx_head_token == len(tokens) - 2 and last_token.ttype is Literal:
@@ -205,7 +202,7 @@ class PeekCompleter(Completer):
             else:
                 return _ES_API_CALL_OPTION_COMPLETER.get_completions(document, complete_event)
         elif head_token.ttype is FuncName:
-            func = EXPORTS.get(head_token.value)
+            func = self.app.vm.functions.get(head_token.value)
             if func is None or not getattr(func, 'options', None):
                 return []
             option_name = _get_option_name_for_value_completion()
