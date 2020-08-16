@@ -71,6 +71,7 @@ class PeekVM(Visitor):
                 self.app.display.info(e.info)
             else:
                 self.app.display.error(e)
+                _logger.exception(f'Error on ES API call: {node!r}')
 
     def visit_func_call_node(self, node: FuncCallNode):
         func_name = node.name_node.token.value
@@ -93,6 +94,7 @@ class PeekVM(Visitor):
             self.app.display.info(func(self.app, *func_args.get(), **func_kwargs.get()))
         except Exception as e:
             self.app.display.info(e)
+            _logger.exception(f'Error on invoking function: {func_name!r}')
 
     def visit_shell_out_node(self, node: ShellOutNode):
         try:

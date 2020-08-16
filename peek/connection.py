@@ -50,7 +50,7 @@ class EsClient(BaseClient):
                  **kwargs):
 
         self.name = name
-        self.hosts = hosts.split(',') if hosts else None
+        self.hosts = hosts
         self.cloud_id = cloud_id
         self.auth = f'{username}:{password}' if username and password else None
         self.use_ssl = use_ssl
@@ -68,7 +68,7 @@ class EsClient(BaseClient):
                 headers = token_header
 
         self.es = Elasticsearch(
-            hosts=self.hosts,
+            hosts=self.hosts.split(',') if self.hosts else None,
             cloud_id=cloud_id,
             http_auth=self.auth,
             use_ssl=use_ssl,
@@ -101,7 +101,7 @@ class EsClient(BaseClient):
 
         hosts = []
         if self.hosts:
-            for host in self.hosts:
+            for host in self.hosts.split(','):
                 if host.startswith('https://') or host.startswith('http://'):
                     hosts.append(host)
                 else:
