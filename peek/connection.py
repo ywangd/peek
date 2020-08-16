@@ -27,7 +27,7 @@ noopDeserializer = NoopDeserializer()
 class BaseClient(metaclass=ABCMeta):
 
     @abstractmethod
-    def perform_request(self, method, path, payload, deserialize_it=False, **kwargs):
+    def perform_request(self, method, path, payload=None, deserialize_it=False, **kwargs):
         pass
 
 
@@ -83,7 +83,7 @@ class EsClient(BaseClient):
             **kwargs,
         )
 
-    def perform_request(self, method, path, payload, deserialize_it=False, **kwargs):
+    def perform_request(self, method, path, payload=None, deserialize_it=False, **kwargs):
         _logger.debug(f'Performing request: {method!r}, {path!r}, {payload!r}')
         deserializer = self.es.transport.deserializer
         try:
@@ -138,7 +138,7 @@ class RefreshingEsClient(BaseClient):
         self.expires_in = expires_in
         self.delegate = self._build_delegate()
 
-    def perform_request(self, method, path, payload, deserialize_it=False, **kwargs):
+    def perform_request(self, method, path, payload=None, deserialize_it=False, **kwargs):
         try:
             return self.delegate.perform_request(method, path, payload, deserialize_it, **kwargs)
         except AuthenticationException as e:
@@ -161,7 +161,7 @@ class RefreshingEsClient(BaseClient):
 
     def _build_delegate(self):
         return EsClient(
-            hosts=','.join(self.parent.hosts),
+            hosts=self.parent.hosts,
             use_ssl=self.parent.use_ssl,
             verify_certs=self.parent.verify_certs,
             ca_certs=self.parent.ca_certs,

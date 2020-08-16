@@ -1,10 +1,12 @@
 import json
 import logging
+import urllib
 
 from configobj import ConfigObj
 
 from peek.connection import connect, DEFAULT_OPTIONS
 from peek.errors import PeekError
+from peek.krb import krb_authenticate
 from peek.oidc import oidc_authenticate
 from peek.saml import saml_authenticate
 
@@ -139,6 +141,25 @@ class OidcAuthenticateFunc:
         return {'realm': 'oidc1', 'callback_port': '5601'}
 
 
+class KrbAuthenticateFunc:
+    def __call__(self, app, **options):
+        service = options.get('service', None)
+        if service is None:
+            if app.es_client.hosts:
+                host = urllib.parse.urlparse(app.es_client.hosts.split(',')[0]).hostname
+                service = f'HTTP@{host}'
+            else:
+                raise PeekError('Cannot infer service principal. Please specify explicitly')
+
+        krb_es_client = krb_authenticate(app.es_client, service, **options)
+        app.es_client_manager.add(krb_es_client)
+        return app.es_client.perform_request('GET', '/_security/_authenticate')
+
+    @property
+    def options(self):
+        return {'service': '', 'username': ''}
+
+
 EXPORTS = {
     'connect': ConnectFunc(),
     'config': ConfigFunc(),
@@ -148,4 +169,5 @@ EXPORTS = {
     'help': HelpFunc(),
     'saml_authenticate': SamlAuthenticateFunc(),
     'oidc_authenticate': OidcAuthenticateFunc(),
+    'krb_authenticate': KrbAuthenticateFunc(),
 }
