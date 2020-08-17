@@ -6,6 +6,7 @@ from prompt_toolkit.buffer import ValidationState, Buffer
 from prompt_toolkit.enums import DEFAULT_BUFFER
 from prompt_toolkit.filters import Condition, completion_is_selected, is_searching
 from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.key_binding.key_processor import KeyPressEvent
 
 from peek.common import HTTP_METHODS
 from peek.errors import PeekSyntaxError, PeekError
@@ -43,6 +44,13 @@ def key_bindings(app):
     @kb.add('escape', 'enter', filter=~(completion_is_selected | is_searching))
     def _(event):
         event.app.current_buffer.newline()
+
+    @kb.add('escape', 'c')
+    def _(event: KeyPressEvent):
+        get_app().clipboard.set_text(event.app.current_buffer.text)
+        app.preserved_text = event.current_buffer.text
+        event.current_buffer.reset()
+        event.current_buffer.validate_and_handle()
 
     @kb.add('c-d')
     def _(event):

@@ -6,6 +6,7 @@ from typing import Iterable
 
 from prompt_toolkit import PromptSession, prompt
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
+from prompt_toolkit.clipboard.pyperclip import PyperclipClipboard
 from prompt_toolkit.formatted_text import FormattedText
 from prompt_toolkit.layout.processors import HighlightMatchingBracketProcessor
 from prompt_toolkit.lexers import PygmentsLexer
@@ -117,6 +118,9 @@ class PeekApp:
             (PeekStyle.styles[TipsMinor], info_line + '\n'),
         ])
 
+    def _get_bottom_bar(self):
+        return self._bottom_message
+
     def _get_default_text(self):
         text = self.preserved_text
         if text:
@@ -166,6 +170,7 @@ class PeekApp:
                 enable_system_prompt=False,
                 enable_suspend=True,
                 search_ignore_case=True,
+                clipboard=PyperclipClipboard(),
                 swap_light_and_dark_colors=self.config.as_bool('swap_colour'),
                 input_processors=[
                     HighlightMatchingBracketProcessor(chars="[](){}"),
