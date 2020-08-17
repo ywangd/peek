@@ -1,17 +1,17 @@
 import ast
 import json
 import logging
-from typing import List
+from typing import List, Iterable
 
 from pygments.token import Token, Whitespace, String, Comment, Literal, Number, Name, Error
 
 from peek.ast import NameNode, FuncCallNode, KeyValueNode, EsApiCallNode, StringNode, NumberNode, TextNode, DictNode, \
-    ArrayNode, ShellOutNode
+    ArrayNode, ShellOutNode, EsApiCallInlinePayloadNode, EsApiCallFilePayloadNode
 from peek.common import PeekToken
 from peek.errors import PeekSyntaxError
 from peek.lexers import PeekLexer, BlankLine, CurlyLeft, PayloadKey, Colon, \
     CurlyRight, Comma, BracketLeft, BracketRight, TripleS, TripleD, EOF, FuncName, Assign, HttpMethod, OptionName, \
-    ShellOut
+    ShellOut, At
 
 _logger = logging.getLogger(__name__)
 
@@ -69,13 +69,18 @@ class PeekParser:
             self._consume_token(Assign)
             option_nodes.append(KeyValueNode(n, self._parse_expr()))
 
-        dict_nodes = []
-        while self._peek_token().ttype is not EOF:
-            if self._peek_token().ttype is CurlyLeft:
-                dict_nodes.append(self._parse_json_object())
-            else:
-                break
-        return EsApiCallNode(method_node, path_node, DictNode(option_nodes), dict_nodes)
+        if self._peek_token().ttype is At:
+            self._consume_token(At)
+            return EsApiCallFilePayloadNode(
+                method_node, path_node, DictNode(option_nodes), TextNode(self._consume_token(Literal)))
+        else:
+            dict_nodes = []
+            while self._peek_token().ttype is not EOF:
+                if self._peek_token().ttype is CurlyLeft:
+                    dict_nodes.append(self._parse_json_object())
+                else:
+                    break
+            return EsApiCallInlinePayloadNode(method_node, path_node, DictNode(option_nodes), dict_nodes)
 
     def _parse_json_object(self):
         kv_nodes = []
@@ -170,7 +175,7 @@ def normalise_string(value):
     return json.dumps(ast.literal_eval(value))
 
 
-def process_tokens(tokens: List[PeekToken]):
+def process_tokens(tokens: Iterable[PeekToken]):
     """
     Process tokens by filtering out whitespaces and merging tokens that
     should be represented as one, e.g. Strings, BlankLine, Error.

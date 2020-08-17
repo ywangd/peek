@@ -1,7 +1,7 @@
 import logging
 
 from peek.ast import Visitor, EsApiCallNode, DictNode, KeyValueNode, ArrayNode, NumberNode, \
-    StringNode, FuncCallNode, NameNode, TextNode, ShellOutNode
+    StringNode, FuncCallNode, NameNode, TextNode, ShellOutNode, EsApiCallInlinePayloadNode, EsApiCallFilePayloadNode
 
 _logger = logging.getLogger(__name__)
 
@@ -33,9 +33,15 @@ class FormattingVisitor(Visitor):
         assert isinstance(node, EsApiCallNode)
         parts = [node.method_node.token.value, ' ', node.path_node.token.value, '\n']
         self.push_consumer(lambda v: parts.append(v))
-        for dict_node in node.dict_nodes:
-            dict_node.accept(self)
+        if isinstance(node, EsApiCallInlinePayloadNode):
+            for dict_node in node.dict_nodes:
+                dict_node.accept(self)
+                self.consume('\n')
+        elif isinstance(node, EsApiCallFilePayloadNode):
+            node.file_node.accept(self)
             self.consume('\n')
+        else:
+            raise ValueError(f'Unknown node: {node!r}')
         self.pop_consumer()
         self.text = ''.join(parts)
 

@@ -277,3 +277,12 @@ def test_payload_completion_004():
 {""}''', 30)),
         Completion(text="scope", start_position=0),
     )
+
+
+def test_file_payload_completion():
+    f = os.listdir('.')[0]
+    assert completions_has(
+        get_completions(Document('''get /
+@''')),
+        Completion(text=f, start_position=0)
+    )

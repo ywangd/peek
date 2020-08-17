@@ -35,7 +35,7 @@ conn foo=bar
 get abc
 """
     nodes = []
-    peek = PeekApp(batch_mode=True)
+    peek = PeekApp(batch_mode=True, extra_config_options=('log_level=None',))
     peek.execute_node = lambda stmt: nodes.append(stmt)
     peek.process_input(text)
 

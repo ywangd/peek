@@ -83,6 +83,12 @@ get xyz
 """)
 
 
+def test_es_api_call_file(peek_lexer):
+    do_test(peek_lexer, """get _abc
+@file
+""")
+
+
 def test_func_calls(peek_lexer):
     do_test(peek_lexer, """conn 1
 conn "a" foo=1 c=bar

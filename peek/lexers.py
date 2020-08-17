@@ -1,4 +1,5 @@
 import re
+from typing import Iterable
 
 from pygments.lexer import RegexLexer, words, include, bygroups, default
 from pygments.style import Style
@@ -14,6 +15,7 @@ BracketLeft = Punctuation.Bracket.Left
 BracketRight = Punctuation.Bracket.Right
 Comma = Punctuation.Comma
 Colon = Punctuation.Colon
+At = Punctuation.At
 Heading = Generic.Heading
 TripleD = String.TripleD
 TripleS = String.TripleS
@@ -99,6 +101,7 @@ class PeekLexer(RegexLexer):
             (r'(' + VARIABLE_PATTERN + r')(' + W + r'*)(=)(' + W + r'*)',
              bygroups(OptionName, Whitespace, Assign, Whitespace), 'expr'),
             (W + r'+', Whitespace),
+            # default(('#pop', 'payload')),  # this is to make the newline optional
         ],
         'expr': [
             # Name, Value and expression
@@ -109,6 +112,11 @@ class PeekLexer(RegexLexer):
         'payload': [
             (r'(' + W + '*)' + r'(//.*)(\n)', bygroups(Whitespace, Comment.Single, Whitespace)),
             (r'(' + W + r'*)(?={)', Whitespace, ('#pop', 'payload_cont', 'dict')),
+            (r'(' + W + r'*)(@)', bygroups(Whitespace, At), ('#pop', 'payload_file')),
+            default('#pop'),
+        ],
+        'payload_file': [
+            (r'\S+', Literal, '#pop'),
             default('#pop'),
         ],
         'payload_cont': [
@@ -194,7 +202,7 @@ class PeekLexer(RegexLexer):
         super().__init__(**options)
         self.stack = stack or ('root',)
 
-    def get_tokens_unprocessed(self, text, stack=None) -> PeekToken:
+    def get_tokens_unprocessed(self, text, stack=None) -> Iterable[PeekToken]:
         stack = stack or self.stack
         for t in super().get_tokens_unprocessed(text, stack):
             yield PeekToken(*t)

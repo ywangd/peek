@@ -9,7 +9,8 @@ from subprocess import Popen
 from pygments.token import Name
 
 from peek.ast import Visitor, EsApiCallNode, DictNode, KeyValueNode, ArrayNode, NumberNode, \
-    StringNode, Node, FuncCallNode, NameNode, TextNode, ShellOutNode
+    StringNode, Node, FuncCallNode, NameNode, TextNode, ShellOutNode, EsApiCallInlinePayloadNode, \
+    EsApiCallFilePayloadNode
 from peek.errors import PeekError
 from peek.natives import EXPORTS
 from peek.visitors import Ref
@@ -44,14 +45,26 @@ class PeekVM(Visitor):
         self.pop_consumer()
         options = options.get()
 
-        dicts = []
-        self.push_consumer(lambda v: dicts.append(v))
-        for dict_node in node.dict_nodes:
-            dict_node.accept(self)
-        self.pop_consumer()
+        if isinstance(node, EsApiCallInlinePayloadNode):
+            dicts = []
+            self.push_consumer(lambda v: dicts.append(v))
+            for dict_node in node.dict_nodes:
+                dict_node.accept(self)
+            self.pop_consumer()
+            lines = [json.dumps(d) for d in dicts]
+            payload = ('\n'.join(lines) + '\n') if lines else None
+        elif isinstance(node, EsApiCallFilePayloadNode):
+            f = Ref()
+            self.push_consumer(lambda v: f.set(v))
+            node.file_node.accept(self)
+            self.pop_consumer()
+            with open(f.get()) as ins:
+                payload = ins.read()
+                if not payload.endswith('\n'):
+                    payload += '\n'
+        else:
+            raise ValueError(f'Unknown node: {node!r}')
 
-        lines = [json.dumps(d) for d in dicts]
-        payload = ('\n'.join(lines) + '\n') if lines else None
         try:
             headers = {}
             if options.get('runas') is not None:

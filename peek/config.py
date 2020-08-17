@@ -2,7 +2,7 @@ import logging
 import os
 import platform
 from os.path import expanduser, dirname
-from typing import List
+from typing import Iterable
 
 from configobj import ConfigObj
 
@@ -25,7 +25,7 @@ def ensure_dir_exists(path):
 
 
 def load_config(package_config_file: str,
-                config_file: str = None, extra_config_options: List[str] = None):
+                config_file: str = None, extra_config_options: Iterable[str] = None):
     config = ConfigObj(package_config_file)
     if config_file is not None:
         config.merge(ConfigObj(config_file))
@@ -56,7 +56,7 @@ def load_config(package_config_file: str,
     return config
 
 
-def get_config(config_file: str = None, extra_config_options: List[str] = None):
+def get_config(config_file: str = None, extra_config_options: Iterable[str] = None):
     from peek import __file__ as package_root
     package_root = os.path.dirname(package_root)
     package_config_file = os.path.join(package_root, 'peekrc')

@@ -12,7 +12,7 @@ from pygments.token import Error, Name, Literal, String
 from peek.common import PeekToken
 from peek.errors import PeekError
 from peek.lexers import PeekLexer, UrlPathLexer, PathPart, ParamName, Ampersand, QuestionMark, Slash, HttpMethod, \
-    FuncName, OptionName, Assign, CurlyLeft, CurlyRight, PayloadKey, ShellOut
+    FuncName, OptionName, Assign, CurlyLeft, CurlyRight, PayloadKey, ShellOut, At
 from peek.parser import process_tokens
 
 _logger = logging.getLogger(__name__)
@@ -69,7 +69,7 @@ class PeekCompleter(Completer):
         is_cursor_on_non_white_token = (last_token.index < document.cursor_position
                                         <= (last_token.index + len(last_token.value)))
         if is_cursor_on_non_white_token:
-            _logger.debug(f'Found token {last_token} on the cursor')
+            _logger.debug(f'Cursor token: {last_token}')
             if last_token.ttype in (HttpMethod, FuncName):
                 _logger.debug(f'Completing function/http method name: {last_token}')
                 return itertools.chain(
@@ -93,6 +93,13 @@ class PeekCompleter(Completer):
             if last_token.ttype in (Error, OptionName, Name):
                 return self._complete_options(document, complete_event, tokens[idx_head_token:],
                                               is_cursor_on_non_white_token)
+
+            if head_token.ttype is HttpMethod and last_token.ttype is At:
+                return _PATH_COMPLETER.get_completions(Document(text[last_token.index + 1:]), complete_event)
+
+            if head_token.ttype is HttpMethod and last_token.ttype is Literal \
+                and len(tokens) > 1 and tokens[-2].ttype is At:
+                return _PATH_COMPLETER.get_completions(Document(last_token.value), complete_event)
 
             if head_token.ttype is HttpMethod and last_token.ttype is PayloadKey:
                 return self._complete_payload(document, complete_event, tokens[idx_head_token:])

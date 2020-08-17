@@ -106,6 +106,18 @@ def test_parser_normal_payload(parser):
 """
 
 
+def test_parser_file_payload(parser):
+    text = """get _abc
+@some_file
+"""
+    nodes = parser.parse(text)
+    assert len(nodes) == 1
+    n = nodes[0]
+    assert isinstance(n, EsApiCallNode)
+    assert n.method == 'GET'
+    assert n.path == '/_abc'
+
+
 def test_parser_string_escapes(parser):
     text = r"""geT out
 {

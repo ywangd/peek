@@ -2,7 +2,7 @@
 import logging
 import logging.handlers
 import sys
-from typing import List
+from typing import Iterable
 
 from prompt_toolkit import PromptSession, prompt
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
@@ -32,7 +32,7 @@ class PeekApp:
     def __init__(self,
                  batch_mode=False,
                  config_file: str = None,
-                 extra_config_options: List[str] = None,
+                 extra_config_options: Iterable[str] = None,
                  cli_ns=NONE_NS):
         self._should_exit = False
         self._preserved_text = ''

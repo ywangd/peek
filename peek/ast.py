@@ -182,15 +182,12 @@ class NumberNode(Node):
         return [self.token]
 
 
-class EsApiCallNode(Node):
+class EsApiCallNode(Node, metaclass=ABCMeta):
 
-    def __init__(self,
-                 method_node: NameNode, path_node: NameNode,
-                 options_node: DictNode, dict_nodes: List[DictNode]):
+    def __init__(self, method_node: NameNode, path_node: NameNode, options_node: DictNode):
         self.method_node = method_node
         self.path_node = path_node
         self.options_node = options_node
-        self.dict_nodes = dict_nodes
 
     def accept(self, visitor):
         visitor.visit_es_api_call_node(self)
@@ -198,8 +195,6 @@ class EsApiCallNode(Node):
     def tokens(self):
         tokens = self.method_node.tokens() + self.path_node.tokens()
         tokens += self.options_node.tokens()
-        for n in self.dict_nodes:
-            tokens += n.tokens
         return tokens
 
     @property
@@ -211,11 +206,41 @@ class EsApiCallNode(Node):
         path = self.path_node.token.value
         return path if path.startswith('/') else ('/' + path)
 
+
+class EsApiCallInlinePayloadNode(EsApiCallNode):
+
+    def __init__(self, method_node: NameNode, path_node: NameNode, options_node: DictNode, dict_nodes: List[DictNode]):
+        super().__init__(method_node, path_node, options_node)
+        self.dict_nodes = dict_nodes
+
+    def tokens(self):
+        tokens = super().tokens()
+        for n in self.dict_nodes:
+            tokens += n.tokens
+        return tokens
+
     def __str__(self):
         parts = [str(self.method_node), ' ', str(self.path_node), ' ', str(self.options_node), '\n']
         for n in self.dict_nodes:
             parts.append(str(n))
             parts.append('\n')
+        return ''.join(parts)
+
+
+class EsApiCallFilePayloadNode(EsApiCallNode):
+
+    def __init__(self, method_node: NameNode, path_node: NameNode, options_node: DictNode, file_node: TextNode):
+        super().__init__(method_node, path_node, options_node)
+        self.file_node = file_node
+
+    def tokens(self):
+        tokens = super().tokens()
+        tokens.append(self.file_node.token)
+        return tokens
+
+    def __str__(self):
+        parts = [str(self.method_node), ' ', str(self.path_node), ' ', str(self.options_node), '\n',
+                 str(super()), str(self.file_node), '\n']
         return ''.join(parts)
 
 
