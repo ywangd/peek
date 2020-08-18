@@ -102,7 +102,7 @@ class EsClient(BaseClient):
         if self.api_key_id:
             auth = f'ApiKey {self.api_key_id[:10]}...'
         elif self.token:
-            return f'Token {self.token[:10]}...'
+            auth = f'Token {self.token[:10]}...'
         elif self.auth:
             auth = f'Username {self.auth.split(":")[0]}'
         else:
@@ -166,7 +166,7 @@ class RefreshingEsClient(BaseClient):
         self.delegate = self._build_delegate()
 
     def __getattr__(self, item):
-        return getattr(self.parent, item)
+        return getattr(self.delegate, item)
 
     def perform_request(self, method, path, payload=None, deserialize_it=False, **kwargs):
         try:
@@ -186,11 +186,20 @@ class RefreshingEsClient(BaseClient):
                 self._build_delegate()
                 self.perform_request(method, path, payload, deserialize_it=deserialize_it, **kwargs)
 
+    def info(self):
+        info = self.delegate.info()
+        info['username'] = self.username
+        return info
+
     def __str__(self):
-        return f'{self.username} @ {self.delegate}'
+        if self.name:
+            return f'{self.name}'
+        else:
+            return f'{self.username} @ {self.delegate}'
 
     def _build_delegate(self):
         return EsClient(
+            name=self.name,
             hosts=self.parent.hosts,
             cloud_id=self.parent.cloud_id,
             use_ssl=self.parent.use_ssl,
@@ -198,7 +207,7 @@ class RefreshingEsClient(BaseClient):
             ca_certs=self.parent.ca_certs,
             client_cert=self.parent.client_cert,
             client_key=self.parent.client_key,
-            headers={'Authorization': f'Bearer {self.access_token}'},
+            token=self.access_token,
         )
 
 
