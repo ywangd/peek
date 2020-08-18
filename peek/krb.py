@@ -1,5 +1,6 @@
 import json
 import logging
+import urllib
 
 from peek.connection import EsClient, RefreshingEsClient
 from peek.errors import PeekError
@@ -7,12 +8,11 @@ from peek.errors import PeekError
 _logger = logging.getLogger(__name__)
 
 
-def krb_authenticate(es_client: EsClient, service=None, **options):
+def krb_authenticate(es_client: EsClient, service=None, username=None, name=None):
     _logger.debug(f'Connection with Kerberos: {service}')
     if service is None:
         raise PeekError(f'Service is required for kerberos authentication')
     import kerberos
-    username = options.get('username', None)
     result, context = kerberos.authGSSClientInit(service, principal=username)
     result = kerberos.authGSSClientStep(context, '')
     ticket = kerberos.authGSSClientResponse(context)
@@ -32,4 +32,26 @@ def krb_authenticate(es_client: EsClient, service=None, **options):
         '_KRB',
         auth_response['access_token'],
         auth_response['refresh_token'],
-        auth_response['expires_in'])
+        auth_response['expires_in'],
+        name=name)
+
+
+class KrbAuthenticateFunc:
+    def __call__(self, app, **options):
+        service = options.get('service', None)
+        if service is None:
+            if app.es_client_manager.current.hosts:
+                host = urllib.parse.urlparse(app.es_client_manager.current.hosts.split(',')[0]).hostname
+                service = f'HTTP@{host}'
+            else:
+                raise PeekError('Cannot infer service principal. Please specify explicitly')
+
+        krb_es_client = krb_authenticate(app.es_client_manager.current, service,
+                                         options.get('username', None),
+                                         options.get('name', None))
+        app.es_client_manager.add(krb_es_client)
+        return app.es_client_manager.current.perform_request('GET', '/_security/_authenticate')
+
+    @property
+    def options(self):
+        return {'service': '', 'username': '', 'name': None}

@@ -6,7 +6,7 @@ import time
 import webbrowser
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from threading import Thread
-from typing import Any
+from typing import Any, Optional
 
 from peek.connection import EsClient, RefreshingEsClient
 
@@ -35,7 +35,7 @@ class CallbackHTTPRequestHandler(BaseHTTPRequestHandler):
                       fmt % args))
 
 
-def oidc_authenticate(es_client: EsClient, realm: str, callback_port: str):
+def oidc_authenticate(es_client: EsClient, realm: str, callback_port: str, name: Optional[str]):
     _logger.info(f'OIDC authenticate for realm {realm!r} and callback port {callback_port!r}')
     prepare_response = _oidc_prepare(es_client, realm)
     httpd = _oidc_start_http_server(callback_port)
@@ -47,7 +47,13 @@ def oidc_authenticate(es_client: EsClient, realm: str, callback_port: str):
         httpd.shutdown()
         auth_response = _oidc_do_authenticate(es_client, realm, prepare_response['state'], prepare_response['nonce'],
                                               _OidcExchange.callback_path)
-        return _oidc_build_es_client(es_client, auth_response)
+        return RefreshingEsClient(
+            es_client,
+            auth_response['username'],
+            auth_response['access_token'],
+            auth_response['refresh_token'],
+            auth_response['expires_in'],
+            name=name)
     finally:
         _OidcExchange.callback_path = None
 
@@ -78,15 +84,6 @@ def _oidc_do_authenticate(es_client, realm: str, state: str, nonce: str, redirec
     return response
 
 
-def _oidc_build_es_client(es_client, auth_response):
-    return RefreshingEsClient(
-        es_client,
-        auth_response['username'],
-        auth_response['access_token'],
-        auth_response['refresh_token'],
-        auth_response['expires_in'])
-
-
 def _oidc_start_http_server(callback_port):
     from peek import __file__ as package_root
     package_root = os.path.dirname(package_root)
@@ -102,3 +99,20 @@ def _oidc_start_http_server(callback_port):
     t = Thread(target=httpd.serve_forever, daemon=True)
     t.start()
     return httpd
+
+
+class OidcAuthenticateFunc:
+    def __call__(self, app, **options):
+        realm = options.get('realm', 'oidc1')
+        oidc_es_client = oidc_authenticate(
+            app.es_client_manager.current,
+            realm,
+            options.get('callback_port', '5601'),
+            name=options.get('name', None),
+        )
+        app.es_client_manager.add(oidc_es_client)
+        return json.dumps({'username': oidc_es_client.username, 'realm': 'realm'})
+
+    @property
+    def options(self):
+        return {'realm': 'oidc1', 'callback_port': '5601', 'name': None}

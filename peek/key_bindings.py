@@ -75,7 +75,7 @@ def key_bindings(app):
     def switch_connection(event):
         _logger.debug(f'switching to connection: {event.key_sequence[1].key}')
         try:
-            app.es_client_manager.current = int(event.key_sequence[1].key)
+            app.es_client_manager.set_current(int(event.key_sequence[1].key))
             app.preserved_text = event.current_buffer.text
             event.current_buffer.reset()
             event.current_buffer.validate_and_handle()

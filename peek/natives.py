@@ -1,14 +1,12 @@
-import json
 import logging
-import urllib
 
 from configobj import ConfigObj
 
-from peek.connection import connect, DEFAULT_OPTIONS
+from peek.connection import ConnectFunc
 from peek.errors import PeekError
-from peek.krb import krb_authenticate
-from peek.oidc import oidc_authenticate
-from peek.saml import saml_authenticate
+from peek.krb import KrbAuthenticateFunc
+from peek.oidc import OidcAuthenticateFunc
+from peek.saml import SamlAuthenticateFunc
 
 _logger = logging.getLogger(__name__)
 
@@ -42,32 +40,36 @@ class ConfigFunc:
         app.config.merge(ConfigObj(extra_config))
 
 
-class ConnectFunc:
-    def __call__(self, app, **options):
-        app.es_client_manager.add(connect(app, **options))
-        return str(app.es_client_manager)
-
-    @property
-    def options(self):
-        return dict(DEFAULT_OPTIONS)
-
-
 class SessionFunc:
 
     def __call__(self, app, current=None, **options):
-        if current is not None:
-            app.es_client_manager.current = int(current)
-        elif 'current' in options:
-            app.es_client_manager.current = int(options['current'])
+        current = current if current is not None else options.get('current', None)
+        if isinstance(current, str):
+            app.es_client_manager.set_current_by_name(current)
+        elif current is not None:
+            app.es_client_manager.set_current(int(current))
 
-        if 'remove' in options:
-            app.es_client_manager.remove_client(int(options['remove']))
+        remove = options.get('remove', None)
+        if isinstance(remove, str):
+            app.es_client_manager.remove_client_by_name(remove)
+        elif remove is not None:
+            app.es_client_manager.remove_client(int(remove))
+
+        rename = options.get('rename', None)
+        if rename:
+            app.es_client_manager.current.name = str(rename)
+
+        info = options.get('info', None)
+        if isinstance(info, str):
+            return app.es_client_manager.get_client_by_name(info).info()
+        elif info is not None:
+            return app.es_client_manager.get_client(int(info)).info()
 
         return str(app.es_client_manager)
 
     @property
     def options(self):
-        return {'current': None, 'remove': None}
+        return {'current': None, 'remove': None, 'rename': None, 'info': None}
 
 
 class RunFunc:
@@ -98,7 +100,7 @@ class HistoryFunc:
 
 class HelpFunc:
 
-    def __call__(self, app, func=None):
+    def __call__(self, app, func=None, **options):
         if func is None:
             return '\n'.join(app.vm.functions.keys())
 
@@ -107,57 +109,6 @@ class HelpFunc:
                 return f'{k}\n{getattr(func, "options", {})}'
         else:
             raise PeekError(f'No such function: {func}')
-
-
-class SamlAuthenticateFunc:
-    def __call__(self, app, **options):
-        realm = options.get('realm', 'saml1')
-        saml_es_client = saml_authenticate(
-            app.es_client,
-            realm,
-            options.get('callback_port', '5601'),
-        )
-        app.es_client_manager.add(saml_es_client)
-        return json.dumps({'username': saml_es_client.username, 'realm': 'realm'})
-
-    @property
-    def options(self):
-        return {'realm': 'saml1', 'callback_port': '5601'}
-
-
-class OidcAuthenticateFunc:
-    def __call__(self, app, **options):
-        realm = options.get('realm', 'oidc1')
-        oidc_es_client = oidc_authenticate(
-            app.es_client,
-            realm,
-            options.get('callback_port', '5601'),
-        )
-        app.es_client_manager.add(oidc_es_client)
-        return json.dumps({'username': oidc_es_client.username, 'realm': 'realm'})
-
-    @property
-    def options(self):
-        return {'realm': 'oidc1', 'callback_port': '5601'}
-
-
-class KrbAuthenticateFunc:
-    def __call__(self, app, **options):
-        service = options.get('service', None)
-        if service is None:
-            if app.es_client.hosts:
-                host = urllib.parse.urlparse(app.es_client.hosts.split(',')[0]).hostname
-                service = f'HTTP@{host}'
-            else:
-                raise PeekError('Cannot infer service principal. Please specify explicitly')
-
-        krb_es_client = krb_authenticate(app.es_client, service, **options)
-        app.es_client_manager.add(krb_es_client)
-        return app.es_client.perform_request('GET', '/_security/_authenticate')
-
-    @property
-    def options(self):
-        return {'service': '', 'username': ''}
 
 
 EXPORTS = {

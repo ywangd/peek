@@ -7,7 +7,7 @@ import urllib
 import webbrowser
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from threading import Thread
-from typing import Any
+from typing import Any, Optional
 
 from peek.connection import EsClient, RefreshingEsClient
 from peek.errors import PeekError
@@ -39,7 +39,7 @@ class CallbackHTTPRequestHandler(BaseHTTPRequestHandler):
                       fmt % args))
 
 
-def saml_authenticate(es_client: EsClient, realm: str, callback_port: str):
+def saml_authenticate(es_client: EsClient, realm: str, callback_port: str, name: Optional[str]):
     _logger.info(f'SAML authenticate for realm {realm!r} and callback port {callback_port!r}')
     prepare_response = _saml_prepare(es_client, realm)
     httpd = _saml_start_http_server(callback_port)
@@ -54,7 +54,13 @@ def saml_authenticate(es_client: EsClient, realm: str, callback_port: str):
             raise PeekError(f'Invalid saml callback response: {_SamlExchange.callback_path!r}')
         content = query['SAMLResponse'][0]
         auth_response = _saml_do_authenticate(es_client, realm, prepare_response['id'], content)
-        return _saml_build_es_client(es_client, auth_response)
+        return RefreshingEsClient(
+            es_client,
+            auth_response['username'],
+            auth_response['access_token'],
+            auth_response['refresh_token'],
+            auth_response['expires_in'],
+            name=name)
     finally:
         _SamlExchange.callback_path = None
 
@@ -84,15 +90,6 @@ def _saml_do_authenticate(es_client, realm: str, _id: str, content: str):
     return response
 
 
-def _saml_build_es_client(es_client, auth_response):
-    return RefreshingEsClient(
-        es_client,
-        auth_response['username'],
-        auth_response['access_token'],
-        auth_response['refresh_token'],
-        auth_response['expires_in'])
-
-
 def _saml_start_http_server(callback_port):
     from peek import __file__ as package_root
     package_root = os.path.dirname(package_root)
@@ -108,3 +105,20 @@ def _saml_start_http_server(callback_port):
     t = Thread(target=httpd.serve_forever, daemon=True)
     t.start()
     return httpd
+
+
+class SamlAuthenticateFunc:
+    def __call__(self, app, **options):
+        realm = options.get('realm', 'saml1')
+        saml_es_client = saml_authenticate(
+            app.es_client_manager.current,
+            realm,
+            options.get('callback_port', '5601'),
+            name=options.get('name', None),
+        )
+        app.es_client_manager.add(saml_es_client)
+        return json.dumps({'username': saml_es_client.username, 'realm': 'realm'})
+
+    @property
+    def options(self):
+        return {'realm': 'saml1', 'callback_port': '5601', 'name': None}

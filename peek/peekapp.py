@@ -99,10 +99,6 @@ class PeekApp:
     def preserved_text(self, value: str):
         self._preserved_text = value
 
-    @property
-    def es_client(self):
-        return self.es_client_manager.current
-
     def input(self, message='', is_secret=False):
         return prompt(message=message, is_password=is_secret)
 
@@ -110,7 +106,8 @@ class PeekApp:
         self.display.info(response)
 
     def _get_message(self):
-        info_line = f' [{self.es_client_manager.index_current}] {self.es_client}'
+        idx = self.es_client_manager.clients().index(self.es_client_manager.current)
+        info_line = f' [{idx}] {self.es_client_manager.current}'
         if len(info_line) > 100:
             info_line = info_line[:97] + '...'
         return FormattedText([

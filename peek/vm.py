@@ -69,10 +69,13 @@ class PeekVM(Visitor):
             headers = {}
             if options.get('runas') is not None:
                 headers['es-security-runas-user'] = options.pop('runas')
-            if options.get('conn') is not None:
-                es_client = self.app.es_client_manager.get_client(int(options.pop('conn')))
+            conn = options.pop('conn') if 'conn' in options else None
+            if isinstance(conn, str):
+                es_client = self.app.es_client_manager.get_client_by_name(conn)
+            elif conn is not None:
+                es_client = self.app.es_client_manager.get_client(int(conn))
             else:
-                es_client = self.app.es_client
+                es_client = self.app.es_client_manager.current
             if options:
                 raise PeekError(f'Unknown options: {options}')
             response = es_client.perform_request(node.method, node.path, payload, headers=headers if headers else None)

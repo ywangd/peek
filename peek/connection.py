@@ -98,6 +98,28 @@ class EsClient(BaseClient):
             if not deserialize_it:
                 self.es.transport.deserializer = deserializer
 
+    def info(self):
+        if self.api_key_id:
+            auth = f'ApiKey {self.api_key_id[:10]}...'
+        elif self.token:
+            return f'Token {self.token[:10]}...'
+        elif self.auth:
+            auth = f'Username {self.auth.split(":")[0]}'
+        else:
+            auth = None
+
+        return {
+            'name': self.name,
+            'hosts': self.hosts,
+            'cloud_id': self.cloud_id,
+            'auth': auth,
+            'user_ssl': self.use_ssl,
+            'verify_certs': self.verify_certs,
+            'ca_certs': self.ca_certs,
+            'client_cert': self.client_cert,
+            'client_key': self.client_key,
+        }
+
     def __str__(self):
         if self.name:
             return f'{self.name}'
@@ -132,13 +154,15 @@ class RefreshingEsClient(BaseClient):
                  username,
                  access_token,
                  refresh_token,
-                 expires_in):
+                 expires_in,
+                 name=None):
 
         self.parent = parent
         self.username = username
         self.access_token = access_token
         self.refresh_token = refresh_token
         self.expires_in = expires_in
+        self.name = name
         self.delegate = self._build_delegate()
 
     def __getattr__(self, item):
@@ -197,15 +221,13 @@ class EsClientManager:
             raise PeekError(f'Attempt to get ES client at invalid index [{self._index_current}]')
         return self._clients[self._index_current]
 
-    @current.setter
-    def current(self, i):
+    def set_current(self, i):
         if i < 0 or i >= len(self._clients):
             raise PeekError(f'Attempt to set ES client at invalid index [{i}]')
         self._index_current = i
 
-    @property
-    def index_current(self):
-        return self._index_current
+    def set_current_by_name(self, name):
+        self._index_current = self._clients.index(self.get_client_by_name(name))
 
     def clients(self):
         return self._clients
@@ -217,12 +239,12 @@ class EsClientManager:
 
     def get_client_by_name(self, name):
         if not name:
-            raise PeekError(f'Must specify name')
+            raise ValueError(f'Must specify name')
         for c in self._clients:
             if c.name == name:
                 return c
         else:
-            raise PeekError(f'No client with name: {name!r}')
+            raise ValueError(f'No client with name: {name!r}')
 
     def remove_client(self, i):
         if len(self._clients) == 1:
@@ -237,6 +259,10 @@ class EsClientManager:
             self._index_current -= 1
         elif i == self._index_current:
             self._index_current = 0
+
+    def remove_client_by_name(self, name):
+        idx = self._clients.index(self.get_client_by_name(name))
+        self.remove_client(idx)
 
     def __str__(self):
         lines = []
@@ -383,3 +409,13 @@ def _keyring(service_name, key, value=None):
             return KEYRING.get_password(service_name, key)
         else:
             KEYRING.set_password(service_name, key, value)
+
+
+class ConnectFunc:
+    def __call__(self, app, **options):
+        app.es_client_manager.add(connect(app, **options))
+        return str(app.es_client_manager)
+
+    @property
+    def options(self):
+        return dict(DEFAULT_OPTIONS)
