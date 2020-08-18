@@ -2,7 +2,7 @@ import json
 import logging
 import os
 from abc import ABCMeta, abstractmethod
-from enum import Enum
+from typing import List
 
 from configobj import Section
 from elasticsearch import Elasticsearch, AuthenticationException
@@ -41,6 +41,7 @@ class EsClient(BaseClient):
                  password=None,
                  use_ssl=False,
                  verify_certs=False,
+                 assert_hostname=False,
                  ca_certs=None,
                  client_cert=None,
                  client_key=None,
@@ -55,6 +56,7 @@ class EsClient(BaseClient):
         self.auth = f'{username}:{password}' if username and password else None
         self.use_ssl = use_ssl
         self.verify_certs = verify_certs
+        self.assert_hostname = assert_hostname
         self.ca_certs = ca_certs
         self.client_cert = client_cert
         self.client_key = client_key
@@ -80,6 +82,7 @@ class EsClient(BaseClient):
             timeout=Timeout(connect=None, read=None),
             api_key=api_key,
             headers=headers,
+            ssl_assert_hostname=assert_hostname,
             **kwargs,
         )
 
@@ -138,6 +141,9 @@ class RefreshingEsClient(BaseClient):
         self.expires_in = expires_in
         self.delegate = self._build_delegate()
 
+    def __getattr__(self, item):
+        return getattr(self.parent, item)
+
     def perform_request(self, method, path, payload=None, deserialize_it=False, **kwargs):
         try:
             return self.delegate.perform_request(method, path, payload, deserialize_it, **kwargs)
@@ -162,6 +168,7 @@ class RefreshingEsClient(BaseClient):
     def _build_delegate(self):
         return EsClient(
             hosts=self.parent.hosts,
+            cloud_id=self.parent.cloud_id,
             use_ssl=self.parent.use_ssl,
             verify_certs=self.parent.verify_certs,
             ca_certs=self.parent.ca_certs,
@@ -174,7 +181,7 @@ class RefreshingEsClient(BaseClient):
 class EsClientManager:
 
     def __init__(self):
-        self._clients = []
+        self._clients: List[EsClient] = []
         self._index_current = None
 
     def add(self, client):
@@ -208,6 +215,15 @@ class EsClientManager:
             raise PeekError(f'Attempt to set ES client at invalid index [{i}]')
         return self._clients[i]
 
+    def get_client_by_name(self, name):
+        if not name:
+            raise PeekError(f'Must specify name')
+        for c in self._clients:
+            if c.name == name:
+                return c
+        else:
+            raise PeekError(f'No client with name: {name!r}')
+
     def remove_client(self, i):
         if len(self._clients) == 1:
             raise PeekError('Cannot delete the last connection')
@@ -231,27 +247,17 @@ class EsClientManager:
         return '\n'.join(lines)
 
 
-class AuthType(Enum):
-    USERPASS = 'USERPASS'
-    APIKEY = 'APIKEY'
-    TOKEN = 'TOKEN'
-    SAML = 'SAML'
-    OIDC = 'OIDC'
-    KRB = 'KRB'
-    PKI = 'PKI'
-
-
 DEFAULT_OPTIONS = {
     'name': None,
     'hosts': 'localhost:9200',
     'cloud_id': None,
-    'auth_type': AuthType.USERPASS,
     'username': None,
     'password': None,
     'api_key': None,
     'token': None,
     'use_ssl': None,
     'verify_certs': False,
+    'assert_hostname': False,
     'ca_certs': None,
     'client_cert': None,
     'client_key': None,
@@ -266,21 +272,17 @@ def connect(app, **options):
     if isinstance(app.config.get('connection'), Section):
         final_options.update({k: v for k, v in app.config.get('connection').dict().items() if v})
 
-    if 'auth_type' in options:
-        options['auth_type'] = AuthType(options['auth_type'])
     final_options.update({k: v for k, v in options.items() if v is not None})
 
     if final_options['cloud_id'] is not None:
         final_options['hosts'] = None
 
-    if final_options['auth_type'] is AuthType.APIKEY or final_options['api_key']:
+    if final_options['api_key']:
         return _connect_api_key(app, **final_options)
-    elif final_options['auth_type'] is AuthType.TOKEN or final_options['token']:
+    elif final_options['token']:
         return _connect_token(app, **final_options)
-    elif final_options['auth_type'] is AuthType.USERPASS:
-        return _connect_userpass(app, **final_options)
     else:
-        raise NotImplementedError(f'{final_options["auth_type"]}')
+        return _connect_userpass(app, **final_options)
 
 
 def _connect_userpass(app, **options):
@@ -323,6 +325,7 @@ def _connect_userpass(app, **options):
         password=password,
         use_ssl=options['use_ssl'],
         verify_certs=options['verify_certs'],
+        assert_hostname=options['assert_hostname'],
         ca_certs=options['ca_certs'],
         client_cert=options['client_cert'],
         client_key=options['client_key'])
@@ -337,6 +340,7 @@ def _connect_api_key(app, **options):
         api_key=options['api_key'].split(':'),
         use_ssl=options['use_ssl'],
         verify_certs=options['verify_certs'],
+        assert_hostname=options['assert_hostname'],
         ca_certs=options['ca_certs'],
         client_cert=options['client_cert'],
         client_key=options['client_key'],
@@ -352,6 +356,7 @@ def _connect_token(app, **options):
         token=options['token'],
         use_ssl=options['use_ssl'],
         verify_certs=options['verify_certs'],
+        assert_hostname=options['assert_hostname'],
         ca_certs=options['ca_certs'],
         client_cert=options['client_cert'],
         client_key=options['client_key'],

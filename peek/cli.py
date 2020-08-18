@@ -25,9 +25,6 @@ def main():
                         help='ES hosts to connect to')
     parser.add_argument('--cloud_id',
                         help='Elastic Cloud ID')
-    parser.add_argument('--auth_type', default='userpass',
-                        choices=('userpass', 'apikey', 'token', 'krb', 'pki'),
-                        help='Authentication type')
     parser.add_argument('--username',
                         help='Username')
     parser.add_argument('--password',
@@ -40,6 +37,8 @@ def main():
                         help='Enable TLS for connecting to ES')
     parser.add_argument('--verify_certs', action='store_true',
                         help='Verify server certificate')
+    parser.add_argument('--assert_hostname', action='store_true',
+                        help='Verify hostname')
     parser.add_argument('--ca_certs',
                         help='Location of CA certificates')
     parser.add_argument('--client_cert',

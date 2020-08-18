@@ -210,10 +210,12 @@ class PeekVM(Visitor):
         sys.path.insert(0, os.path.dirname(fields[0]))
         try:
             m = importlib.import_module(os.path.basename(fields[0]))
-            if isinstance(getattr(m, 'EXPORTS', None), dict):
-                self.context.update(m.EXPORTS)
+            exports = getattr(m, 'EXPORTS', None)
+            if isinstance(exports, dict):
+                self.context.update(exports)
                 _logger.info(f'Loaded extension: {p!r}')
             else:
-                _logger.warning(f'Ignore extension {p!r} since EXPORTS is not a dict, but: {m.EXPORTS!r}')
+                _logger.warning(f'Ignore extension {p!r} since EXPORTS is not a dict, but: {exports!r}')
         except Exception as e:
-            _logger.warning(f'Error on loading extension: {p!r}, {e}')
+            _logger.error(f'Error on loading extension: {p!r}, {e}')
+            _logger.exception(f'Error on loading extension: {p!r}')

@@ -15,7 +15,7 @@ from prompt_toolkit.styles import style_from_pygments_cls
 from peek.common import NONE_NS
 from peek.completer import PeekCompleter
 from peek.config import get_config, config_location
-from peek.connection import AuthType, EsClientManager
+from peek.connection import EsClientManager
 from peek.display import Display
 from peek.errors import PeekError, PeekSyntaxError
 from peek.history import SqLiteHistory
@@ -118,9 +118,6 @@ class PeekApp:
             (PeekStyle.styles[TipsMinor], info_line + '\n'),
         ])
 
-    def _get_bottom_bar(self):
-        return self._bottom_message
-
     def _get_default_text(self):
         text = self.preserved_text
         if text:
@@ -183,13 +180,13 @@ class PeekApp:
             name=self.cli_ns.name,
             hosts=self.cli_ns.hosts,
             cloud_id=self.cli_ns.cloud_id,
-            auth_type=AuthType.USERPASS if self.cli_ns.auth_type is None else AuthType(self.cli_ns.auth_type.upper()),
             username=self.cli_ns.username,
             password=self.cli_ns.password,
             api_key=self.cli_ns.api_key,
             token=self.cli_ns.token,
             use_ssl=self.cli_ns.use_ssl,
             verify_certs=self.cli_ns.verify_certs,
+            assert_hostname=self.cli_ns.assert_hostname,
             ca_certs=self.cli_ns.ca_certs,
             client_cert=self.cli_ns.client_cert,
             client_key=self.cli_ns.client_key,
