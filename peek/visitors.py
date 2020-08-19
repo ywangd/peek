@@ -1,3 +1,4 @@
+import functools
 import logging
 
 from peek.ast import Visitor, EsApiCallNode, DictNode, KeyValueNode, ArrayNode, NumberNode, \
@@ -31,8 +32,15 @@ class FormattingVisitor(Visitor):
 
     def visit_es_api_call_node(self, node: EsApiCallNode):
         assert isinstance(node, EsApiCallNode)
-        parts = [node.method_node.token.value, ' ', node.path_node.token.value, '\n']
+        parts = [node.method_node.token.value, ' ', node.path_node.token.value]
         self.push_consumer(lambda v: parts.append(v))
+        options_parts = []
+        options_consumer = functools.partial(options_consumer_maker, options_parts)
+        self._do_visit_dict_node(node.options_node, options_consumer)
+        if options_parts:
+            parts.append(' ' + ''.join(options_parts))
+        parts.append('\n')
+
         if isinstance(node, EsApiCallInlinePayloadNode):
             for dict_node in node.dict_nodes:
                 dict_node.accept(self)
@@ -62,15 +70,7 @@ class FormattingVisitor(Visitor):
             parts += [''.join(args_parts), ' ']
 
         kwargs_parts = []
-
-        def func_kwargs_consumer(v):
-            if v == ':':
-                kwargs_parts.append('=')
-            elif v == ',':
-                kwargs_parts.append(' ')
-            elif v not in ['{', '}'] and v.strip() != '':
-                kwargs_parts.append(v)
-
+        func_kwargs_consumer = functools.partial(options_consumer_maker, kwargs_parts)
         self._do_visit_dict_node(node.kwargs_node, func_kwargs_consumer)
         if kwargs_parts:
             parts += [''.join(kwargs_parts)]
@@ -154,3 +154,12 @@ class FormattingVisitor(Visitor):
                 self.consume('  ' * self.indent_level)
         self.consume(']')
         self.pop_consumer()
+
+
+def options_consumer_maker(options_parts, v):
+    if v == ':':
+        options_parts.append('=')
+    elif v == ',':
+        options_parts.append(' ')
+    elif v not in ['{', '}'] and v.strip() != '':
+        options_parts.append(v)

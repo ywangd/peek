@@ -1,6 +1,6 @@
 # vi: ft=dosini
 log_file = log
-log_level = warning
+log_level = info
 use_keyring = True
 pretty_print = True
 history_max = 10000
