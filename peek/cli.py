@@ -2,6 +2,7 @@
 import argparse
 import sys
 
+from peek import __version__
 from peek.config import config_location
 from peek.peekapp import PeekApp
 
@@ -49,6 +50,9 @@ def main():
                         help='Force prompting for password')
     parser.add_argument('--no_prompt', action='store_true',
                         help='Do not prompt for password')
+
+    parser.add_argument('-V', '--version', action='version',
+                        version=__version__)
 
     ns = parser.parse_args()
 

@@ -51,7 +51,16 @@ class SqLiteHistory(History):
         return lines
 
     def get_entry(self, index):
-        for row in self.conn.execute('select * from history where id = ?', (index,)):
-            return row[0], row[1]
+        if index > 0:
+            for row in self.conn.execute('select * from history where id = ?', (index,)):
+                return row[0], row[1]
+            else:
+                return None
+        elif index < 0:
+            for row in self.conn.execute('select * from history where id = (select max(id) from history) + ?',
+                                         (index,)):
+                return row[0], row[1]
+            else:
+                return None
         else:
             return None

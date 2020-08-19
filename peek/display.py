@@ -31,7 +31,7 @@ class Display:
         if not self.app.batch_mode:
             print_formatted_text(FormattedText([
                 (PeekStyle.styles[Heading], '=== '),
-                (PeekStyle.styles[TipsMinor], header_text + '\n')
+                (PeekStyle.styles[TipsMinor], header_text)
             ]), style_transformation=self.style_transformation)
         if self._try_json(source):
             return
@@ -44,7 +44,7 @@ class Display:
         if not self.app.batch_mode:
             print_formatted_text(
                 HTML('<ansired>--- </ansired>'),
-                FormattedText([(PeekStyle.styles[TipsMinor], header_text + '\n')]),
+                FormattedText([(PeekStyle.styles[TipsMinor], header_text)]),
                 style_transformation=self.style_transformation)
         print_formatted_text(source, style_transformation=self.style_transformation)
 
