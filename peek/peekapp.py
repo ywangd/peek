@@ -102,9 +102,6 @@ class PeekApp:
     def input(self, message='', is_secret=False):
         return prompt(message=message, is_password=is_secret)
 
-    def output(self, response):
-        self.display.info(response)
-
     def _get_message(self):
         idx = self.es_client_manager.clients().index(self.es_client_manager.current)
         info_line = f' [{idx}] {self.es_client_manager.current}'

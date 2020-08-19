@@ -55,3 +55,7 @@ class KrbAuthenticateFunc:
     @property
     def options(self):
         return {'service': '', 'username': '', 'name': None}
+
+    @property
+    def description(self):
+        return 'Start Kerberos authentication flow'

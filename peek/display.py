@@ -8,12 +8,9 @@ from prompt_toolkit.formatted_text import PygmentsTokens, FormattedText
 from prompt_toolkit.styles import style_from_pygments_cls, ConditionalStyleTransformation, \
     SwapLightAndDarkStyleTransformation
 
-from peek.lexers import PeekStyle, PeekLexer, Heading
+from peek.lexers import PeekStyle, PeekLexer, Heading, TipsMinor
 
 _logger = logging.getLogger(__name__)
-
-OUTPUT_HEADER = FormattedText([(PeekStyle.styles[Heading], '===')])
-ERROR_HEADER = HTML('<ansired>---</ansired>')
 
 
 class Display:
@@ -28,21 +25,27 @@ class Display:
     def pretty_print(self):
         return self.app.config.as_bool('pretty_print')
 
-    def info(self, source, header=True):
+    def info(self, source, header_text=''):
         if source is None:
             return
-        if header and not self.app.batch_mode:
-            print_formatted_text(OUTPUT_HEADER, style_transformation=self.style_transformation)
+        if not self.app.batch_mode:
+            print_formatted_text(FormattedText([
+                (PeekStyle.styles[Heading], '=== '),
+                (PeekStyle.styles[TipsMinor], header_text + '\n')
+            ]), style_transformation=self.style_transformation)
         if self._try_json(source):
             return
         # TODO: try more types
         print_formatted_text(source, style_transformation=self.style_transformation)
 
-    def error(self, source, header=True):
+    def error(self, source, header_text=''):
         if source is None:
             return
-        if header and not self.app.batch_mode:
-            print_formatted_text(ERROR_HEADER, style_transformation=self.style_transformation)
+        if not self.app.batch_mode:
+            print_formatted_text(
+                HTML('<ansired>--- </ansired>'),
+                FormattedText([(PeekStyle.styles[TipsMinor], header_text + '\n')]),
+                style_transformation=self.style_transformation)
         print_formatted_text(source, style_transformation=self.style_transformation)
 
     def _try_json(self, source):

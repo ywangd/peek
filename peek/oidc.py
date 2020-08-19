@@ -116,3 +116,7 @@ class OidcAuthenticateFunc:
     @property
     def options(self):
         return {'realm': 'oidc1', 'callback_port': '5601', 'name': None}
+
+    @property
+    def description(self):
+        return 'Start OIDC authentication flow'

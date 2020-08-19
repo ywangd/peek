@@ -39,6 +39,10 @@ class ConfigFunc:
         # TODO: saner merge that does not change data type, e.g. from dict to primitive and vice versa
         app.config.merge(ConfigObj(extra_config))
 
+    @property
+    def description(self):
+        return 'View and set config options'
+
 
 class SessionFunc:
 
@@ -71,6 +75,10 @@ class SessionFunc:
     def options(self):
         return {'current': None, 'remove': None, 'rename': None, 'info': None}
 
+    @property
+    def description(self):
+        return 'List sessions and set current session'
+
 
 class RunFunc:
 
@@ -81,6 +89,10 @@ class RunFunc:
     @property
     def options(self):
         return {'echo': False}
+
+    @property
+    def description(self):
+        return 'Load and execute external script'
 
 
 class HistoryFunc:
@@ -97,18 +109,28 @@ class HistoryFunc:
                 raise PeekError(f'History not found for index: {index}')
             app.process_input(entry[1])
 
+    @property
+    def description(self):
+        return 'View history and execute by history id'
+
 
 class HelpFunc:
 
     def __call__(self, app, func=None, **options):
         if func is None:
-            return '\n'.join(app.vm.functions.keys())
+            return '\n'.join(k for k in app.vm.functions.keys())
 
         for k, v in app.vm.functions.items():
             if v == func:
-                return f'{k}\n{getattr(func, "options", {})}'
+                description = getattr(v, "description", None)
+                header = k + (f' - {description}' if description else '')
+                return f'{header}\n{getattr(func, "options", {})}'
         else:
             raise PeekError(f'No such function: {func}')
+
+    @property
+    def description(self):
+        return 'List available functions and show help message of a function'
 
 
 EXPORTS = {

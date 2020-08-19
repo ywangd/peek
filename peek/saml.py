@@ -122,3 +122,7 @@ class SamlAuthenticateFunc:
     @property
     def options(self):
         return {'realm': 'saml1', 'callback_port': '5601', 'name': None}
+
+    @property
+    def description(self):
+        return 'Start SAML authentication flow'

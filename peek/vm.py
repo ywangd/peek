@@ -65,28 +65,31 @@ class PeekVM(Visitor):
         else:
             raise ValueError(f'Unknown node: {node!r}')
 
+        runas = options.pop('runas') if 'runas' in options else None
+        conn = options.pop('conn') if 'conn' in options else None
+        headers = {}
+        if runas is not None:
+            headers['es-security-runas-user'] = runas
+        if isinstance(conn, str):
+            es_client = self.app.es_client_manager.get_client_by_name(conn)
+        elif conn is not None:
+            es_client = self.app.es_client_manager.get_client(int(conn))
+        else:
+            es_client = self.app.es_client_manager.current
+        if options:
+            self.app.display.error(f'Unknown options: {options}')
+            return
+
         try:
-            headers = {}
-            if options.get('runas') is not None:
-                headers['es-security-runas-user'] = options.pop('runas')
-            conn = options.pop('conn') if 'conn' in options else None
-            if isinstance(conn, str):
-                es_client = self.app.es_client_manager.get_client_by_name(conn)
-            elif conn is not None:
-                es_client = self.app.es_client_manager.get_client(int(conn))
-            else:
-                es_client = self.app.es_client_manager.current
-            if options:
-                raise PeekError(f'Unknown options: {options}')
             response = es_client.perform_request(node.method, node.path, payload, headers=headers if headers else None)
             self.context['_'] = response
-            self.app.display.info(response)
+            self.app.display.info(response, header_text=self._get_header_text(conn, runas))
         except Exception as e:
             if getattr(e, 'info', None) and isinstance(getattr(e, 'status_code', None), int):
                 self.context['_'] = e.info
-                self.app.display.info(e.info)
+                self.app.display.info(e.info, header_text=self._get_header_text(conn, runas))
             else:
-                self.app.display.error(e)
+                self.app.display.error(e, header_text=self._get_header_text(conn, runas))
                 _logger.exception(f'Error on ES API call: {node!r}')
 
     def visit_func_call_node(self, node: FuncCallNode):
@@ -222,3 +225,11 @@ class PeekVM(Visitor):
         except Exception as e:
             _logger.error(f'Error on loading extension: {p!r}, {e}')
             _logger.exception(f'Error on loading extension: {p!r}')
+
+    def _get_header_text(self, conn, runas):
+        parts = []
+        if conn is not None:
+            parts.append(f'conn={conn!r}')
+        if runas is not None:
+            parts.append(f'runas={runas!r}')
+        return ' '.join(parts)
