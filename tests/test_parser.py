@@ -1,5 +1,3 @@
-import json
-
 import pytest
 from pygments.token import String, Whitespace, Comment
 

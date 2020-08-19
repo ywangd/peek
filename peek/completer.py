@@ -58,7 +58,7 @@ class PeekCompleter(Completer):
             return []
 
         if head_token.ttype is ShellOut:
-            _logger.debug(f'Completing for shell out')
+            _logger.debug('Completing for shell out')
             return _PATH_COMPLETER.get_completions(Document(text.split()[-1]), complete_event)
 
         pos_head_token = document.translate_index_to_position(head_token.index)
@@ -98,7 +98,7 @@ class PeekCompleter(Completer):
                 return _PATH_COMPLETER.get_completions(Document(text[last_token.index + 1:]), complete_event)
 
             if head_token.ttype is HttpMethod and last_token.ttype is Literal \
-                and len(tokens) > 1 and tokens[-2].ttype is At:
+                    and len(tokens) > 1 and tokens[-2].ttype is At:
                 return _PATH_COMPLETER.get_completions(Document(last_token.value), complete_event)
 
             if head_token.ttype is HttpMethod and last_token.ttype is PayloadKey:
@@ -107,7 +107,7 @@ class PeekCompleter(Completer):
             return []
 
         else:  # Cursor is on a whitespace
-            _logger.debug(f'cursor is after the last token')
+            _logger.debug('cursor is after the last token')
             # Cursor is on whitespace after the last non-white token
             if pos_head_token[0] != pos_cursor[0] or last_token.ttype is HttpMethod:
                 # Cursor is on separate line or immediately after http method

@@ -44,12 +44,12 @@ class Visitor(metaclass=ABCMeta):
 
     def pop_consumer(self):
         if not self._consumers:
-            raise IndexError(f'No consumer')
+            raise IndexError('No consumer')
         self._consumers = self._consumers[:-1]
 
     def consume(self, *args, **kwargs):
         if not self._consumers:
-            raise IndexError(f'No consumer')
+            raise IndexError('No consumer')
         self._consumers[-1](*args, **kwargs)
 
 

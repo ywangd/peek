@@ -11,10 +11,10 @@ _logger = logging.getLogger(__name__)
 def krb_authenticate(es_client: EsClient, service=None, username=None, name=None):
     _logger.debug(f'Connection with Kerberos: {service}')
     if service is None:
-        raise PeekError(f'Service is required for kerberos authentication')
+        raise PeekError('Service is required for kerberos authentication')
     import kerberos
     result, context = kerberos.authGSSClientInit(service, principal=username)
-    result = kerberos.authGSSClientStep(context, '')
+    kerberos.authGSSClientStep(context, '')
     ticket = kerberos.authGSSClientResponse(context)
     _logger.debug(f'Kerberos ticket: {ticket}')
     auth_response = es_client.perform_request(

@@ -248,7 +248,7 @@ class EsClientManager:
 
     def get_client_by_name(self, name):
         if not name:
-            raise ValueError(f'Must specify name')
+            raise ValueError('Must specify name')
         for c in self._clients:
             if c.name == name:
                 return c
@@ -329,7 +329,7 @@ def _connect_userpass(app, **options):
         service_name = f'peek/{options["cloud_id"]}/userpass'
 
     if not username and password:
-        raise PeekError(f'Username is required for userpass authentication')
+        raise PeekError('Username is required for userpass authentication')
 
     if options['force_prompt']:
         password = app.input(message='Please enter password: ', is_secret=True)
@@ -367,7 +367,7 @@ def _connect_userpass(app, **options):
 
 
 def _connect_api_key(app, **options):
-    _logger.debug(f'Connecting with API key')
+    _logger.debug('Connecting with API key')
     return EsClient(
         name=options['name'],
         hosts=options['hosts'],
@@ -383,7 +383,7 @@ def _connect_api_key(app, **options):
 
 
 def _connect_token(app, **options):
-    _logger.debug(f'Connecting with token')
+    _logger.debug('Connecting with token')
     return EsClient(
         name=options['name'],
         hosts=options['hosts'],

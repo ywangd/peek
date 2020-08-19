@@ -1,11 +1,11 @@
 import ast
 import json
 import logging
-from typing import List, Iterable
+from typing import Iterable
 
 from pygments.token import Token, Whitespace, String, Comment, Literal, Number, Name, Error
 
-from peek.ast import NameNode, FuncCallNode, KeyValueNode, EsApiCallNode, StringNode, NumberNode, TextNode, DictNode, \
+from peek.ast import NameNode, FuncCallNode, KeyValueNode, StringNode, NumberNode, TextNode, DictNode, \
     ArrayNode, ShellOutNode, EsApiCallInlinePayloadNode, EsApiCallFilePayloadNode
 from peek.common import PeekToken
 from peek.errors import PeekSyntaxError
