@@ -238,48 +238,56 @@ class EsClientManager:
             raise PeekError(f'Attempt to get ES client at invalid index [{self._index_current}]')
         return self._clients[self._index_current]
 
-    def set_current(self, i):
-        if i < 0 or i >= len(self._clients):
-            raise PeekError(f'Attempt to set ES client at invalid index [{i}]')
-        self._index_current = i
-
-    def set_current_by_name(self, name):
-        self._index_current = self._clients.index(self.get_client_by_name(name))
+    def set_current(self, x):
+        if isinstance(x, str):
+            name = x
+            self._index_current = self._clients.index(self.get_client(name))
+        elif isinstance(x, int):
+            if x < 0 or x >= len(self._clients):
+                raise PeekError(f'Attempt to set ES client at invalid index [{x}]')
+            self._index_current = x
+        else:
+            raise ValueError(f'Connection must be specified by either name or index, got {x!r}')
 
     def clients(self):
         return self._clients
 
-    def get_client(self, i):
-        if i < 0 or i >= len(self._clients):
-            raise PeekError(f'Attempt to set ES client at invalid index [{i}]')
-        return self._clients[i]
-
-    def get_client_by_name(self, name):
-        if not name:
-            raise ValueError('Must specify name')
-        for c in self._clients:
-            if c.name == name:
-                return c
+    def get_client(self, x):
+        if isinstance(x, str):
+            name = x
+            if not name:
+                raise ValueError('Name cannot be empty')
+            for c in self._clients:
+                if c.name == name:
+                    return c
+            else:
+                raise ValueError(f'No client with name: {name!r}')
+        elif isinstance(x, int):
+            if x < 0 or x >= len(self._clients):
+                raise PeekError(f'Attempt to set ES client at invalid index [{x}]')
+            return self._clients[x]
         else:
-            raise ValueError(f'No client with name: {name!r}')
+            raise ValueError(f'Connection must be specified by either name or index, got {x!r}')
 
-    def remove_client(self, i):
-        if len(self._clients) == 1:
-            raise PeekError('Cannot delete the last connection')
-        if i < 0 or i >= len(self._clients):
-            raise PeekError(f'Attempt to remove ES client at invalid index [{i}]')
-        self._clients.pop(i)
-        if not self._clients:
-            self._index_current = None
-            return
-        if i < self._index_current:
-            self._index_current -= 1
-        elif i == self._index_current:
-            self._index_current = 0
-
-    def remove_client_by_name(self, name):
-        idx = self._clients.index(self.get_client_by_name(name))
-        self.remove_client(idx)
+    def remove_client(self, x):
+        if isinstance(x, str):
+            idx = self._clients.index(self.get_client(x))
+            self.remove_client(idx)
+        elif isinstance(x, int):
+            if len(self._clients) == 1:
+                raise PeekError('Cannot delete the last connection')
+            if x < 0 or x >= len(self._clients):
+                raise PeekError(f'Attempt to remove ES client at invalid index [{x}]')
+            self._clients.pop(x)
+            if not self._clients:
+                self._index_current = None
+                return
+            if x < self._index_current:
+                self._index_current -= 1
+            elif x == self._index_current:
+                self._index_current = 0
+        else:
+            raise ValueError(f'Connection must be specified by either name or index, got {x!r}')
 
     def __str__(self):
         lines = []

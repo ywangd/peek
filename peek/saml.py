@@ -110,8 +110,9 @@ def _saml_start_http_server(callback_port):
 class SamlAuthenticateFunc:
     def __call__(self, app, **options):
         realm = options.get('realm', 'saml1')
+        conn = options.get('conn', None)
         saml_es_client = saml_authenticate(
-            app.es_client_manager.current,
+            app.es_client_manager.current if conn is None else app.es_client_manager.get_client(conn),
             realm,
             options.get('callback_port', '5601'),
             name=options.get('name', None),
@@ -121,7 +122,7 @@ class SamlAuthenticateFunc:
 
     @property
     def options(self):
-        return {'realm': 'saml1', 'callback_port': '5601', 'name': None}
+        return {'realm': 'saml1', 'callback_port': '5601', 'name': None, 'conn': None}
 
     @property
     def description(self):

@@ -104,8 +104,9 @@ def _oidc_start_http_server(callback_port):
 class OidcAuthenticateFunc:
     def __call__(self, app, **options):
         realm = options.get('realm', 'oidc1')
+        conn = options.get('conn', None)
         oidc_es_client = oidc_authenticate(
-            app.es_client_manager.current,
+            app.es_client_manager.current if conn is None else app.es_client_manager.get_client(conn),
             realm,
             options.get('callback_port', '5601'),
             name=options.get('name', None),
@@ -115,7 +116,7 @@ class OidcAuthenticateFunc:
 
     @property
     def options(self):
-        return {'realm': 'oidc1', 'callback_port': '5601', 'name': None}
+        return {'realm': 'oidc1', 'callback_port': '5601', 'name': None, 'conn': None}
 
     @property
     def description(self):

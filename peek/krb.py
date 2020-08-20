@@ -39,6 +39,7 @@ def krb_authenticate(es_client: EsClient, service=None, username=None, name=None
 class KrbAuthenticateFunc:
     def __call__(self, app, **options):
         service = options.get('service', None)
+        conn = options.get('conn', None)
         if service is None:
             if app.es_client_manager.current.hosts:
                 host = urllib.parse.urlparse(app.es_client_manager.current.hosts.split(',')[0]).hostname
@@ -46,15 +47,18 @@ class KrbAuthenticateFunc:
             else:
                 raise PeekError('Cannot infer service principal. Please specify explicitly')
 
-        krb_es_client = krb_authenticate(app.es_client_manager.current, service,
-                                         options.get('username', None),
-                                         options.get('name', None))
+        krb_es_client = krb_authenticate(
+            app.es_client_manager.current if conn is None else app.es_client_manager.get_client(conn),
+            service,
+            options.get('username', None),
+            options.get('name', None)
+        )
         app.es_client_manager.add(krb_es_client)
         return app.es_client_manager.current.perform_request('GET', '/_security/_authenticate')
 
     @property
     def options(self):
-        return {'service': '', 'username': '', 'name': None}
+        return {'service': '', 'username': '', 'name': None, 'conn': None}
 
     @property
     def description(self):

@@ -48,26 +48,20 @@ class SessionFunc:
 
     def __call__(self, app, current=None, **options):
         current = current if current is not None else options.get('current', None)
-        if isinstance(current, str):
-            app.es_client_manager.set_current_by_name(current)
-        elif current is not None:
-            app.es_client_manager.set_current(int(current))
+        if current is not None:
+            app.es_client_manager.set_current(current)
 
         remove = options.get('remove', None)
-        if isinstance(remove, str):
-            app.es_client_manager.remove_client_by_name(remove)
-        elif remove is not None:
-            app.es_client_manager.remove_client(int(remove))
+        if remove is not None:
+            app.es_client_manager.remove_client(remove)
 
         rename = options.get('rename', None)
         if rename:
             app.es_client_manager.current.name = str(rename)
 
         info = options.get('info', None)
-        if isinstance(info, str):
-            return app.es_client_manager.get_client_by_name(info).info()
-        elif info is not None:
-            return app.es_client_manager.get_client(int(info)).info()
+        if info is not None:
+            return app.es_client_manager.get_client(info).info()
 
         return str(app.es_client_manager)
 

@@ -73,10 +73,8 @@ class PeekVM(Visitor):
         runas = options.pop('runas') if 'runas' in options else None
         if runas is not None:
             headers['es-security-runas-user'] = runas
-        if isinstance(conn, str):
-            es_client = self.app.es_client_manager.get_client_by_name(conn)
-        elif conn is not None:
-            es_client = self.app.es_client_manager.get_client(int(conn))
+        if conn is not None:
+            es_client = self.app.es_client_manager.get_client(conn)
         else:
             es_client = self.app.es_client_manager.current
         if options:
