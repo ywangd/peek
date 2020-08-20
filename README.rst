@@ -35,7 +35,7 @@ Features
 * Multiplex to multiple Elasticsearch clusters or multiple users/credentials of a single cluster
 * Connect to `Elastic Cloud <https://cloud.elastic.co/>`_ with Cloud ID
 * Multiple authentication schemes in a single terminal, including UserPass, API key, Token, SAML, OIDC, Kerberos, PKI
-* Run-As support
+* Run-As, x-opaque-id, and arbitrary request header support
 * History
 * More flexible quotes and comma
 * Run file input in batch mode

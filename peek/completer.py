@@ -6,6 +6,7 @@ import os
 from typing import Iterable, List, Dict, Tuple, Optional
 
 from prompt_toolkit.completion import Completer, CompleteEvent, Completion, WordCompleter, FuzzyCompleter, PathCompleter
+from prompt_toolkit.contrib.completers import SystemCompleter
 from prompt_toolkit.document import Document
 from pygments.token import Error, Name, Literal, String
 
@@ -22,6 +23,7 @@ _HTTP_METHOD_COMPLETER = WordCompleter(['GET', 'POST', 'PUT', 'DELETE'], ignore_
 _ES_API_CALL_OPTION_COMPLETER = WordCompleter([w + '=' for w in sorted(['conn', 'runas', 'headers', 'xoid'])])
 
 _PATH_COMPLETER = PathCompleter()
+_SYSTEM_COMPLETER = SystemCompleter()
 
 
 class PeekCompleter(Completer):
@@ -57,10 +59,6 @@ class PeekCompleter(Completer):
         if head_token is None:
             return []
 
-        if head_token.ttype is ShellOut:
-            _logger.debug('Completing for shell out')
-            return _PATH_COMPLETER.get_completions(Document(text.split()[-1]), complete_event)
-
         pos_head_token = document.translate_index_to_position(head_token.index)
         last_token = tokens[-1]
         pos_cursor = document.translate_index_to_position(document.cursor_position)
@@ -68,6 +66,11 @@ class PeekCompleter(Completer):
         # Cursor is on a non-white token
         is_cursor_on_non_white_token = (last_token.index < document.cursor_position
                                         <= (last_token.index + len(last_token.value)))
+
+        if head_token.ttype is ShellOut:
+            _logger.debug('Completing for shell out')
+            return _SYSTEM_COMPLETER.get_completions(Document(text[head_token.index + 1:]), complete_event)
+
         if is_cursor_on_non_white_token:
             _logger.debug(f'Cursor token: {last_token}')
             if last_token.ttype in (HttpMethod, FuncName):
