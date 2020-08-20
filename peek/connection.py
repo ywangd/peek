@@ -62,6 +62,7 @@ class EsClient(BaseClient):
         self.client_key = client_key
         self.api_key_id = api_key[0] if api_key else None
         self.token = token
+        self.headers = dict(headers) if headers is not None else None
         if token:
             token_header = {'Authorization': f'Bearer {token}'}
             if headers:
@@ -108,6 +109,11 @@ class EsClient(BaseClient):
         else:
             auth = None
 
+        if self.headers:
+            headers = list(self.headers.keys())
+        else:
+            headers = None
+
         return {
             'name': self.name,
             'hosts': self.hosts,
@@ -118,6 +124,7 @@ class EsClient(BaseClient):
             'ca_certs': self.ca_certs,
             'client_cert': self.client_cert,
             'client_key': self.client_key,
+            'headers': headers,
         }
 
     def __str__(self):
@@ -207,6 +214,7 @@ class RefreshingEsClient(BaseClient):
             ca_certs=self.parent.ca_certs,
             client_cert=self.parent.client_cert,
             client_key=self.parent.client_key,
+            headers=self.parent.headers,
             token=self.access_token,
         )
 
@@ -296,6 +304,7 @@ DEFAULT_OPTIONS = {
     'ca_certs': None,
     'client_cert': None,
     'client_key': None,
+    'headers': None,
     'force_prompt': False,
     'no_prompt': False,
 }
@@ -363,7 +372,9 @@ def _connect_userpass(app, **options):
         assert_hostname=options['assert_hostname'],
         ca_certs=options['ca_certs'],
         client_cert=options['client_cert'],
-        client_key=options['client_key'])
+        client_key=options['client_key'],
+        headers=options['headers'],
+    )
 
 
 def _connect_api_key(app, **options):
@@ -379,6 +390,7 @@ def _connect_api_key(app, **options):
         ca_certs=options['ca_certs'],
         client_cert=options['client_cert'],
         client_key=options['client_key'],
+        headers=options['headers'],
     )
 
 
@@ -395,6 +407,7 @@ def _connect_token(app, **options):
         ca_certs=options['ca_certs'],
         client_cert=options['client_cert'],
         client_key=options['client_key'],
+        headers=options['headers'],
     )
 
 

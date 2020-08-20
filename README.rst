@@ -24,19 +24,20 @@ to get a list of builtin functions.
 
 * Run ``make get-specs`` to pull API specs from the `Kibana project <https://github.com/elastic/kibana>`_.
   This enables auto-completions for APIs (WIP).
-* Run tests with ``tox -e py38,flake8 -s true``
+* Run tests with ``tox -s true``
 
 Features
 --------
 
 * Most features offered by Kibana Console, e.g. syntax highlighting, auto-formatting, auto-indent,
-  auto-completion (WIP), par-editing, etc.
+  auto-completion (WIP), par-editing, triple-quotes, etc.
 * Lightweight CLI tool
 * Multiplex to multiple Elasticsearch clusters or multiple users/credentials of a single cluster
 * Connect to `Elastic Cloud <https://cloud.elastic.co/>`_ with Cloud ID
 * Multiple authentication schemes in a single terminal, including UserPass, API key, Token, SAML, OIDC, Kerberos, PKI
 * Run-As support
 * History
+* More flexible quotes and comma
 * Run file input in batch mode
 * Extensible via external scripts
 

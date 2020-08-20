@@ -65,9 +65,12 @@ class PeekVM(Visitor):
         else:
             raise ValueError(f'Unknown node: {node!r}')
 
-        runas = options.pop('runas') if 'runas' in options else None
         conn = options.pop('conn') if 'conn' in options else None
-        headers = {}
+        headers = options.pop('headers') if 'headers' in options else {}
+        xoid = options.pop('xoid') if 'xoid' in options else None
+        if xoid:
+            headers['x-opaque-id'] = str(xoid)
+        runas = options.pop('runas') if 'runas' in options else None
         if runas is not None:
             headers['es-security-runas-user'] = runas
         if isinstance(conn, str):
