@@ -83,6 +83,7 @@ class PeekApp:
                 self.execute_node(node)
             except PeekError as e:
                 self.display.error(e)
+                # TODO: catch general errors so App does not crash
 
     def execute_node(self, node):
         self.vm.execute_node(node)
@@ -174,24 +175,30 @@ class PeekApp:
             )
 
     def _init_es_client(self):
-        ConnectFunc()(
-            self,
-            name=self.cli_ns.name,
-            hosts=self.cli_ns.hosts,
-            cloud_id=self.cli_ns.cloud_id,
-            username=self.cli_ns.username,
-            password=self.cli_ns.password,
-            api_key=self.cli_ns.api_key,
-            token=self.cli_ns.token,
-            use_ssl=self.cli_ns.use_ssl,
-            verify_certs=self.cli_ns.verify_certs,
-            assert_hostname=self.cli_ns.assert_hostname,
-            ca_certs=self.cli_ns.ca_certs,
-            client_cert=self.cli_ns.client_cert,
-            client_key=self.cli_ns.client_key,
-            force_prompt=self.cli_ns.force_prompt,
-            no_prompt=self.cli_ns.no_prompt,
-        )
+        options = {}
+        keys = [
+            'name',
+            'hosts',
+            'cloud_id',
+            'username',
+            'password',
+            'api_key',
+            'token',
+            'use_ssl',
+            'verify_certs',
+            'assert_hostname',
+            'ca_certs',
+            'client_cert',
+            'client_key',
+            'force_prompt',
+            'no_prompt',
+        ]
+        for k in keys:
+            v = getattr(self.cli_ns, k, None)
+            if v is not None:
+                options[k] = v
+
+        ConnectFunc()(self, **options)
 
     def _init_vm(self):
         return PeekVM(self)

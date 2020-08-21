@@ -22,7 +22,7 @@ _HTTP_METHOD_COMPLETER = WordCompleter(['GET', 'POST', 'PUT', 'DELETE'], ignore_
 
 _ES_API_CALL_OPTION_COMPLETER = WordCompleter([w + '=' for w in sorted(['conn', 'runas', 'headers', 'xoid'])])
 
-_PATH_COMPLETER = PathCompleter()
+_PATH_COMPLETER = PathCompleter(expanduser=True)
 _SYSTEM_COMPLETER = SystemCompleter()
 
 

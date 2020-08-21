@@ -58,7 +58,7 @@ class PeekVM(Visitor):
             self.push_consumer(lambda v: f.set(v))
             node.file_node.accept(self)
             self.pop_consumer()
-            with open(f.get()) as ins:
+            with open(os.path.expanduser(f.get())) as ins:
                 payload = ins.read()
                 if not payload.endswith('\n'):
                     payload += '\n'

@@ -240,7 +240,7 @@ class EsApiCallFilePayloadNode(EsApiCallNode):
 
     def __str__(self):
         parts = [str(self.method_node), ' ', str(self.path_node), ' ', str(self.options_node), '\n',
-                 str(super()), str(self.file_node), '\n']
+                 '@', str(self.file_node), '\n']
         return ''.join(parts)
 
 

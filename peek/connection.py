@@ -119,7 +119,7 @@ class EsClient(BaseClient):
             'hosts': self.hosts,
             'cloud_id': self.cloud_id,
             'auth': auth,
-            'user_ssl': self.use_ssl,
+            'use_ssl': self.use_ssl,
             'verify_certs': self.verify_certs,
             'ca_certs': self.ca_certs,
             'client_cert': self.client_cert,
@@ -324,7 +324,8 @@ def connect(app, **options):
     if isinstance(app.config.get('connection'), Section):
         final_options.update({k: v for k, v in app.config.get('connection').dict().items() if v})
 
-    final_options.update({k: v for k, v in options.items() if v is not None})
+    # Override with provided options, including null values since it could be intentional
+    final_options.update({k: v for k, v in options.items()})
 
     if final_options['cloud_id'] is not None:
         final_options['hosts'] = None
