@@ -57,6 +57,18 @@ class FormattingVisitor(Visitor):
         assert isinstance(node, FuncCallNode)
         parts = [node.name_node.token.value, ' ']
 
+        symbols_parts = []
+
+        def func_symbols_consumer(v):
+            if v == ',':
+                symbols_parts.append(' ')
+            elif v not in ['[', ']'] and v.strip() != '':
+                symbols_parts.append(f'@{v}')
+
+        self._do_visit_array_node(node.symbols_node, func_symbols_consumer)
+        if symbols_parts:
+            parts += [''.join(symbols_parts), ' ']
+
         args_parts = []
 
         def func_args_consumer(v):

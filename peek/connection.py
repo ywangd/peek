@@ -269,8 +269,10 @@ class EsClientManager:
         else:
             raise ValueError(f'Connection must be specified by either name or index, got {x!r}')
 
-    def remove_client(self, x):
-        if isinstance(x, str):
+    def remove_client(self, x=None):
+        if x is None:
+            self.remove_client(self._index_current)
+        elif isinstance(x, str):
             idx = self._clients.index(self.get_client(x))
             self.remove_client(idx)
         elif isinstance(x, int):

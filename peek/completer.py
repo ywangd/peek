@@ -92,20 +92,21 @@ class PeekCompleter(Completer):
                 _logger.debug(f'Completing for file path for run: {doc}')
                 return _PATH_COMPLETER.get_completions(doc, complete_event)
 
-            # The token is a KeyName or Error (incomplete k=v form), try complete for options
-            if last_token.ttype in (Error, OptionName, Name):
+            if head_token.ttype is HttpMethod:
+                if last_token.ttype is At:
+                    return _PATH_COMPLETER.get_completions(Document(text[last_token.index + 1:]), complete_event)
+                elif last_token.ttype is Literal and len(tokens) > 1 and tokens[-2].ttype is At:
+                    return _PATH_COMPLETER.get_completions(Document(last_token.value), complete_event)
+                elif last_token.ttype is PayloadKey:
+                    return self._complete_payload(document, complete_event, tokens[idx_head_token:])
+            elif head_token.ttype is FuncName:
+                if last_token.ttype in (At, Literal):
+                    return self._complete_options(document, complete_event, tokens[idx_head_token:],
+                                                  is_cursor_on_non_white_token)
+
+            if last_token.ttype in (OptionName, Name):
                 return self._complete_options(document, complete_event, tokens[idx_head_token:],
                                               is_cursor_on_non_white_token)
-
-            if head_token.ttype is HttpMethod and last_token.ttype is At:
-                return _PATH_COMPLETER.get_completions(Document(text[last_token.index + 1:]), complete_event)
-
-            if head_token.ttype is HttpMethod and last_token.ttype is Literal \
-                    and len(tokens) > 1 and tokens[-2].ttype is At:
-                return _PATH_COMPLETER.get_completions(Document(last_token.value), complete_event)
-
-            if head_token.ttype is HttpMethod and last_token.ttype is PayloadKey:
-                return self._complete_payload(document, complete_event, tokens[idx_head_token:])
 
             return []
 
@@ -222,7 +223,8 @@ class PeekCompleter(Completer):
             if option_name is not None:
                 return []  # TODO: complete for value
             else:
-                return WordCompleter(sorted([n + '=' for n in func.options.keys()])).get_completions(
+                options = sorted([n if n.startswith('@') else (n + '=') for n in func.options.keys()])
+                return WordCompleter(options, WORD=True).get_completions(
                     document, complete_event)
         else:
             return []

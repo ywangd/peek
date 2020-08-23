@@ -47,6 +47,14 @@ class ConfigFunc:
 class SessionFunc:
 
     def __call__(self, app, current=None, **options):
+        for symbol in options.get('@', []):
+            if symbol == 'info':
+                return app.es_client_manager.current.info()
+            elif symbol == 'remove':
+                app.es_client_manager.remove_client(None)  # remove current client
+            else:
+                raise PeekError(f'Unknown sub-command: {symbol!r}')
+
         current = current if current is not None else options.get('current', None)
         if current is not None:
             app.es_client_manager.set_current(current)
@@ -67,7 +75,8 @@ class SessionFunc:
 
     @property
     def options(self):
-        return {'current': None, 'remove': None, 'rename': None, 'info': None}
+        return {'current': None, 'remove': None, 'rename': None, 'info': None,
+                '@info': None, '@remove': None}
 
     @property
     def description(self):

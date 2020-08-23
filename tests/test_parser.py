@@ -74,7 +74,7 @@ post xyz/_doc
 // comment
 {"again": [{"ok": 1}]}
 get xyz/_doc/1 // comment
-conn
+session @info
 get foo
 """
     nodes = parser.parse(text)

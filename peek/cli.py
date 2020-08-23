@@ -57,7 +57,7 @@ def main():
     ns = parser.parse_args()
 
     isatty = sys.stdin.isatty()
-    batch_mode = (not isatty) or ns.input
+    batch_mode = (not isatty) or bool(ns.input)
 
     peek = PeekApp(
         batch_mode=batch_mode,

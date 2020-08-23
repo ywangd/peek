@@ -93,46 +93,55 @@ class PeekLexer(RegexLexer):
             (r'\s+', Whitespace),
         ],
         'api_path': [
-            (r'\S+', Literal, ('#pop', 'opts')),
+            (r'\S+', Literal, ('#pop', 'api_options')),
         ],
-        'opts': [
+        'api_options': [
             (r'\n', Whitespace, ('#pop', 'payload')),
             (r'//.*', Comment.Single),
-            (r'(' + VARIABLE_PATTERN + r')(' + W + r'*)(=)(' + W + r'*)',
-             bygroups(OptionName, Whitespace, Assign, Whitespace), 'expr'),
+            (VARIABLE_PATTERN, OptionName, 'api_option'),
             (W + r'+', Whitespace),
             # default(('#pop', 'payload')),  # this is to make the newline optional
         ],
+        'api_option': [
+            (r'(' + W + r'*)(=)(' + W + r'*)', bygroups(Whitespace, Assign, Whitespace), ('#pop', 'expr')),
+        ],
+        # Similar to value, expr should not default pop
         'expr': [
             # Name, Value and expression
             include('value'),
-            (VARIABLE_PATTERN, Name),
-            default('#pop'),
+            (VARIABLE_PATTERN, Name, '#pop'),
         ],
         'payload': [
             (r'(' + W + '*)' + r'(//.*)(\n)', bygroups(Whitespace, Comment.Single, Whitespace)),
             (r'(' + W + r'*)(?={)', Whitespace, ('#pop', 'payload_cont', 'dict')),
             (r'(' + W + r'*)(@)', bygroups(Whitespace, At), ('#pop', 'payload_file')),
-            default('#pop'),
+            default('#pop'),  # payload has default pop because it is optional and next statement may begin here
         ],
         'payload_file': [
             (r'\S+', Literal, '#pop'),
-            default('#pop'),
         ],
         'payload_cont': [
             (r'(\n' + W + r'*)(//.*)', bygroups(Whitespace, Comment.Single)),
             (r'(\n' + W + r'*)(?={)', Whitespace, 'dict'),
-            default('#pop'),
+            default('#pop'),  # similar to payload, payload_cont can stop at anytime and next statement may begin
         ],
         'func_args': [
             (r'\n', BlankLine, '#pop'),
             (r'//.*', Comment.Single),
-            (r'(' + VARIABLE_PATTERN + r')(' + W + r'*)(=)(' + W + r'*)',
-             bygroups(OptionName, Whitespace, Assign, Whitespace), 'expr'),
-            include('value'),
-            (VARIABLE_PATTERN, Name),
+            (VARIABLE_PATTERN, Name, 'func_option'),
+            (r'@', At, 'func_symbol'),
             (W + r'+', Whitespace),
-            default('#pop'),
+            # Instead of include, we should default to get into value because value pop itself out of the stack
+            # one it is consumed. If included it, it will pop out the func_args stage, which is incorrect.
+            # func_args needs has explicit pop by newline.
+            default('value'),
+        ],
+        'func_symbol': [
+            (r'\S+', Literal, '#pop'),
+        ],
+        'func_option': [
+            (r'(' + W + r'*)(=)(' + W + r'*)', bygroups(Whitespace, Assign, Whitespace), ('#pop', 'expr')),
+            default('#pop'),  # func option has default pop because func has positional arg
         ],
         'dict': [
             (r'({)(\s*)', bygroups(CurlyLeft, Whitespace), 'dict_key'),
@@ -141,12 +150,15 @@ class PeekLexer(RegexLexer):
             (r'}', CurlyRight, '#pop'),
             (r'(,)(\s*)', bygroups(Comma, Whitespace), 'dict_key'),
         ],
+        # dict_key should not have default pop because of similar reason to value
         'dict_key': [
             (r'(\s*)(//.*)(\s*)', bygroups(Whitespace, Comment.Single, Whitespace)),
-            (r'"', PayloadKey, 'dqs_key'),
-            (r"'", PayloadKey, 'sqs_key'),
+            (r'(\s*)(?=})', Whitespace, '#pop'),  # special handle for empty dict and extra comma
+            (r'"', PayloadKey, ('#pop', 'colon', 'dqs_key')),
+            (r"'", PayloadKey, ('#pop', 'colon', 'sqs_key')),
+        ],
+        'colon': [
             (r'(\s*)(:)(\s*)', bygroups(Whitespace, Colon, Whitespace), ('#pop', 'dict_value')),
-            default('#pop'),
         ],
         'dict_value': [
             (r'(\s*)(//.*)(\s*)', bygroups(Whitespace, Comment.Single, Whitespace)),
@@ -161,16 +173,19 @@ class PeekLexer(RegexLexer):
         ],
         'array_value': [
             (r'(\s*)(//.*)(\s*)', bygroups(Whitespace, Comment.Single, Whitespace)),
+            (r'(\s*)(?=\])', Whitespace, '#pop'),
             include('expr'),
         ],
+        # Single value should NOT default pop because when the lexer gets here, it should
+        # expect exact one value to consume, anything else should be handled by the upstream.
         'value': [
-            (r'(' + W + r'*)(?={)', Whitespace, 'dict'),
-            (r'(' + W + r'*)(?=\[)', Whitespace, 'array'),
-            (r'"""', TripleD, 'tdqs'),
-            (r"'''", TripleS, 'tsqs'),
-            (r'"', String.Double, 'dqs'),
-            (r"'", String.Single, 'sqs'),
-            (words(('true', 'false', 'null'), suffix=r'\b'), Name.Builtin),
+            (r'(' + W + r'*)(?={)', Whitespace, ('#pop', 'dict')),
+            (r'(' + W + r'*)(?=\[)', Whitespace, ('#pop', 'array')),
+            (r'"""', TripleD, ('#pop', 'tdqs')),
+            (r"'''", TripleS, ('#pop', 'tsqs')),
+            (r'"', String.Double, ('#pop', 'dqs')),
+            (r"'", String.Single, ('#pop', 'sqs')),
+            (words(('true', 'false', 'null'), suffix=r'\b'), Name.Builtin, '#pop'),
             include('numbers'),
         ],
         'dqs_key': dqs(PayloadKey),
@@ -188,13 +203,13 @@ class PeekLexer(RegexLexer):
             (r"[^\\']+", TripleS),  # not cater for multiple line
         ],
         'numbers': [
-            (r'[-+]?(\d+\.\d*|\d*\.\d+)([eE][+-]?[0-9]+)?j?', Number.Float),
-            (r'[-+]?\d+[eE][+-]?[0-9]+j?', Number.Float),
-            (r'[-+]?0[0-7]+j?', Number.Oct),
-            (r'[-+]?0[bB][01]+', Number.Bin),
-            (r'[-+]?0[xX][a-fA-F0-9]+', Number.Hex),
-            (r'[-+]?\d+L', Number.Integer.Long),
-            (r'[-+]?\d+j?', Number.Integer),
+            (r'[-+]?(\d+\.\d*|\d*\.\d+)([eE][+-]?[0-9]+)?j?', Number.Float, '#pop'),
+            (r'[-+]?\d+[eE][+-]?[0-9]+j?', Number.Float, '#pop'),
+            (r'[-+]?0[0-7]+j?', Number.Oct, '#pop'),
+            (r'[-+]?0[bB][01]+', Number.Bin, '#pop'),
+            (r'[-+]?0[xX][a-fA-F0-9]+', Number.Hex, '#pop'),
+            (r'[-+]?\d+L', Number.Integer.Long, '#pop'),
+            (r'[-+]?\d+j?', Number.Integer, '#pop'),
         ],
     }
 

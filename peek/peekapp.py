@@ -135,8 +135,8 @@ class PeekApp:
         log_level = getattr(logging, log_level, logging.WARNING)
 
         formatter = logging.Formatter(
-            "%(asctime)s (%(process)d/%(threadName)s) "
-            "%(name)s %(levelname)s - %(message)s"
+            '%(asctime)s (%(process)d/%(threadName)s) '
+            '%(name)s %(levelname)s - %(message)s'
         )
         handler.setFormatter(formatter)
 

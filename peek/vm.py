@@ -99,6 +99,11 @@ class PeekVM(Visitor):
         if not callable(func):
             raise PeekError(f'{func_name!r} is not a callable, but a {func!r}')
 
+        func_symbols = Ref()
+        self.push_consumer(lambda v: func_symbols.set(v))
+        node.symbols_node.accept(self)
+        self.pop_consumer()
+
         func_args = Ref()
         self.push_consumer(lambda v: func_args.set(v))
         node.args_node.accept(self)
@@ -110,11 +115,14 @@ class PeekVM(Visitor):
         self.push_consumer(lambda v: func_kwargs.set(v))
         self._do_visit_dict_node(node.kwargs_node, resolve_key_name=False)
         self.pop_consumer()
+        kwargs = func_kwargs.get()
+        if func_symbols.get():
+            kwargs['@'] = func_symbols.get()
         try:
-            self.app.display.info(func(self.app, *func_args.get(), **func_kwargs.get()))
+            self.app.display.info(func(self.app, *func_args.get(), **kwargs))
         except Exception as e:
-            self.app.display.info(e)
             _logger.exception(f'Error on invoking function: {func_name!r}')
+            self.app.display.error(e)
 
     def visit_shell_out_node(self, node: ShellOutNode):
         try:

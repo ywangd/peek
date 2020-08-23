@@ -129,20 +129,27 @@ class PeekParser:
 
     def _parse_func_call(self):
         name_node = NameNode(self._consume_token(FuncName))
+        cmd_nodes = []
         arg_nodes = []
         kwarg_nodes = []
         while self._peek_token().ttype is not EOF:
             if self._peek_token().ttype is BlankLine:
                 self._consume_token(BlankLine)
                 break
-            if self._peek_token().ttype is OptionName:
-                n = NameNode(self._consume_token(OptionName))
-                self._consume_token(Assign)
-                kwarg_nodes.append(KeyValueNode(n, self._parse_expr()))
+            if self._peek_token().ttype is Name:
+                n = NameNode(self._consume_token(Name))
+                if self._peek_token().ttype is Assign:
+                    self._consume_token(Assign)
+                    kwarg_nodes.append(KeyValueNode(n, self._parse_expr()))
+                else:
+                    arg_nodes.append(n)
+            elif self._peek_token().ttype is At:
+                self._consume_token(At)
+                cmd_nodes.append(TextNode(self._consume_token(Literal)))
             else:
                 arg_nodes.append(self._parse_expr())
 
-        return FuncCallNode(name_node, ArrayNode(arg_nodes), DictNode(kwarg_nodes))
+        return FuncCallNode(name_node, ArrayNode(cmd_nodes), ArrayNode(arg_nodes), DictNode(kwarg_nodes))
 
     def _parse_shell_command(self):
         self._consume_token(ShellOut)

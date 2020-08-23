@@ -115,8 +115,11 @@ def test_complete_func_option_name():
 session ''')),
         Completion(text='current=', start_position=0),
         Completion(text='remove=', start_position=0),
+        Completion(text='@info', start_position=0),
     )
 
+
+def test_complete_func_option_name_with_partial():
     assert completions_has(
         get_completions(Document('connect user')),
         Completion(text='username=', start_position=-4),
@@ -126,6 +129,11 @@ session ''')),
         get_completions(Document('''config
 saml_authenticate r''')),
         Completion(text='realm=', start_position=-1),
+    )
+
+    assert completions_has(
+        get_completions(Document('session @r')),
+        Completion(text='@remove', start_position=-2),
     )
 
 

@@ -97,6 +97,8 @@ f a b c // this is ok
 
 t 1 2 3 foo=bar // comment
 
+f1 @abc // symbol is fine
+
 g 1 b=[3,4] x={
 "a": // inner
  1} // ok""")
