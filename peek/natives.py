@@ -94,7 +94,7 @@ class HistoryFunc:
     def __call__(self, app, index=None, **options):
         if index is None:
             history = []
-            for entry in app.history.load_recent():
+            for entry in app.history.load_recent(size=options.get('size', 100)):
                 history.append(f'{entry[0]:>6} {entry[1]!r}')
             return '\n'.join(history)
         else:
@@ -102,6 +102,10 @@ class HistoryFunc:
             if entry is None:
                 raise PeekError(f'History not found for index: {index}')
             app.process_input(entry[1])
+
+    @property
+    def options(self):
+        return {'size': 100}
 
     @property
     def description(self):
