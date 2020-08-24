@@ -9,7 +9,7 @@ from peek.ast import NameNode, FuncCallNode, KeyValueNode, StringNode, NumberNod
     ArrayNode, ShellOutNode, EsApiCallInlinePayloadNode, EsApiCallFilePayloadNode
 from peek.common import PeekToken
 from peek.errors import PeekSyntaxError
-from peek.lexers import PeekLexer, BlankLine, CurlyLeft, PayloadKey, Colon, \
+from peek.lexers import PeekLexer, BlankLine, CurlyLeft, DictKey, Colon, \
     CurlyRight, Comma, BracketLeft, BracketRight, TripleS, TripleD, EOF, FuncName, Assign, HttpMethod, OptionName, \
     ShellOut, At
 
@@ -95,7 +95,7 @@ class PeekParser:
         return DictNode(kv_nodes)
 
     def _parse_json_kv(self):
-        key_node = StringNode(self._consume_token(PayloadKey))
+        key_node = StringNode(self._consume_token(DictKey))
         self._consume_token(Colon)
         value_node = self._parse_expr()
         return KeyValueNode(key_node, value_node)

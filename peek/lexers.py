@@ -24,7 +24,7 @@ BlankLine = Whitespace.BlankLine
 FuncName = Name.Variable
 HttpMethod = Keyword.HttpMethod
 ShellOut = Punctuation.Bang
-PayloadKey = String.Symbol
+DictKey = String.Symbol
 OptionName = Name.Symbol
 
 TipsMinor = Generic.TipsMinor
@@ -39,7 +39,7 @@ class PeekStyle(Style):
     styles = {
         Keyword: '#03F147',
         Literal: '#FFFCF9',
-        PayloadKey: '#bff',  # '#28b',
+        DictKey: '#bff',  # '#28b',
         String: '#395',
         Name.Builtin: '#77f',
         FuncName: '#77f',
@@ -154,8 +154,8 @@ class PeekLexer(RegexLexer):
         'dict_key': [
             (r'(\s*)(//.*)(\s*)', bygroups(Whitespace, Comment.Single, Whitespace)),
             (r'(\s*)(?=})', Whitespace, '#pop'),  # special handle for empty dict and extra comma
-            (r'"', PayloadKey, ('#pop', 'colon', 'dqs_key')),
-            (r"'", PayloadKey, ('#pop', 'colon', 'sqs_key')),
+            (r'"', DictKey, ('#pop', 'colon', 'dqs_key')),
+            (r"'", DictKey, ('#pop', 'colon', 'sqs_key')),
         ],
         'colon': [
             (r'(\s*)(:)(\s*)', bygroups(Whitespace, Colon, Whitespace), ('#pop', 'dict_value')),
@@ -188,8 +188,8 @@ class PeekLexer(RegexLexer):
             (words(('true', 'false', 'null'), suffix=r'\b'), Name.Builtin, '#pop'),
             include('numbers'),
         ],
-        'dqs_key': dqs(PayloadKey),
-        'sqs_key': sqs(PayloadKey),
+        'dqs_key': dqs(DictKey),
+        'sqs_key': sqs(DictKey),
         'dqs': dqs(String.Double),
         'sqs': sqs(String.Single),
         'tdqs': [

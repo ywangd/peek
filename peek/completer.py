@@ -13,7 +13,7 @@ from pygments.token import Error, Name, Literal, String
 from peek.common import PeekToken
 from peek.errors import PeekError
 from peek.lexers import PeekLexer, UrlPathLexer, PathPart, ParamName, Ampersand, QuestionMark, Slash, HttpMethod, \
-    FuncName, OptionName, Assign, CurlyLeft, CurlyRight, PayloadKey, ShellOut, At
+    FuncName, OptionName, Assign, CurlyLeft, CurlyRight, DictKey, ShellOut, At
 from peek.parser import process_tokens
 
 _logger = logging.getLogger(__name__)
@@ -97,7 +97,7 @@ class PeekCompleter(Completer):
                     return _PATH_COMPLETER.get_completions(Document(text[last_token.index + 1:]), complete_event)
                 elif last_token.ttype is Literal and len(tokens) > 1 and tokens[-2].ttype is At:
                     return _PATH_COMPLETER.get_completions(Document(last_token.value), complete_event)
-                elif last_token.ttype is PayloadKey:
+                elif last_token.ttype is DictKey:
                     return self._complete_payload(document, complete_event, tokens[idx_head_token:])
             elif head_token.ttype is FuncName:
                 if last_token.ttype in (At, Literal):
@@ -256,7 +256,7 @@ class PeekCompleter(Completer):
             elif t.ttype is CurlyRight:
                 curly_level -= 1
                 payload_keys.pop()
-            elif t.ttype is PayloadKey:
+            elif t.ttype is DictKey:
                 if len(payload_keys) == curly_level - 1:
                     payload_keys.append(ast.literal_eval(t.value))
                 elif len(payload_keys) == curly_level:
