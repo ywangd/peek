@@ -125,10 +125,16 @@ class PeekVM(Visitor):
                 _logger.exception(f'Error on ES API call: {node!r}')
 
     def visit_func_call_node(self, node: FuncCallNode):
-        func_name = node.name_node.token.value
-        func = self.get_value(func_name)
+        if isinstance(node.name_node, NameNode):
+            func = self.get_value(node.name_node.token.value)
+        else:
+            func_ref = Ref()
+            self.push_consumer(lambda v: func_ref.set(v))
+            node.name_node.accept(self)
+            self.pop_consumer()
+            func = func_ref.get()
         if not callable(func):
-            raise PeekError(f'{func_name!r} is not a callable, but a {func!r}')
+            raise PeekError(f'{node.name_node!r} is not a callable, but {func!r}')
 
         func_symbols = Ref()
         self.push_consumer(lambda v: func_symbols.set(v))
@@ -152,7 +158,7 @@ class PeekVM(Visitor):
         try:
             self.app.display.info(func(self.app, *func_args.get(), **kwargs))
         except Exception as e:
-            _logger.exception(f'Error on invoking function: {func_name!r}')
+            _logger.exception(f'Error on invoking function: {node.name_node!r}')
             self.app.display.error(e)
 
     def visit_let_node(self, node: LetNode):

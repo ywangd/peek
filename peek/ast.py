@@ -331,7 +331,7 @@ class EsApiCallFilePayloadNode(EsApiCallNode):
 
 class FuncCallNode(Node):
 
-    def __init__(self, name_node: NameNode, symbols_node: ArrayNode, args_node: ArrayNode,
+    def __init__(self, name_node: Node, symbols_node: ArrayNode, args_node: ArrayNode,
                  kwargs_node: DictNode, is_stmt=True):
         self.name_node = name_node
         self.symbols_node = symbols_node
@@ -348,10 +348,6 @@ class FuncCallNode(Node):
         tokens += self.args_node.tokens()
         tokens += self.kwargs_node.tokens()
         return tokens
-
-    @property
-    def func_name(self):
-        return self.name_node.token.value
 
     def __str__(self):
         parts = [str(self.name_node), ' ',

@@ -32,7 +32,6 @@ class FormattingVisitor(Visitor):
         return self.text
 
     def visit_es_api_call_node(self, node: EsApiCallNode):
-        assert isinstance(node, EsApiCallNode)
         parts = [node.method_node.token.value, ' ', node.path_node.token.value]
         self.push_consumer(lambda v: parts.append(v))
         options_parts = []
@@ -55,8 +54,11 @@ class FormattingVisitor(Visitor):
         self.text = ''.join(parts)
 
     def visit_func_call_node(self, node: FuncCallNode):
-        assert isinstance(node, FuncCallNode)
-        parts = [node.name_node.token.value, ' ']
+        parts = []
+        self.push_consumer(lambda v: parts.append(v))
+        node.name_node.accept(self)
+        self.pop_consumer()
+        parts.append(' ')
 
         symbols_parts = []
 

@@ -186,11 +186,13 @@ class PeekParser:
                     self._consume_token(ParenLeft)
                     sub_symbol_nodes, sub_arg_nodes, sub_kwarg_nodes = self._parse_func_call_args(
                         blankline_terminated=False)
-                    arg_nodes.append(FuncCallNode(n,
-                                                  ArrayNode(sub_symbol_nodes),
-                                                  ArrayNode(sub_arg_nodes),
-                                                  DictNode(sub_kwarg_nodes),
-                                                  is_stmt=False))
+                    arg_nodes.append(FuncCallNode(
+                        n,
+                        ArrayNode(sub_symbol_nodes),
+                        ArrayNode(sub_arg_nodes),
+                        DictNode(sub_kwarg_nodes),
+                        is_stmt=False
+                    ))
                     self._consume_token(ParenRight)
                 else:
                     arg_nodes.append(self._parse_expr_after_left_operand(n))
@@ -244,7 +246,13 @@ class PeekParser:
                     self._consume_token(ParenLeft)
                     symbol_nodes, arg_nodes, kwarg_nodes = self._parse_func_call_args(blankline_terminated=False)
                     self._consume_token(ParenRight)
-                    n = FuncCallNode(n, ArrayNode(symbol_nodes), ArrayNode(arg_nodes), DictNode(kwarg_nodes), is_stmt=False)
+                    n = FuncCallNode(
+                        n,
+                        ArrayNode(symbol_nodes),
+                        ArrayNode(arg_nodes),
+                        DictNode(kwarg_nodes),
+                        is_stmt=False
+                    )
                     n = n if unary_op_token is None else UnaryOpNode(unary_op_token, n)
             else:
                 return n if unary_op_token is None else UnaryOpNode(unary_op_token, n)
