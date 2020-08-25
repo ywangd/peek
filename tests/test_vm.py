@@ -45,9 +45,9 @@ def test_peek_vm_expr(peek_vm, parser):
 
 def test_peek_vm_func(peek_vm, parser):
     peek_vm.execute_node(parser.parse('debug echo(0 1 2)')[0])
-    assert_called_with(peek_vm)
+    assert_called_with(peek_vm, '0 1 2')
     peek_vm.execute_node(parser.parse('debug [echo].0(0 1 2)')[0])
-    assert_called_with(peek_vm)
+    assert_called_with(peek_vm, '0 1 2')
 
 
 def test_peek_vm_es_api_call(peek_vm, parser):

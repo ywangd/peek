@@ -156,7 +156,11 @@ class PeekVM(Visitor):
         if func_symbols.get():
             kwargs['@'] = func_symbols.get()
         try:
-            self.app.display.info(func(self.app, *func_args.get(), **kwargs))
+            result = func(self.app, *func_args.get(), **kwargs)
+            if node.is_stmt:
+                self.app.display.info(result)
+            else:
+                self.consume(result)
         except Exception as e:
             _logger.exception(f'Error on invoking function: {node.name_node!r}')
             self.app.display.error(e)
