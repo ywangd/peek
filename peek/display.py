@@ -17,7 +17,7 @@ class Display:
 
     def __init__(self, app):
         self.app = app
-        self.payload_lexer = PeekLexer(stack=('dict',))
+        self.payload_lexer = PeekLexer(stack=('value',))
         self.style_transformation = ConditionalStyleTransformation(
             SwapLightAndDarkStyleTransformation(), self.app.config.as_bool('swap_colour'))
 

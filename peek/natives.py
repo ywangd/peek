@@ -121,6 +121,16 @@ class HistoryFunc:
         return 'View history and execute by history id'
 
 
+class EchoFunc:
+
+    def __call__(self, app, *args, **options):
+        return ' '.join(str(arg) for arg in args)
+
+    @property
+    def description(self):
+        return 'Print given items'
+
+
 class HelpFunc:
 
     def __call__(self, app, func=None, **options):
@@ -146,6 +156,7 @@ EXPORTS = {
     'session': SessionFunc(),
     'run': RunFunc(),
     'history': HistoryFunc(),
+    'echo': EchoFunc(),
     'help': HelpFunc(),
     'saml_authenticate': SamlAuthenticateFunc(),
     'oidc_authenticate': OidcAuthenticateFunc(),

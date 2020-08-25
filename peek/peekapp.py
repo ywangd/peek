@@ -83,7 +83,9 @@ class PeekApp:
                 self.execute_node(node)
             except PeekError as e:
                 self.display.error(e)
-                # TODO: catch general errors so App does not crash
+            except Exception as e:
+                self.display.error(e)
+                _logger.exception('Error on node execution')
 
     def execute_node(self, node):
         self.vm.execute_node(node)
@@ -168,6 +170,7 @@ class PeekApp:
                 enable_suspend=True,
                 search_ignore_case=True,
                 clipboard=clipboard,
+                mouse_support=True,
                 swap_light_and_dark_colors=self.config.as_bool('swap_colour'),
                 input_processors=[
                     HighlightMatchingBracketProcessor(chars="[](){}"),

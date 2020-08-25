@@ -2,7 +2,8 @@ import functools
 import logging
 
 from peek.ast import Visitor, EsApiCallNode, DictNode, KeyValueNode, ArrayNode, NumberNode, \
-    StringNode, FuncCallNode, NameNode, TextNode, ShellOutNode, EsApiCallInlinePayloadNode, EsApiCallFilePayloadNode
+    StringNode, FuncCallNode, NameNode, TextNode, ShellOutNode, EsApiCallInlinePayloadNode, EsApiCallFilePayloadNode, \
+    BinOpNode, UnaryOpNode, GroupNode, SymbolNode, LetNode
 
 _logger = logging.getLogger(__name__)
 
@@ -63,7 +64,7 @@ class FormattingVisitor(Visitor):
             if v == ',':
                 symbols_parts.append(' ')
             elif v not in ['[', ']'] and v.strip() != '':
-                symbols_parts.append(f'@{v}')
+                symbols_parts.append(f'{v}')
 
         self._do_visit_array_node(node.symbols_node, func_symbols_consumer)
         if symbols_parts:
@@ -88,6 +89,15 @@ class FormattingVisitor(Visitor):
             parts += [''.join(kwargs_parts)]
         self.text = ''.join(parts)
 
+    def visit_let_node(self, node: LetNode):
+        parts = ['let', ' ']
+        assignments_parts = []
+        assignments_consumer = functools.partial(options_consumer_maker, assignments_parts)
+        self._do_visit_dict_node(node.assignments_node, assignments_consumer)
+        if assignments_parts:
+            parts += [''.join(assignments_parts)]
+        self.text = ''.join(parts)
+
     def visit_shell_out_node(self, node: ShellOutNode):
         assert isinstance(node, ShellOutNode)
         self.text = f'!{node.command}'
@@ -99,6 +109,10 @@ class FormattingVisitor(Visitor):
         self.consume(node.token.value)
 
     def visit_name_node(self, node: NameNode):
+        self.consume(node.token.value)
+
+    def visit_symbol_node(self, node: SymbolNode):
+        self.consume('@')
         self.consume(node.token.value)
 
     def visit_text_node(self, node: TextNode):
@@ -120,6 +134,20 @@ class FormattingVisitor(Visitor):
         parts = []
         self._do_visit_array_node(node, lambda v: parts.append(v))
         self.consume(''.join(parts))
+
+    def visit_bin_op_node(self, node: BinOpNode):
+        node.left_node.accept(self)
+        self.consume(node.op_token.value)
+        node.right_node.accept(self)
+
+    def visit_unary_op_node(self, node: UnaryOpNode):
+        self.consume(node.op_token.value)
+        node.operand_node.accept(self)
+
+    def visit_group_node(self, node: GroupNode):
+        self.consume('(')
+        node.grouped.accept(self)
+        self.consume(')')
 
     def _do_visit_dict_node(self, node: DictNode, consumer):
         assert isinstance(node, DictNode)
@@ -166,6 +194,113 @@ class FormattingVisitor(Visitor):
                 self.consume('  ' * self.indent_level)
         self.consume(']')
         self.pop_consumer()
+
+
+class TreeFormattingVisitor(Visitor):
+
+    def __init__(self, indent_chars='  '):
+        super().__init__()
+        self.indent_chars = indent_chars
+        self.lines = []
+        self.indent_level = 0
+        self.lines = []
+
+    def visit(self, node):
+        self.lines = []
+        self.push_consumer(lambda v: self.lines.append(v))
+        node.accept(self)
+        self.pop_consumer()
+        return '\n'.join(self.lines)
+
+    def visit_es_api_call_node(self, node: EsApiCallNode):
+        self.consume(f'{self._indent()}EsApiStmt')
+        self.indent_level += 1
+        node.method_node.accept(self)
+        node.path_node.accept(self)
+        node.options_node.accept(self)
+        if isinstance(node, EsApiCallInlinePayloadNode):
+            for n in node.dict_nodes:
+                n.accept(self)
+        elif isinstance(node, EsApiCallFilePayloadNode):
+            node.file_node.accept(self)
+        else:
+            raise ValueError(f'Unknown node: {node!r}')
+        self.indent_level -= 1
+
+    def visit_func_call_node(self, node: FuncCallNode):
+        self.consume(f'{self._indent()}Func{"Stmt" if node.is_stmt else "Expr"}')
+        self.indent_level += 1
+        node.symbols_node.accept(self)
+        node.args_node.accept(self)
+        node.kwargs_node.accept(self)
+        self.indent_level -= 1
+
+    def visit_let_node(self, node: LetNode):
+        self.consume(f'{self._indent()}LetStmt')
+        self.indent_level += 1
+        node.assignments_node.accept(self)
+        self.indent_level -= 1
+
+    def visit_shell_out_node(self, node: ShellOutNode):
+        self.consume(f'{self._indent()}ShellOut')
+        self.indent_level += 1
+        node.text_node.accept(self)
+        self.indent_level -= 1
+
+    def visit_name_node(self, node):
+        self.consume(f'{self._indent()}{node.token.value}')
+
+    def visit_symbol_node(self, node):
+        self.consume(f'{self._indent()}@{node.token.value}')
+
+    def visit_text_node(self, node):
+        self.consume(f'{self._indent()}{node.token.value}')
+
+    def visit_key_value_node(self, node: KeyValueNode):
+        self.consume(f'{self._indent()}KV')
+        self.indent_level += 1
+        node.key_node.accept(self)
+        node.value_node.accept(self)
+        self.indent_level -= 1
+
+    def visit_dict_node(self, node: DictNode):
+        self.consume(f'{self._indent()}Dict')
+        self.indent_level += 1
+        for kv_node in node.kv_nodes:
+            kv_node.accept(self)
+        self.indent_level -= 1
+
+    def visit_array_node(self, node: ArrayNode):
+        self.consume(f'{self._indent()}Array')
+        self.indent_level += 1
+        for n in node.value_nodes:
+            n.accept(self)
+        self.indent_level -= 1
+
+    def visit_string_node(self, node):
+        self.consume(f'{self._indent()}{node.token.value}')
+
+    def visit_number_node(self, node):
+        self.consume(f'{self._indent()}{node.token.value}')
+
+    def visit_bin_op_node(self, node: BinOpNode):
+        self.consume(f'{self._indent()}BinOp({node.op_token.value})')
+        self.indent_level += 1
+        node.left_node.accept(self)
+        node.right_node.accept(self)
+        self.indent_level -= 1
+
+    def visit_unary_op_node(self, node: UnaryOpNode):
+        self.consume(f'{self._indent()}UnaryOp({node.op_token.value})')
+        self.indent_level += 1
+        node.operand_node.accept(self)
+        self.indent_level -= 1
+
+    def visit_group_node(self, node):
+        node.grouped.accept(self)
+
+    def _indent(self):
+        return self.indent_level * self.indent_chars
 
 
 def options_consumer_maker(options_parts, v):

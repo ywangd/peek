@@ -224,3 +224,23 @@ def test_parser_incomplete(parser):
 
     assert 'Syntax error at Line 1, Column 4' in str(e.value)
     assert 'Expect token of type Token.Literal, got Token.Text' in str(e.value)
+
+
+def test_parser_expr(parser):
+    text = '''f 1 * 2 + (3 - 2) g(3)
+'''
+    nodes = parser.parse(text)
+    assert 1 == len(nodes)
+    assert str(nodes[0]) == "f [] [1 * 2 + (3 - 2),g [] [3] {}] {}\n"
+
+
+def test_parser_dict_keys(parser):
+    text = '''f {4: 2} {3 + 5: 2} {"a" + "b": c}'''
+    nodes = parser.parse(text)
+    assert str(nodes[0]) == 'f [] [{4:2},{3 + 5:2},{"a" + "b":c}] {}\n'
+
+
+def test_implicit_variable(parser):
+    text = '''f _."a".1'''
+    nodes = parser.parse(text)
+    assert str(nodes[0]) == 'f [] [_ . "a" . 1] {}\n'

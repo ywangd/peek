@@ -7,12 +7,15 @@ from pygments.token import Keyword, Literal, String, Number, Punctuation, Name, 
     Operator, Text
 
 from peek.common import PeekToken
+from peek.errors import PeekSyntaxError
 
 Percent = Punctuation.Percent
 CurlyLeft = Punctuation.Curly.Left
 CurlyRight = Punctuation.Curly.Right
 BracketLeft = Punctuation.Bracket.Left
 BracketRight = Punctuation.Bracket.Right
+ParenLeft = Punctuation.Paren.Left
+ParenRight = Punctuation.Paren.Right
 Comma = Punctuation.Comma
 Colon = Punctuation.Colon
 At = Punctuation.At
@@ -20,9 +23,12 @@ Heading = Generic.Heading
 TripleD = String.TripleD
 TripleS = String.TripleS
 Assign = Operator.Assign
+BinOp = Operator.BinOp
+UnaryOp = Operator.UnaryOp
 BlankLine = Whitespace.BlankLine
 FuncName = Name.Variable
 HttpMethod = Keyword.HttpMethod
+Let = Keyword.Let
 ShellOut = Punctuation.Bang
 DictKey = String.Symbol
 OptionName = Name.Symbol
@@ -81,16 +87,20 @@ class PeekLexer(RegexLexer):
     aliases = ['es']
     filenames = ['*.es']
 
-    flags = re.MULTILINE
-
     tokens = {
         'root': [
             (r'(!)(.*)', bygroups(ShellOut, Literal)),
             (r'//.*', Comment.Single),
             (r'(?i)(GET|POST|PUT|DELETE)\b(' + W + '*)', bygroups(HttpMethod, Whitespace), 'api_path'),
-            (VARIABLE_PATTERN, FuncName, 'func_args'),
             # TODO: more keywords
+            (r'(let)\b(' + W + '*)', bygroups(Let, Whitespace), 'let_args'),
+            (VARIABLE_PATTERN, FuncName, 'func_stmt_args'),
             (r'\s+', Whitespace),
+        ],
+        'let_args': [
+            (r'\n', BlankLine, '#pop'),
+            (r'//.*', Comment.Single),
+            (W + r'*(?=\S)', Whitespace, ('assign_rhs', 'value')),
         ],
         'api_path': [
             (r'\S+', Literal, ('#pop', 'api_options')),
@@ -98,18 +108,12 @@ class PeekLexer(RegexLexer):
         'api_options': [
             (r'\n', Whitespace, ('#pop', 'payload')),
             (r'//.*', Comment.Single),
-            (VARIABLE_PATTERN, OptionName, 'api_option'),
+            (VARIABLE_PATTERN, OptionName, 'assign_rhs'),
             (W + r'+', Whitespace),
             # default(('#pop', 'payload')),  # this is to make the newline optional
         ],
-        'api_option': [
-            (r'(' + W + r'*)(=)(' + W + r'*)', bygroups(Whitespace, Assign, Whitespace), ('#pop', 'expr')),
-        ],
-        # Similar to value, expr should not default pop
-        'expr': [
-            # Name, Value and expression
-            include('value'),
-            (VARIABLE_PATTERN, Name, '#pop'),
+        'assign_rhs': [
+            (r'(' + W + r'*)(=)(' + W + r'*)', bygroups(Whitespace, Assign, Whitespace), ('#pop', 'value')),
         ],
         'payload': [
             (r'(' + W + '*)' + r'(//.*)(\n)', bygroups(Whitespace, Comment.Single, Whitespace)),
@@ -125,44 +129,42 @@ class PeekLexer(RegexLexer):
             (r'(\n' + W + r'*)(?={)', Whitespace, 'dict'),
             default('#pop'),  # similar to payload, payload_cont can stop at anytime and next statement may begin
         ],
-        'func_args': [
+        'func_stmt_args': [
             (r'\n', BlankLine, '#pop'),
             (r'//.*', Comment.Single),
-            (VARIABLE_PATTERN, Name, 'func_option'),
-            (r'@', At, 'func_symbol'),
+            (VARIABLE_PATTERN + r'(?=' + W + '*=)', Name, 'func_option'),  # kv pair
             (W + r'+', Whitespace),
             # Instead of include, we should default to get into value because value pop itself out of the stack
-            # one it is consumed. If included it, it will pop out the func_args stage, which is incorrect.
-            # func_args needs has explicit pop by newline.
+            # one it is consumed. If included it, it will pop out the func_stmt_args stage, which is incorrect.
+            # func_stmt_args needs has explicit pop by newline.
             default('value'),
         ],
-        'func_symbol': [
-            (r'\S+', Literal, '#pop'),
-        ],
         'func_option': [
-            (r'(' + W + r'*)(=)(' + W + r'*)', bygroups(Whitespace, Assign, Whitespace), ('#pop', 'expr')),
+            (r'(' + W + r'*)(=)(' + W + r'*)', bygroups(Whitespace, Assign, Whitespace), ('#pop', 'value')),
             default('#pop'),  # func option has default pop because func has positional arg
         ],
         'dict': [
-            (r'({)(\s*)', bygroups(CurlyLeft, Whitespace), 'dict_key'),
+            (r'({)(\s*)', bygroups(CurlyLeft, Whitespace), ('colon', 'dict_key')),
             (r'//.*', Comment.Single),
             (r'\s+', Whitespace),
             (r'}', CurlyRight, '#pop'),
-            (r'(,)(\s*)', bygroups(Comma, Whitespace), 'dict_key'),
+            (r'(,)(\s*)', bygroups(Comma, Whitespace), ('colon', 'dict_key')),
         ],
         # dict_key should not have default pop because of similar reason to value
         'dict_key': [
             (r'(\s*)(//.*)(\s*)', bygroups(Whitespace, Comment.Single, Whitespace)),
-            (r'(\s*)(?=})', Whitespace, '#pop'),  # special handle for empty dict and extra comma
-            (r'"', DictKey, ('#pop', 'colon', 'dqs_key')),
-            (r"'", DictKey, ('#pop', 'colon', 'sqs_key')),
+            (r'(\s*)(?=})', Whitespace, '#pop:2'),  # special handle for empty dict and extra comma
+            # dict_key does not support triple quotes by itself, but can be used if it is part of an expression
+            (r'"(?!"")', DictKey, ('#pop', 'operators', 'dqs_key')),
+            (r"'(?!'')", DictKey, ('#pop', 'operators', 'sqs_key')),
+            include('value'),
         ],
         'colon': [
             (r'(\s*)(:)(\s*)', bygroups(Whitespace, Colon, Whitespace), ('#pop', 'dict_value')),
         ],
         'dict_value': [
             (r'(\s*)(//.*)(\s*)', bygroups(Whitespace, Comment.Single, Whitespace)),
-            include('expr'),
+            include('value'),
         ],
         'array': [
             (r'(\[)(\s*)', bygroups(BracketLeft, Whitespace), 'array_value'),
@@ -173,20 +175,78 @@ class PeekLexer(RegexLexer):
         ],
         'array_value': [
             (r'(\s*)(//.*)(\s*)', bygroups(Whitespace, Comment.Single, Whitespace)),
-            (r'(\s*)(?=\])', Whitespace, '#pop'),
-            include('expr'),
+            (r'(\s*)(?=\])', Whitespace, '#pop'),  # special handle for empty array and extra comma
+            include('value'),
+        ],
+        'group': [
+            (r'(\()(\s*)', bygroups(ParenLeft, Whitespace), 'value'),
+            (r'//.*', Comment.Single),
+            (r'\s+', Whitespace),
+            (r'\)', ParenRight, '#pop'),
+        ],
+        'group_value': [
+            (r'(\s*)(//.*)(\s*)', bygroups(Whitespace, Comment.Single, Whitespace)),
+            (r'(\s*)(?=\))', Whitespace, '#pop'),  # special handle for empty array and extra comma
+            include('value'),
         ],
         # Single value should NOT default pop because when the lexer gets here, it should
         # expect exact one value to consume, anything else should be handled by the upstream.
+        '_value_common': [
+            (r'(' + W + r'*)([-+]?)(?=\()', bygroups(Whitespace, UnaryOp), ('#pop', 'operators', 'group')),
+            (r'(' + W + r'*)(?={)', Whitespace, ('#pop', 'operators', 'dict')),
+            (r'(' + W + r'*)(?=\[)', Whitespace, ('#pop', 'operators', 'array')),
+            (r'"""', TripleD, ('#pop', 'operators', 'tdqs')),
+            (r"'''", TripleS, ('#pop', 'operators', 'tsqs')),
+            (r'"', String.Double, ('#pop', 'operators', 'dqs')),
+            (r"'", String.Single, ('#pop', 'operators', 'sqs')),
+            (words(('true', 'false', 'null'), suffix=r'\b'), Name.Builtin, ('#pop', 'operators')),
+            (r'([-+]?)(' + VARIABLE_PATTERN + r')(' + W + r'*)(?=\()',
+             bygroups(UnaryOp, Name, Whitespace), ('#pop', 'func_expr')),
+            (r'([-+]?)(' + VARIABLE_PATTERN + r')', bygroups(UnaryOp, Name), ('#pop', 'operators')),
+            (r'@', At, ('#pop', 'operators', 'symbol')),
+        ],
+        'symbol': [
+            (VARIABLE_PATTERN, Literal, '#pop'),
+        ],
         'value': [
-            (r'(' + W + r'*)(?={)', Whitespace, ('#pop', 'dict')),
-            (r'(' + W + r'*)(?=\[)', Whitespace, ('#pop', 'array')),
-            (r'"""', TripleD, ('#pop', 'tdqs')),
-            (r"'''", TripleS, ('#pop', 'tsqs')),
-            (r'"', String.Double, ('#pop', 'dqs')),
-            (r"'", String.Single, ('#pop', 'sqs')),
-            (words(('true', 'false', 'null'), suffix=r'\b'), Name.Builtin, '#pop'),
+            include('_value_common'),
             include('numbers'),
+        ],
+        'dotable_value': [
+            include('_value_common'),
+            include('integers'),
+        ],
+        'func_expr': [
+            (r'//.*', Comment.Single),
+            (W + r'+', Whitespace),
+            (r'(\()(\s*)', bygroups(ParenLeft, Whitespace), 'func_expr_args'),
+            (r'\)', ParenRight, '#pop'),
+
+        ],
+        'func_expr_args': [
+            (r'//.*', Comment.Single),
+            (r'(\s*)(?=\))', Whitespace, '#pop'),
+            (VARIABLE_PATTERN + r'(?=' + W + '*=)', Name, 'func_option'),  # kv pair
+            (r'\s+', Whitespace),
+            default('value'),
+        ],
+        'operators': [  # operator cannot be on the new line
+            (W + r'+', Whitespace),
+            (r'(' + W + r'*)(?=//)', Whitespace, '#pop'),
+            (r'([-+*/%])(\s*)', bygroups(BinOp, Whitespace), 'trailing_value'),
+            (r'(\.)(\s*)', bygroups(BinOp, Whitespace), 'trailing_dotable_value'),
+            default('#pop')  # pop out when no operators are seen
+        ],
+
+        'trailing_value': [
+            (r'(\s*)(//.*)(\s*)', bygroups(Whitespace, Comment.Single, Whitespace)),
+            (r'\s+', Whitespace),
+            include('value'),
+        ],
+        'trailing_dotable_value': [
+            (r'(\s*)(//.*)(\s*)', bygroups(Whitespace, Comment.Single, Whitespace)),
+            (r'\s+', Whitespace),
+            include('dotable_value'),
         ],
         'dqs_key': dqs(DictKey),
         'sqs_key': sqs(DictKey),
@@ -203,24 +263,74 @@ class PeekLexer(RegexLexer):
             (r"[^\\']+", TripleS),  # not cater for multiple line
         ],
         'numbers': [
-            (r'[-+]?(\d+\.\d*|\d*\.\d+)([eE][+-]?[0-9]+)?j?', Number.Float, '#pop'),
-            (r'[-+]?\d+[eE][+-]?[0-9]+j?', Number.Float, '#pop'),
-            (r'[-+]?0[0-7]+j?', Number.Oct, '#pop'),
-            (r'[-+]?0[bB][01]+', Number.Bin, '#pop'),
-            (r'[-+]?0[xX][a-fA-F0-9]+', Number.Hex, '#pop'),
-            (r'[-+]?\d+L', Number.Integer.Long, '#pop'),
-            (r'[-+]?\d+j?', Number.Integer, '#pop'),
+            (r'[-+]?(\d+\.\d*|\d*\.\d+)([eE][+-]?[0-9]+)?j?', Number.Float, ('#pop', 'operators')),
+            (r'[-+]?\d+[eE][+-]?[0-9]+j?', Number.Float, ('#pop', 'operators')),
+            (r'[-+]?0[0-7]+j?', Number.Oct, ('#pop', 'operators')),
+            (r'[-+]?0[bB][01]+', Number.Bin, ('#pop', 'operators')),
+            (r'[-+]?0[xX][a-fA-F0-9]+', Number.Hex, ('#pop', 'operators')),
+            include('integers'),
+        ],
+        'integers': [
+            (r'[-+]?\d+L', Number.Integer.Long, ('#pop', 'operators')),
+            (r'[-+]?\d+j?', Number.Integer, ('#pop', 'operators')),
         ],
     }
+    flags = re.MULTILINE
 
     def __init__(self, stack=None, **options):
         super().__init__(**options)
         self.stack = stack or ('root',)
 
     def get_tokens_unprocessed(self, text, stack=None) -> Iterable[PeekToken]:
+        """
+        Convert DictKey to common string if it is part of an expression
+        """
         stack = stack or self.stack
-        for t in super().get_tokens_unprocessed(text, stack):
-            yield PeekToken(*t)
+        stream = super().get_tokens_unprocessed(text, stack)
+        buffer = []
+        while True:
+            try:
+                pt = PeekToken(*next(stream))
+                if pt.ttype is DictKey:
+                    assert 0 == len(buffer)
+                    buffer.append(pt)
+                    while True:
+                        pt_next = PeekToken(*next(stream))
+                        if pt_next.ttype in (DictKey, Whitespace, Comment.Single):
+                            buffer.append(pt_next)
+                        elif pt_next.ttype is Colon:
+                            buffer.append(pt_next)
+                            for t in buffer:
+                                yield t
+                            buffer = []
+                            break
+                        else:
+                            buffer.append(pt_next)
+                            first_token = buffer[0]
+                            if first_token.value == "'":
+                                actual_type = String.Single
+                            elif first_token.value == '"':
+                                actual_type = String.Double
+                            elif first_token.value == "'''":
+                                actual_type = String.TripleS
+                            elif first_token.value == '"""':
+                                actual_type = String.TripleD
+                            else:
+                                raise PeekSyntaxError(text, first_token, message='DictKey expected')
+                            for t in buffer:
+                                if t.ttype is DictKey:
+                                    t = PeekToken(t.index, actual_type, t.value)
+                                yield t
+                            buffer = []
+                            break
+                else:
+                    yield pt
+
+            except StopIteration:
+                if buffer:
+                    for t in buffer:
+                        yield t
+                break
 
 
 Slash = Punctuation.Slash

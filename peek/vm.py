@@ -2,6 +2,7 @@ import ast
 import itertools
 import json
 import logging
+import operator
 import os
 import sys
 from subprocess import Popen
@@ -10,12 +11,42 @@ from pygments.token import Name
 
 from peek.ast import Visitor, EsApiCallNode, DictNode, KeyValueNode, ArrayNode, NumberNode, \
     StringNode, Node, FuncCallNode, NameNode, TextNode, ShellOutNode, EsApiCallInlinePayloadNode, \
-    EsApiCallFilePayloadNode
+    EsApiCallFilePayloadNode, GroupNode, BinOpNode, UnaryOpNode, SymbolNode, LetNode
 from peek.errors import PeekError
 from peek.natives import EXPORTS
 from peek.visitors import Ref
 
 _logger = logging.getLogger(__name__)
+
+
+def dot(left_operand, right_operand):
+    if isinstance(left_operand, dict):
+        if right_operand in left_operand:
+            return left_operand[right_operand]
+        else:
+            raise PeekError(f'Value {left_operand!r} does not have key {right_operand!r}')
+    elif isinstance(left_operand, list):
+        if isinstance(right_operand, int):
+            return left_operand[right_operand]
+        else:
+            raise PeekError(f'Cannot index array {left_operand!r} with non-integer value: {right_operand!r}')
+    else:
+        raise PeekError(f'Value {left_operand!r} must be either an array or dict')
+
+
+_BIN_OP_FUNCS = {
+    '+': operator.add,
+    '-': operator.sub,
+    '*': operator.mul,
+    '/': operator.truediv,
+    '%': operator.mod,
+    '.': dot,
+}
+
+_UNARY_OP_FUNCS = {
+    '+': operator.pos,
+    '-': operator.neg,
+}
 
 
 class PeekVM(Visitor):
@@ -83,11 +114,11 @@ class PeekVM(Visitor):
 
         try:
             response = es_client.perform_request(node.method, node.path, payload, headers=headers if headers else None)
-            self.context['_'] = response
+            self.context['_'] = _maybe_jsonify(response)
             self.app.display.info(response, header_text=self._get_header_text(conn, runas))
         except Exception as e:
             if getattr(e, 'info', None) and isinstance(getattr(e, 'status_code', None), int):
-                self.context['_'] = e.info
+                self.context['_'] = _maybe_jsonify(e.info)
                 self.app.display.info(e.info, header_text=self._get_header_text(conn, runas))
             else:
                 self.app.display.error(e, header_text=self._get_header_text(conn, runas))
@@ -95,7 +126,7 @@ class PeekVM(Visitor):
 
     def visit_func_call_node(self, node: FuncCallNode):
         func_name = node.name_node.token.value
-        func = self._get_value_for_name(func_name)
+        func = self.get_value(func_name)
         if not callable(func):
             raise PeekError(f'{func_name!r} is not a callable, but a {func!r}')
 
@@ -124,6 +155,36 @@ class PeekVM(Visitor):
             _logger.exception(f'Error on invoking function: {func_name!r}')
             self.app.display.error(e)
 
+    def visit_let_node(self, node: LetNode):
+        for kv_node in node.assignments_node.kv_nodes:
+            lhs_chain = []
+            self.push_consumer(lambda v: lhs_chain.append(v))
+            self._unwind_lhs(kv_node.key_node)
+            self.pop_consumer()
+
+            rhs = Ref()
+            self.push_consumer(lambda v: rhs.set(v))
+            kv_node.value_node.accept(self)
+            self.pop_consumer()
+
+            if len(lhs_chain) == 1:
+                self.context[lhs_chain[0]] = rhs.get()
+            else:
+                if not lhs_chain[0] in self.context:
+                    raise PeekError(f'Unknown name: {lhs_chain[0]!r}')
+                lhs = self.context[lhs_chain[0]]
+                for x in lhs_chain[1:-1]:
+                    if isinstance(lhs, dict) or (isinstance(lhs, list) and isinstance(x, int)):
+                        lhs = lhs[x]
+                    else:
+                        raise PeekError(f'Invalid lhs for assignment: {".".join(lhs_chain)}')
+
+                x = lhs_chain[-1]
+                if isinstance(lhs, dict) or (isinstance(lhs, list) and isinstance(x, int)):
+                    lhs[x] = rhs.get()
+                else:
+                    raise PeekError(f'Invalid lhs for assignment: {lhs_chain}')
+
     def visit_shell_out_node(self, node: ShellOutNode):
         try:
             input_fd = self.app.prompt.input.fileno()
@@ -141,8 +202,11 @@ class PeekVM(Visitor):
         node.value_node.accept(self)
 
     def visit_name_node(self, node: NameNode):
-        v = self._get_value_for_name(node.token.value)
+        v = self.get_value(node.token.value)
         self.consume(v)
+
+    def visit_symbol_node(self, node: SymbolNode):
+        self.consume(node.token.value)
 
     def visit_string_node(self, node: StringNode):
         self.consume(ast.literal_eval(node.token.value))
@@ -167,6 +231,36 @@ class PeekVM(Visitor):
         else:
             self.consume(node.token.value)
 
+    def visit_bin_op_node(self, node: BinOpNode):
+        left_operand = Ref()
+        self.push_consumer(lambda v: left_operand.set(v))
+        node.left_node.accept(self)
+        self.pop_consumer()
+
+        right_operand = Ref()
+        self.push_consumer(lambda v: right_operand.set(v))
+        node.right_node.accept(self)
+        self.pop_consumer()
+
+        op_func = _BIN_OP_FUNCS.get(node.op_token.value, None)
+        if op_func is None:
+            raise PeekError(f'Unknown binary operator: {node.op_token.value!r}')
+        self.consume(op_func(left_operand.get(), right_operand.get()))
+
+    def visit_unary_op_node(self, node: UnaryOpNode):
+        operand = Ref()
+        self.push_consumer(lambda v: operand.set(v))
+        node.operand_node.accept(self)
+        self.pop_consumer()
+
+        op_func = _UNARY_OP_FUNCS.get(node.op_token.value, None)
+        if op_func is None:
+            raise PeekError(f'Unknown unary operator: {node.op_token.value!r}')
+        self.consume(op_func(operand.get()))
+
+    def visit_group_node(self, node: GroupNode):
+        node.grouped.accept(self)
+
     def _do_visit_dict_node(self, node: DictNode, resolve_key_name=False):
         assert isinstance(node, DictNode)
         keys = []
@@ -184,13 +278,24 @@ class PeekVM(Visitor):
         assert len(keys) == len(values), f'{keys!r}, {values!r}'
         self.consume(dict(zip(keys, values)))
 
-    def _get_value_for_name(self, name):
+    def get_value(self, name):
         value = self.builtins.get(name)
         if value is None:
             value = self.context.get(name)
         if value is None:
             raise PeekError(f'Unknown name: {name!r}')
         return value
+
+    def _unwind_lhs(self, node: Node):
+        if isinstance(node, NameNode):
+            self.consume(node.token.value)
+        elif isinstance(node, BinOpNode):
+            if node.op_token.value != '.':
+                raise PeekError(f'lhs can only have variable and dot notation, but got {node!r}')
+            self._unwind_lhs(node.left_node)
+            node.right_node.accept(self)
+        else:
+            raise PeekError(f'lhs can only have variable and dot notation, but got {node!r}')
 
     def _load_extensions(self):
         """
@@ -242,3 +347,10 @@ class PeekVM(Visitor):
         if runas is not None:
             parts.append(f'runas={runas!r}')
         return ' '.join(parts)
+
+
+def _maybe_jsonify(r):
+    try:
+        return json.loads(r)
+    except Exception:
+        return r

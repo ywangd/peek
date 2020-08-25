@@ -15,10 +15,16 @@ class Visitor(metaclass=ABCMeta):
     def visit_func_call_node(self, node):
         raise NotImplementedError()
 
+    def visit_let_node(self, node):
+        raise NotImplementedError()
+
     def visit_shell_out_node(self, node):
         raise NotImplementedError()
 
     def visit_name_node(self, node):
+        raise NotImplementedError()
+
+    def visit_symbol_node(self, node):
         raise NotImplementedError()
 
     def visit_text_node(self, node):
@@ -37,6 +43,15 @@ class Visitor(metaclass=ABCMeta):
         raise NotImplementedError()
 
     def visit_number_node(self, node):
+        raise NotImplementedError()
+
+    def visit_bin_op_node(self, node):
+        raise NotImplementedError()
+
+    def visit_unary_op_node(self, node):
+        raise NotImplementedError()
+
+    def visit_group_node(self, node):
         raise NotImplementedError()
 
     def push_consumer(self, consumer):
@@ -89,6 +104,18 @@ class TextNode(Node):
 
     def accept(self, visitor):
         visitor.visit_text_node(self)
+
+    def tokens(self):
+        return [self.token]
+
+
+class SymbolNode(Node):
+
+    def __init__(self, token: PeekToken):
+        self.token = token
+
+    def accept(self, visitor):
+        visitor.visit_symbol_node(self)
 
     def tokens(self):
         return [self.token]
@@ -182,6 +209,64 @@ class NumberNode(Node):
         return [self.token]
 
 
+class UnaryOpNode(Node):
+
+    def __init__(self, op_token: PeekToken, operand_node: Node):
+        self.op_token = op_token
+        self.operand_node = operand_node
+
+    def accept(self, visitor: Visitor):
+        visitor.visit_unary_op_node(self)
+
+    def tokens(self):
+        tokens = [self.op_token]
+        tokens += self.operand_node.tokens()
+        return tokens
+
+
+class BinOpNode(Node):
+
+    def __init__(self, op_token: PeekToken, left_node: Node, right_node: Node):
+        self.op_token = op_token
+        self.left_node = left_node
+        self.right_node = right_node
+
+    def accept(self, visitor: Visitor):
+        visitor.visit_bin_op_node(self)
+
+    def tokens(self):
+        tokens = self.left_node.tokens()
+        tokens.append(self.op_token)
+        tokens += self.right_node.tokens()
+        return tokens
+
+    def __str__(self):
+        return f'{self.left_node} {self.op_token.value} {self.right_node}'
+
+
+class GroupNode(Node):
+    """
+    A decorator node that indicates there are parenthesis around the node
+    """
+
+    def __init__(self, node: Node, paren_left: PeekToken, paren_right: PeekToken):
+        self.grouped = node
+        self.paren_left = paren_left
+        self.paren_right = paren_right
+
+    def accept(self, visitor: Visitor):
+        visitor.visit_group_node(self)
+
+    def tokens(self):
+        tokens = [self.paren_left]
+        tokens += self.grouped.tokens()
+        tokens.append(self.paren_right)
+        return tokens
+
+    def __str__(self):
+        return f'({self.grouped})'
+
+
 class EsApiCallNode(Node, metaclass=ABCMeta):
 
     def __init__(self, method_node: NameNode, path_node: NameNode, options_node: DictNode):
@@ -246,11 +331,13 @@ class EsApiCallFilePayloadNode(EsApiCallNode):
 
 class FuncCallNode(Node):
 
-    def __init__(self, name_node: NameNode, symbols_node: ArrayNode, args_node: ArrayNode, kwargs_node: DictNode):
+    def __init__(self, name_node: NameNode, symbols_node: ArrayNode, args_node: ArrayNode,
+                 kwargs_node: DictNode, is_stmt=True):
         self.name_node = name_node
         self.symbols_node = symbols_node
         self.args_node = args_node
         self.kwargs_node = kwargs_node
+        self.is_stmt = is_stmt
 
     def accept(self, visitor: Visitor):
         visitor.visit_func_call_node(self)
@@ -270,7 +357,24 @@ class FuncCallNode(Node):
         parts = [str(self.name_node), ' ',
                  str(self.symbols_node), ' ',
                  str(self.args_node), ' ',
-                 str(self.kwargs_node), '\n']
+                 str(self.kwargs_node), '\n' if self.is_stmt else '']
+        return ''.join(parts)
+
+
+class LetNode(Node):
+
+    def __init__(self, assignments_node: DictNode):
+        self.assignments_node = assignments_node
+
+    def accept(self, visitor: Visitor):
+        visitor.visit_let_node(self)
+
+    def tokens(self):
+        return self.assignments_node.tokens()
+
+    def __str__(self):
+        parts = ['let', ' ',
+                 str(self.assignments_node), '\n']
         return ''.join(parts)
 
 
@@ -288,3 +392,8 @@ class ShellOutNode(Node):
 
     def tokens(self):
         return self.text_node.tokens()
+
+    def __str__(self):
+        parts = ['!', ' ',
+                 str(self.text_node), '\n']
+        return ''.join(parts)

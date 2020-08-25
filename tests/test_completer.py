@@ -11,11 +11,11 @@ from peek.completer import load_specs, PeekCompleter, find_beginning_token, matc
 from peek.lexers import HttpMethod, FuncName, BlankLine
 from peek.natives import EXPORTS
 
-mockApp = MagicMock(name='PeekApp')
-mockApp.vm.functions = {k: v for k, v in EXPORTS.items() if callable(v)}
-mockApp.config.as_bool.return_value = True
+mock_app = MagicMock(name='PeekApp')
+mock_app.vm.functions = {k: v for k, v in EXPORTS.items() if callable(v)}
+mock_app.config.as_bool.return_value = True
 
-completer = PeekCompleter(mockApp)
+completer = PeekCompleter(mock_app)
 
 
 def equivalent_completions(c0: Completion, c1: Completion):

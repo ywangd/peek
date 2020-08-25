@@ -2,7 +2,7 @@ import pytest
 from pygments.token import Token, Name
 
 from peek.common import PeekToken
-from peek.lexers import PeekLexer, UrlPathLexer
+from peek.lexers import PeekLexer, UrlPathLexer, BinOp
 
 
 @pytest.fixture
@@ -25,7 +25,7 @@ def do_test(lexer, text, error_tokens=None):
             assert t == error_tokens[0]
             error_tokens.pop(0)
             continue
-        assert t[1] is not Token.Error
+        assert t[1] is not Token.Error, t
     return tokens
 
 
@@ -178,6 +178,58 @@ def test_func_call_connect(peek_lexer):
 def test_builtin_as_kv_value(peek_lexer):
     tokens = do_test(peek_lexer, text="""connect use_ssl=true""")
     assert tokens[-1][1] is Name.Builtin
+
+
+def test_dot_notation(peek_lexer):
+    tokens = [t for t in do_test(peek_lexer, text='''f a.1.2.5''') if (t.ttype is BinOp and t.value == '.')]
+    assert 3 == len(tokens)
+
+
+def test_expressions(peek_lexer):
+    tokens = do_test(peek_lexer, text='''f kw=1 * (2 + (3 - foo)) / a.4.2."a key".(a + b.3).5."c" % 5.6 2+3/(a)
+''')
+    print(tokens)
+
+
+def test_expressions_data_structure(peek_lexer):
+    tokens = do_test(peek_lexer, text='''GET /
+{
+  "a": "foo" + a.3."ab".(foo*3),
+  "b": 1 + 3 * (2 - 1)
+}''')
+    print(tokens)
+
+
+def test_dict_keys(peek_lexer):
+    tokens = do_test(peek_lexer, text='''f {
+    "a": 4.2,
+    "a" + b : "c",
+    """a""" + c: 5,
+}''')
+    print(tokens)
+
+
+def test_operator_cannot_on_separate_line(peek_lexer):
+    with pytest.raises(AssertionError) as e:
+        do_test(peek_lexer, text='''f 1
++ 2''')
+
+    assert "value='+'" in e.value.args[0]
+
+
+def test_expression_pos_neg(peek_lexer):
+    tokens = do_test(peek_lexer, text='''f -1 + -a + -(3 - -2)''')
+    print(tokens)
+
+
+def test_function_expr(peek_lexer):
+    tokens = do_test(peek_lexer, text='''f 3 -f(a b=1 c="ok") "hello" 4.2 {"a": f(9 c=3) }''')
+    print(tokens)
+
+
+def test_symbol(peek_lexer):
+    tokens = do_test(peek_lexer, text='''f a.@b.c.@d.1''')
+    assert len([t for t in tokens if (t.ttype is BinOp and t.value == '.')]) == 4
 
 
 @pytest.fixture
