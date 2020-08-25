@@ -55,7 +55,7 @@ def test_formatting_func_call(parser):
 def test_tree_formatting(parser):
     visitor = TreeFormattingVisitor()
     nodes = parser.parse('''f @abc 1 "a" b=a foo="bar" 1 * 2 + (3-2) * 5 / 6''')
-    assert visitor.visit(nodes[0]) == '''FuncStmt
+    assert visitor.visit(nodes[0]) == '''FuncStmt('f')
   Array
     @abc
   Array
@@ -79,3 +79,9 @@ def test_tree_formatting(parser):
     KV
       foo
       "bar"'''
+
+
+def test_tree_formatting_func_expr_chain(parser):
+    visitor = TreeFormattingVisitor()
+    nodes = parser.parse('''f a.@b(1)''')
+    assert "FuncExpr('a . b')" in visitor.visit(nodes[0])

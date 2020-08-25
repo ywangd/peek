@@ -232,6 +232,10 @@ def test_symbol(peek_lexer):
     assert len([t for t in tokens if (t.ttype is BinOp and t.value == '.')]) == 4
 
 
+def test_function_expr_chain(peek_lexer):
+    do_test(peek_lexer, text='''f a.b.c().d.e().f.1.2 {}()''')
+
+
 @pytest.fixture
 def url_path_lexer():
     return UrlPathLexer()

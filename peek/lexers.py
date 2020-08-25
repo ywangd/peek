@@ -200,8 +200,8 @@ class PeekLexer(RegexLexer):
             (r'"', String.Double, ('#pop', 'operators', 'dqs')),
             (r"'", String.Single, ('#pop', 'operators', 'sqs')),
             (words(('true', 'false', 'null'), suffix=r'\b'), Name.Builtin, ('#pop', 'operators')),
-            (r'([-+]?)(' + VARIABLE_PATTERN + r')(' + W + r'*)(?=\()',
-             bygroups(UnaryOp, Name, Whitespace), ('#pop', 'func_expr')),
+            # (r'([-+]?)(' + VARIABLE_PATTERN + r')(' + W + r'*)(?=\()',
+            #  bygroups(UnaryOp, Name, Whitespace), ('#pop', 'func_expr')),
             (r'([-+]?)(' + VARIABLE_PATTERN + r')', bygroups(UnaryOp, Name), ('#pop', 'operators')),
             (r'@', At, ('#pop', 'operators', 'symbol')),
         ],
@@ -235,6 +235,7 @@ class PeekLexer(RegexLexer):
             (r'(' + W + r'*)(?=//)', Whitespace, '#pop'),
             (r'([-+*/%])(\s*)', bygroups(BinOp, Whitespace), 'trailing_value'),
             (r'(\.)(\s*)', bygroups(BinOp, Whitespace), 'trailing_dotable_value'),
+            (r'(' + W + r'*)(?=\()', Whitespace, 'func_expr'),
             default('#pop')  # pop out when no operators are seen
         ],
 

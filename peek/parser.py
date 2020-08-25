@@ -238,11 +238,14 @@ class PeekParser:
                     n = n if unary_op_token is None else UnaryOpNode(unary_op_token, n)
                     n = BinOpNode(op_token, n, right_node)
             elif self._peek_token().ttype is ParenLeft:  # func call
-                self._consume_token(ParenLeft)
-                symbol_nodes, arg_nodes, kwarg_nodes = self._parse_func_call_args(blankline_terminated=False)
-                self._consume_token(ParenRight)
-                n = FuncCallNode(n, ArrayNode(symbol_nodes), ArrayNode(arg_nodes), DictNode(kwarg_nodes), is_stmt=False)
-                n = n if unary_op_token is None else UnaryOpNode(unary_op_token, n)
+                if last_bin_op == '.':
+                    return n if unary_op_token is None else UnaryOpNode(unary_op_token, n)
+                else:
+                    self._consume_token(ParenLeft)
+                    symbol_nodes, arg_nodes, kwarg_nodes = self._parse_func_call_args(blankline_terminated=False)
+                    self._consume_token(ParenRight)
+                    n = FuncCallNode(n, ArrayNode(symbol_nodes), ArrayNode(arg_nodes), DictNode(kwarg_nodes), is_stmt=False)
+                    n = n if unary_op_token is None else UnaryOpNode(unary_op_token, n)
             else:
                 return n if unary_op_token is None else UnaryOpNode(unary_op_token, n)
             unary_op_token = None

@@ -228,7 +228,7 @@ class TreeFormattingVisitor(Visitor):
         self.indent_level -= 1
 
     def visit_func_call_node(self, node: FuncCallNode):
-        self.consume(f'{self._indent()}Func{"Stmt" if node.is_stmt else "Expr"}')
+        self.consume(f'{self._indent()}Func{"Stmt" if node.is_stmt else "Expr"}({node.name_node!r})')
         self.indent_level += 1
         node.symbols_node.accept(self)
         node.args_node.accept(self)

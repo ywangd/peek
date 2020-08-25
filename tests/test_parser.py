@@ -244,3 +244,9 @@ def test_implicit_variable(parser):
     text = '''f _."a".1'''
     nodes = parser.parse(text)
     assert str(nodes[0]) == 'f [] [_ . "a" . 1] {}\n'
+
+
+def test_func_expr_chain(parser):
+    text = '''f a.@b(1)'''
+    nodes = parser.parse(text)
+    assert str(nodes[0]) == 'f [] [a . b [] [1] {}] {}\n'
