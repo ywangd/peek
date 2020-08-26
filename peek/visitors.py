@@ -56,7 +56,10 @@ class FormattingVisitor(Visitor):
 
     def visit_func_call_node(self, node: FuncCallNode):
         node.name_node.accept(self)
-        self.consume(' ')
+        if node.is_stmt:
+            self.consume(' ')
+        else:
+            self.consume('(')
 
         symbols_parts = []
 
@@ -89,6 +92,8 @@ class FormattingVisitor(Visitor):
         self._do_visit_dict_node(node.kwargs_node, func_kwargs_consumer)
         if kwargs_parts:
             self.consume(' ', ''.join(kwargs_parts))
+        if not node.is_stmt:
+            self.consume(')')
 
     def visit_let_node(self, node: LetNode):
         self.consume('let', ' ')
@@ -168,7 +173,8 @@ class FormattingVisitor(Visitor):
             self.consume('\n')
             self.indent_level += 1
         for i, kv_node in enumerate(node.kv_nodes):
-            self.consume(self._indent())
+            if self.pretty:
+                self.consume(self._indent())
             kv_node.accept(self)
             if i < len(node.kv_nodes) - 1:
                 self.consume(',')

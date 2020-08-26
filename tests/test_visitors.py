@@ -133,6 +133,38 @@ def test_formatting_pretty(parser):
 }'''
 
 
+def test_formatting_looped_api_calls(parser):
+    nodes = parser.parse('''for i in range(1 10) {
+  POST test-1/_doc
+  { "tag": i }
+  POST test-2/_doc
+  { "tag": i + 1}
+}
+''')
+
+    assert FormattingVisitor(pretty=True).visit(nodes[0]) == '''for i in range(1 10) {
+  POST test-1/_doc
+  {
+    "tag": i
+  }
+
+  POST test-2/_doc
+  {
+    "tag": i+1
+  }
+
+}'''
+
+    assert FormattingVisitor(pretty=False).visit(nodes[0]) == '''for i in range(1 10) {
+  POST test-1/_doc
+  {"tag":i}
+
+  POST test-2/_doc
+  {"tag":i+1}
+
+}'''
+
+
 def test_tree_formatting(parser):
     visitor = TreeFormattingVisitor()
     nodes = parser.parse('''f @abc 1 "a" b=a foo="bar" 1 * 2 + (3-2) * 5 / 6''')
