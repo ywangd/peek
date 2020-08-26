@@ -2,6 +2,7 @@
 import logging
 import logging.handlers
 import sys
+from datetime import datetime
 from typing import Iterable
 
 from prompt_toolkit import PromptSession, prompt
@@ -11,6 +12,7 @@ from prompt_toolkit.layout.processors import HighlightMatchingBracketProcessor
 from prompt_toolkit.lexers import PygmentsLexer
 from prompt_toolkit.styles import style_from_pygments_cls
 
+from peek.capture import NoOpCapture, FileCapture
 from peek.common import NONE_NS
 from peek.completer import PeekCompleter
 from peek.config import get_config, config_location
@@ -36,6 +38,7 @@ class PeekApp:
                  cli_ns=NONE_NS):
         self._should_exit = False
         self._preserved_text = ''
+        self.capture = NoOpCapture()
         self.batch_mode = batch_mode
         self.config = get_config(config_file, extra_config_options)
         self.cli_ns = cli_ns
@@ -98,6 +101,23 @@ class PeekApp:
         for _ in range(len(self.es_client_manager.clients()) - 1):
             self.es_client_manager.remove_client(0)
         self.vm.context = {}
+
+    def start_capture(self, f=None):
+        if not isinstance(self.capture, NoOpCapture):
+            raise PeekError(f'Cannot capture when one is currently running: {self.capture.status()}')
+
+        if f is None:
+            f = f'{datetime.now().strftime("%Y%m%d%H%M%S")}.es'
+        self.capture = FileCapture(f)
+        return self.capture.status()
+
+    def stop_capture(self):
+        if not isinstance(self.capture, NoOpCapture):
+            self.capture.stop()
+            self.capture = NoOpCapture()
+            return 'Capture stopped'
+        else:
+            return 'No capture is running'
 
     @property
     def preserved_text(self):

@@ -151,6 +151,32 @@ class EchoFunc:
         return 'Print given items'
 
 
+class CaptureFunc:
+
+    def __call__(self, app, f=None, **options):
+        directives = options.get('@')
+        if not directives:
+            return app.capture.status()
+
+        # Only honor first directive
+        directive = directives[0]
+        if directive == 'start':
+            return app.start_capture(f)
+
+        elif directive == 'stop':
+            return app.stop_capture()
+        else:
+            raise PeekError(f'Unknown capture directive: {directive}')
+
+    @property
+    def options(self):
+        return {'@start': None, '@stop': None}
+
+    @property
+    def description(self):
+        return 'Capture session'
+
+
 class HelpFunc:
 
     def __call__(self, app, func=None, **options):
@@ -179,6 +205,7 @@ EXPORTS = {
     'echo': EchoFunc(),
     'range': RangeFunc(),
     'reset': ResetFunc(),
+    'capture': CaptureFunc(),
     'help': HelpFunc(),
     'saml_authenticate': SamlAuthenticateFunc(),
     'oidc_authenticate': OidcAuthenticateFunc(),

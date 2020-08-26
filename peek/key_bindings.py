@@ -25,6 +25,8 @@ def key_bindings(app):
     @kb.add('enter', filter=~(completion_is_selected | is_searching) & buffer_should_be_handled(app))
     def _(event):
         event.current_buffer.validate_and_handle()
+        if app.capture.file() is not None:
+            print(event.current_buffer.text, file=app.capture.file())
 
     @kb.add('enter', filter=~(completion_is_selected | is_searching) & ~buffer_should_be_handled(app))
     def _(event):
