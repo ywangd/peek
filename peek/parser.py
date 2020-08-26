@@ -18,7 +18,6 @@ _logger = logging.getLogger(__name__)
 
 HTTP_METHODS = ['GET', 'PUT', 'POST', 'DELETE']
 
-
 _BIN_OP_ORDERS = {
     None: -1,
     '+': 100,
@@ -188,19 +187,20 @@ class PeekParser:
         symbol_nodes, arg_nodes, kwarg_nodes = self._parse_func_call_args()
         return FuncCallNode(name_node, ArrayNode(symbol_nodes), ArrayNode(arg_nodes), DictNode(kwarg_nodes))
 
-    def _parse_func_call_args(self, blankline_terminated=True):
+    def _parse_func_call_args(self, is_stmt=True):
         symbol_nodes = []
         arg_nodes = []
         kwarg_nodes = []
         while self._peek_token().ttype is not EOF:
             if self._peek_token().ttype is BlankLine:
                 self._consume_token(BlankLine)
-                if blankline_terminated:
+                if is_stmt:
                     break
             elif self._peek_token().ttype is ParenRight:
-                if blankline_terminated:
-                    raise PeekSyntaxError(self.text, self._peek_token(),
-                                          message='Found function expression while parsing for function stmt')
+                if is_stmt:
+                    raise PeekSyntaxError(
+                        self.text, self._peek_token(),
+                        message='Found function expression while parsing for function stmt')
                 else:
                     break
             elif self._peek_token().ttype is Name:
@@ -208,10 +208,9 @@ class PeekParser:
                 if self._peek_token().ttype is Assign:
                     self._consume_token(Assign)
                     kwarg_nodes.append(KeyValueNode(n, self._parse_expr()))
-                elif self._peek_token().ttype is ParenLeft:  # nested function exper
+                elif self._peek_token().ttype is ParenLeft:  # nested function expr
                     self._consume_token(ParenLeft)
-                    sub_symbol_nodes, sub_arg_nodes, sub_kwarg_nodes = self._parse_func_call_args(
-                        blankline_terminated=False)
+                    sub_symbol_nodes, sub_arg_nodes, sub_kwarg_nodes = self._parse_func_call_args(is_stmt=False)
                     arg_nodes.append(FuncCallNode(
                         n,
                         ArrayNode(sub_symbol_nodes),
@@ -270,7 +269,7 @@ class PeekParser:
                     return n if unary_op_token is None else UnaryOpNode(unary_op_token, n)
                 else:
                     self._consume_token(ParenLeft)
-                    symbol_nodes, arg_nodes, kwarg_nodes = self._parse_func_call_args(blankline_terminated=False)
+                    symbol_nodes, arg_nodes, kwarg_nodes = self._parse_func_call_args(is_stmt=False)
                     self._consume_token(ParenRight)
                     n = FuncCallNode(
                         n,

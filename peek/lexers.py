@@ -155,6 +155,7 @@ class PeekLexer(RegexLexer):
             (r'//.*', Comment.Single),
             (VARIABLE_PATTERN + r'(?=' + W + '*=)', Name, 'func_option'),  # kv pair
             (W + r'+', Whitespace),
+            (r',', Whitespace),
             # Instead of include, we should default to get into value because value pop itself out of the stack
             # one it is consumed. If included it, it will pop out the func_stmt_args stage, which is incorrect.
             # func_stmt_args needs has explicit pop by newline.
@@ -249,6 +250,7 @@ class PeekLexer(RegexLexer):
             (r'(\s*)(?=\))', Whitespace, '#pop'),
             (VARIABLE_PATTERN + r'(?=' + W + '*=)', Name, 'func_option'),  # kv pair
             (r'\s+', Whitespace),
+            (r',', Whitespace),
             default('value'),
         ],
         'operators': [  # operator cannot be on the new line

@@ -1,5 +1,5 @@
 import pytest
-from pygments.token import Token, Name
+from pygments.token import Token, Name, Whitespace
 
 from peek.common import PeekToken
 from peek.lexers import PeekLexer, UrlPathLexer, BinOp
@@ -251,6 +251,16 @@ def test_for_stmt(peek_lexer):
     another_call
     history
 }''')
+
+
+def test_whitespace_comma(peek_lexer):
+    tokens = do_test(peek_lexer, text='''f a,b,c''')
+    tokens = [t for t in tokens if t.ttype is not Whitespace]
+    assert len(tokens) == 4
+
+    tokens = do_test(peek_lexer, text='''f g(a,b,c)''')
+    tokens = [t for t in tokens if t.ttype is not Whitespace]
+    assert len(tokens) == 7
 
 
 @pytest.fixture
