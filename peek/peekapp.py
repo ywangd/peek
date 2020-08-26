@@ -170,7 +170,7 @@ class PeekApp:
                 enable_suspend=True,
                 search_ignore_case=True,
                 clipboard=clipboard,
-                mouse_support=True,
+                mouse_support=False,
                 swap_light_and_dark_colors=self.config.as_bool('swap_colour'),
                 input_processors=[
                     HighlightMatchingBracketProcessor(chars="[](){}"),

@@ -2,7 +2,7 @@ from typing import NamedTuple
 
 from pygments.token import _TokenType
 
-HTTP_METHODS = ('GET', 'POST', 'PUT', 'DELETE')
+HTTP_METHODS = ['get', 'post', 'put', 'delete']
 
 
 class AlwaysNoneNameSpace:

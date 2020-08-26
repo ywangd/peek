@@ -1,4 +1,5 @@
 from abc import ABCMeta, abstractmethod
+from contextlib import contextmanager
 from typing import List
 
 from peek.common import PeekToken
@@ -19,6 +20,9 @@ class Visitor(metaclass=ABCMeta):
         raise NotImplementedError()
 
     def visit_shell_out_node(self, node):
+        raise NotImplementedError()
+
+    def visit_for_in_node(self, node):
         raise NotImplementedError()
 
     def visit_name_node(self, node):
@@ -66,6 +70,14 @@ class Visitor(metaclass=ABCMeta):
         if not self._consumers:
             raise IndexError('No consumer')
         self._consumers[-1](*args, **kwargs)
+
+    @contextmanager
+    def consumer(self, c):
+        self.push_consumer(c)
+        try:
+            yield
+        finally:
+            self.pop_consumer()
 
 
 class Node(metaclass=ABCMeta):
@@ -371,6 +383,36 @@ class LetNode(Node):
     def __str__(self):
         parts = ['let', ' ',
                  str(self.assignments_node), '\n']
+        return ''.join(parts)
+
+
+class ForInNode(Node):
+
+    def __init__(self, item: NameNode, items: Node, suite: List[Node]):
+        self.item = item
+        self.items = items
+        self.suite = suite
+
+    def accept(self, visitor: Visitor):
+        visitor.visit_for_in_node(self)
+
+    def tokens(self):
+        tokens = self.item.tokens() + self.items.tokens()
+        for node in self.suite:
+            tokens += node.tokens()
+        return tokens
+
+    def __str__(self):
+        parts = [
+            'for ',
+            self.item.token.value,
+            ' in ',
+            str(self.items),
+            '{\n'
+        ]
+        for node in self.suite:
+            parts.append(str(node))
+        parts.append('}\n')
         return ''.join(parts)
 
 

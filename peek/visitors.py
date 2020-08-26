@@ -3,7 +3,7 @@ import logging
 
 from peek.ast import Visitor, EsApiCallNode, DictNode, KeyValueNode, ArrayNode, NumberNode, \
     StringNode, FuncCallNode, NameNode, TextNode, ShellOutNode, EsApiCallInlinePayloadNode, EsApiCallFilePayloadNode, \
-    BinOpNode, UnaryOpNode, GroupNode, SymbolNode, LetNode
+    BinOpNode, UnaryOpNode, GroupNode, SymbolNode, LetNode, ForInNode
 
 _logger = logging.getLogger(__name__)
 
@@ -24,22 +24,25 @@ class FormattingVisitor(Visitor):
     def __init__(self, pretty=False):
         super().__init__()
         self.pretty = pretty
-        self.text = None
+        self.parts = []
         self.indent_level = 0
 
     def visit(self, node):
-        node.accept(self)
-        return self.text
+        self.parts = []
+        self.indent_level = 0
+        with self.consumer(lambda *args: self.parts.extend(args)):
+            node.accept(self)
+        return ''.join(self.parts)
 
     def visit_es_api_call_node(self, node: EsApiCallNode):
-        parts = [node.method_node.token.value, ' ', node.path_node.token.value]
-        self.push_consumer(lambda v: parts.append(v))
+        self.consume(node.method_node.token.value, ' ', node.path_node.token.value)
         options_parts = []
         options_consumer = functools.partial(options_consumer_maker, options_parts)
         self._do_visit_dict_node(node.options_node, options_consumer)
         if options_parts:
-            parts.append(' ' + ''.join(options_parts))
-        parts.append('\n')
+            self.consume(' ' + ''.join(options_parts))
+        self.consume('\n')
+        self.consume(self._indent())
 
         if isinstance(node, EsApiCallInlinePayloadNode):
             for dict_node in node.dict_nodes:
@@ -50,59 +53,67 @@ class FormattingVisitor(Visitor):
             self.consume('\n')
         else:
             raise ValueError(f'Unknown node: {node!r}')
-        self.pop_consumer()
-        self.text = ''.join(parts)
 
     def visit_func_call_node(self, node: FuncCallNode):
-        parts = []
-        self.push_consumer(lambda v: parts.append(v))
         node.name_node.accept(self)
-        self.pop_consumer()
-        parts.append(' ')
+        self.consume(' ')
 
         symbols_parts = []
 
-        def func_symbols_consumer(v):
-            if v == ',':
-                symbols_parts.append(' ')
-            elif v not in ['[', ']'] and v.strip() != '':
-                symbols_parts.append(f'{v}')
+        def func_symbols_consumer(*args):
+            for v in args:
+                if v == ',':
+                    symbols_parts.append(' ')
+                elif v not in ['[', ']'] and v.strip() != '':
+                    symbols_parts.append(f'{v}')
 
         self._do_visit_array_node(node.symbols_node, func_symbols_consumer)
         if symbols_parts:
-            parts += [''.join(symbols_parts), ' ']
+            self.consume(''.join(symbols_parts), ' ')
 
         args_parts = []
 
-        def func_args_consumer(v):
-            if v == ',':
-                args_parts.append(' ')
-            elif v not in ['[', ']'] and v.strip() != '':
-                args_parts.append(v)
+        def func_args_consumer(*args):
+            for v in args:
+                if v == ',':
+                    args_parts.append(' ')
+                elif v not in ['[', ']'] and v.strip() != '':
+                    args_parts.append(v)
 
         self._do_visit_array_node(node.args_node, func_args_consumer)
         if args_parts:
-            parts += [''.join(args_parts), ' ']
+            self.consume(''.join(args_parts))
 
         kwargs_parts = []
         func_kwargs_consumer = functools.partial(options_consumer_maker, kwargs_parts)
         self._do_visit_dict_node(node.kwargs_node, func_kwargs_consumer)
         if kwargs_parts:
-            parts += [''.join(kwargs_parts)]
-        self.text = ''.join(parts)
+            self.consume(' ', ''.join(kwargs_parts))
 
     def visit_let_node(self, node: LetNode):
-        parts = ['let', ' ']
+        self.consume('let', ' ')
         assignments_parts = []
         assignments_consumer = functools.partial(options_consumer_maker, assignments_parts)
         self._do_visit_dict_node(node.assignments_node, assignments_consumer)
         if assignments_parts:
-            parts += [''.join(assignments_parts)]
-        self.text = ''.join(parts)
+            self.consume(''.join(assignments_parts))
 
     def visit_shell_out_node(self, node: ShellOutNode):
-        assert isinstance(node, ShellOutNode)
-        self.text = f'!{node.command}'
+        self.consume(f'!{node.command}')
+
+    def visit_for_in_node(self, node: ForInNode):
+        self.consume('for', ' ')
+        node.item.accept(self)
+        self.consume(' ', 'in', ' ')
+        node.items.accept(self)
+        self.consume(' ', '{', '\n')
+        self.indent_level += 1
+        for n in node.suite:
+            self.consume(self._indent())
+            n.accept(self)
+            self.consume('\n')
+        self.indent_level -= 1
+        self.consume(self._indent(), '}')
 
     def visit_string_node(self, node: StringNode):
         self.consume(node.token.value)
@@ -114,8 +125,7 @@ class FormattingVisitor(Visitor):
         self.consume(node.token.value)
 
     def visit_symbol_node(self, node: SymbolNode):
-        self.consume('@')
-        self.consume(node.token.value)
+        self.consume('@', node.token.value)
 
     def visit_text_node(self, node: TextNode):
         self.consume(node.token.value)
@@ -152,15 +162,13 @@ class FormattingVisitor(Visitor):
         self.consume(')')
 
     def _do_visit_dict_node(self, node: DictNode, consumer):
-        assert isinstance(node, DictNode)
         self.push_consumer(consumer)
         self.consume('{')
         if node.kv_nodes and self.pretty:
             self.consume('\n')
             self.indent_level += 1
         for i, kv_node in enumerate(node.kv_nodes):
-            if self.indent_level >= 0:
-                self.consume('  ' * self.indent_level)
+            self.consume(self._indent())
             kv_node.accept(self)
             if i < len(node.kv_nodes) - 1:
                 self.consume(',')
@@ -169,21 +177,18 @@ class FormattingVisitor(Visitor):
         if node.kv_nodes and self.pretty:
             self.consume('\n')
             self.indent_level -= 1
-            if self.indent_level >= 0:
-                self.consume('  ' * self.indent_level)
+            self.consume(self._indent())
         self.consume('}')
         self.pop_consumer()
 
     def _do_visit_array_node(self, node: ArrayNode, consumer):
-        assert isinstance(node, ArrayNode)
         self.push_consumer(consumer)
         self.consume('[')
         if node.value_nodes and self.pretty:
             self.consume('\n')
             self.indent_level += 1
         for i, value_node in enumerate(node.value_nodes):
-            if self.indent_level >= 0:
-                self.consume('  ' * self.indent_level)
+            self.consume(self._indent())
             value_node.accept(self)
             if i < len(node.value_nodes) - 1:
                 self.consume(',')
@@ -192,10 +197,12 @@ class FormattingVisitor(Visitor):
         if node.value_nodes and self.pretty:
             self.consume('\n')
             self.indent_level -= 1
-            if self.indent_level >= 0:
-                self.consume('  ' * self.indent_level)
+            self.consume(self._indent())
         self.consume(']')
         self.pop_consumer()
+
+    def _indent(self):
+        return '  ' * self.indent_level
 
 
 class TreeFormattingVisitor(Visitor):
@@ -247,6 +254,15 @@ class TreeFormattingVisitor(Visitor):
         self.consume(f'{self._indent()}ShellOut')
         self.indent_level += 1
         node.text_node.accept(self)
+        self.indent_level -= 1
+
+    def visit_for_in_node(self, node: ForInNode):
+        self.consume(f'{self._indent()}ForIn')
+        self.indent_level += 1
+        node.item.accept(self)
+        node.items.accept(self)
+        for n in node.suite:
+            n.accept(self)
         self.indent_level -= 1
 
     def visit_name_node(self, node):
@@ -306,6 +322,9 @@ class TreeFormattingVisitor(Visitor):
 
 
 def options_consumer_maker(options_parts, v):
+    """
+    This is to convert a dict representation to k=v representation
+    """
     if v == ':':
         options_parts.append('=')
     elif v == ',':

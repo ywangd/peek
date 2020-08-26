@@ -7,12 +7,12 @@ from pygments.token import Token, Whitespace, String, Comment, Literal, Number, 
 
 from peek.ast import NameNode, FuncCallNode, KeyValueNode, StringNode, NumberNode, TextNode, DictNode, \
     ArrayNode, ShellOutNode, EsApiCallInlinePayloadNode, EsApiCallFilePayloadNode, BinOpNode, UnaryOpNode, GroupNode, \
-    SymbolNode, LetNode
+    SymbolNode, LetNode, ForInNode
 from peek.common import PeekToken
 from peek.errors import PeekSyntaxError
 from peek.lexers import PeekLexer, BlankLine, CurlyLeft, DictKey, Colon, \
     CurlyRight, Comma, BracketLeft, BracketRight, TripleS, TripleD, EOF, FuncName, Assign, HttpMethod, OptionName, \
-    ShellOut, At, ParenLeft, ParenRight, UnaryOp, BinOp, Let
+    ShellOut, At, ParenLeft, ParenRight, UnaryOp, BinOp, Let, For, In
 
 _logger = logging.getLogger(__name__)
 
@@ -48,25 +48,35 @@ class PeekParser:
             if token.ttype in Token.Error:
                 raise PeekSyntaxError(self.text, token)
 
+        return self._do_parse()
+
+    def _do_parse(self):
         nodes = []
         while self._peek_token().ttype is not EOF:
             token = self._peek_token()
             if token.ttype is BlankLine:
                 self._consume_token(BlankLine)
-            elif token.ttype is FuncName:
-                nodes.append(self._parse_func_call())
-            elif token.ttype is HttpMethod:
-                nodes.append(self._parse_es_api_call())
-            elif token.ttype is Let:
-                nodes.append(self._parse_let_stmt())
-            elif token.ttype is ShellOut:
-                nodes.append(self._parse_shell_out())
             else:
-                raise PeekSyntaxError(
-                    self.text, token,
-                    title='Invalid token',
-                    message='Expect beginning of a statement')
+                nodes.append(self._parse_stmt())
         return nodes
+
+    def _parse_stmt(self):
+        token = self._peek_token()
+        if token.ttype is FuncName:
+            return self._parse_func_call()
+        elif token.ttype is HttpMethod:
+            return self._parse_es_api_call()
+        elif token.ttype is Let:
+            return self._parse_let_stmt()
+        elif token.ttype is ShellOut:
+            return self._parse_shell_out()
+        elif token.ttype is For:
+            return self._parse_for_stmt()
+        else:
+            raise PeekSyntaxError(
+                self.text, token,
+                title='Invalid token',
+                message='Expect beginning of a statement')
 
     def _parse_es_api_call(self):
         method_token = self._consume_token(HttpMethod)
@@ -108,6 +118,22 @@ class PeekParser:
             value_node = self._parse_expr()
             kv_nodes.append(KeyValueNode(key_node, value_node))
         return LetNode(DictNode(kv_nodes))
+
+    def _parse_for_stmt(self):
+        self._consume_token(For)
+        item = NameNode(self._consume_token(Name))
+        self._consume_token(In)
+        items = self._parse_expr()
+        self._consume_token(CurlyLeft)
+        suite = []
+        while self._peek_token().ttype is not CurlyRight:
+            token = self._peek_token()
+            if token.ttype is BlankLine:
+                self._consume_token(BlankLine)
+            else:
+                suite.append(self._parse_stmt())
+        self._consume_token(CurlyRight)
+        return ForInNode(item, items, suite)
 
     def _parse_dict(self):
         kv_nodes = []

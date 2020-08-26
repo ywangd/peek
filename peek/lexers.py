@@ -29,6 +29,8 @@ BlankLine = Whitespace.BlankLine
 FuncName = Name.Variable
 HttpMethod = Keyword.HttpMethod
 Let = Keyword.Let
+For = Keyword.For
+In = Keyword.In
 ShellOut = Punctuation.Bang
 DictKey = String.Symbol
 OptionName = Name.Symbol
@@ -94,13 +96,32 @@ class PeekLexer(RegexLexer):
             (r'(?i)(GET|POST|PUT|DELETE)\b(' + W + '*)', bygroups(HttpMethod, Whitespace), 'api_path'),
             # TODO: more keywords
             (r'(let)\b(' + W + '*)', bygroups(Let, Whitespace), 'let_args'),
+            (r'(for)\b(' + W + '*)', bygroups(For, Whitespace), 'for_name'),
             (VARIABLE_PATTERN, FuncName, 'func_stmt_args'),
             (r'\s+', Whitespace),
+        ],
+        'stmts': [
+            include('root'),
+            default('#pop')
         ],
         'let_args': [
             (r'\n', BlankLine, '#pop'),
             (r'//.*', Comment.Single),
             (W + r'*(?=\S)', Whitespace, ('assign_rhs', 'value')),
+        ],
+        'for_name': [
+            (VARIABLE_PATTERN, Name, ('#pop', 'for_in')),
+        ],
+        'for_in': [
+            (W + r'+', Whitespace),
+            (r'(in)\b(' + W + r'*)',
+             bygroups(In, Whitespace), ('#pop', 'for_body_start', 'value')),
+        ],
+        'for_body_start': [
+            (r'(' + W + r'*)(\{)', bygroups(Whitespace, CurlyLeft), ('#pop', 'for_body_stop', 'stmts')),
+        ],
+        'for_body_stop': [
+            (r'(\s*)(\})', bygroups(Whitespace, CurlyRight), '#pop'),
         ],
         'api_path': [
             (r'\S+', Literal, ('#pop', 'api_options')),

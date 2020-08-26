@@ -11,7 +11,7 @@ from pygments.token import Name
 
 from peek.ast import Visitor, EsApiCallNode, DictNode, KeyValueNode, ArrayNode, NumberNode, \
     StringNode, Node, FuncCallNode, NameNode, TextNode, ShellOutNode, EsApiCallInlinePayloadNode, \
-    EsApiCallFilePayloadNode, GroupNode, BinOpNode, UnaryOpNode, SymbolNode, LetNode
+    EsApiCallFilePayloadNode, GroupNode, BinOpNode, UnaryOpNode, SymbolNode, LetNode, ForInNode
 from peek.errors import PeekError
 from peek.natives import EXPORTS
 from peek.visitors import Ref
@@ -206,6 +206,21 @@ class PeekVM(Visitor):
             output_fd = sys.stdout.fileno()
         p = Popen(node.command, shell=True, stdin=input_fd, stdout=output_fd)
         p.wait()
+
+    def visit_for_in_node(self, node: ForInNode):
+        var_name = node.item.token.value
+        items_ref = Ref()
+        self.push_consumer(lambda v: items_ref.set(v))
+        node.items.accept(self)
+        self.pop_consumer()
+        items = items_ref.get()
+        if not isinstance(items, list):
+            raise PeekError(f'For in loop must operator over a list, got {items!r}')
+
+        for i in items:
+            self.context[var_name] = i
+            for n in node.suite:
+                n.accept(self)
 
     def visit_key_value_node(self, node: KeyValueNode):
         node.key_node.accept(self)

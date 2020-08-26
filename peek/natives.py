@@ -87,7 +87,7 @@ class RunFunc:
 
     def __call__(self, app, file, **options):
         with open(file) as ins:
-            app.process_input(ins.read(), echo=options.get('echo', False))
+            app.process_input(ins.read(), echo=options.get('echo', True))
 
     @property
     def options(self):
@@ -119,6 +119,16 @@ class HistoryFunc:
     @property
     def description(self):
         return 'View history and execute by history id'
+
+
+class RangeFunc:
+
+    def __call__(self, app, start, stop, step=1):
+        return list(range(start, stop, step))
+
+    @property
+    def description(self):
+        return 'Range over given start and stop (exclusive) and optionally a step'
 
 
 class EchoFunc:
@@ -157,6 +167,7 @@ EXPORTS = {
     'run': RunFunc(),
     'history': HistoryFunc(),
     'echo': EchoFunc(),
+    'range': RangeFunc(),
     'help': HelpFunc(),
     'saml_authenticate': SamlAuthenticateFunc(),
     'oidc_authenticate': OidcAuthenticateFunc(),

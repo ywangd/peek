@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 
 import pytest
 from configobj import ConfigObj
@@ -64,3 +64,14 @@ def test_peek_vm_let(peek_vm, parser):
     peek_vm.execute_node(parser.parse('let foo.@a.1 = 42')[0])
     peek_vm.execute_node(parser.parse('debug foo')[0])
     assert_called_with(peek_vm, {"a": [3, 42, 5]})
+
+
+def test_for_in(peek_vm, parser):
+    peek_vm.execute_node(parser.parse('''for x in [1, 2, 3] {
+    let y = x
+    debug x
+}''')[0])
+
+    assert peek_vm.get_value('y') == 3
+    peek_vm.context['debug'].assert_has_calls(
+        [call(peek_vm.app, 1), call(peek_vm.app, 2), call(peek_vm.app, 3)])

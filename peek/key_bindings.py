@@ -4,7 +4,7 @@ import os
 from prompt_toolkit.application import get_app
 from prompt_toolkit.buffer import ValidationState, Buffer
 from prompt_toolkit.enums import DEFAULT_BUFFER
-from prompt_toolkit.filters import Condition, completion_is_selected, is_searching
+from prompt_toolkit.filters import Condition, completion_is_selected, is_searching, has_completions
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.key_binding.key_processor import KeyPressEvent
 
@@ -17,6 +17,10 @@ _logger = logging.getLogger(__name__)
 
 def key_bindings(app):
     kb = KeyBindings()
+
+    @kb.add('tab', filter=~(completion_is_selected | is_searching | has_completions))
+    def _(event):
+        event.current_buffer.insert_text('  ')
 
     @kb.add('enter', filter=~(completion_is_selected | is_searching) & buffer_should_be_handled(app))
     def _(event):
@@ -214,6 +218,6 @@ def buffer_should_be_handled(app):
             _logger.debug('Existing line found above current line')
             return False
         else:  # If this is the 1st line, do not handle if it is ES API call
-            return doc.text.lstrip().split(maxsplit=1)[0].upper() not in HTTP_METHODS
+            return doc.text.lstrip().split(maxsplit=1)[0].lower() not in (HTTP_METHODS + ['for'])
 
     return cond

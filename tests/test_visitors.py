@@ -19,14 +19,13 @@ def test_formatting_api_call_compact(parser):
 1,
 2]}''')
 
-    assert '''get / conn=1 runas="foo"
+    assert visitor.visit(nodes[0]) == '''get / conn=1 runas="foo"
 {"a":"b","q":[1,2]}
-''' == visitor.visit(nodes[0])
+'''
 
 
 def test_formatting_api_call_pretty(parser):
     visitor = FormattingVisitor(pretty=True)
-
     nodes = parser.parse('''get / conn =  1 runas = "foo"
 {
   "a"   :
@@ -34,7 +33,7 @@ def test_formatting_api_call_pretty(parser):
 1,
 2]}''')
 
-    assert '''get / conn=1 runas="foo"
+    assert visitor.visit(nodes[0]) == '''get / conn=1 runas="foo"
 {
   "a": "b",
   "q": [
@@ -42,7 +41,7 @@ def test_formatting_api_call_pretty(parser):
     2
   ]
 }
-''' == visitor.visit(nodes[0])
+'''
 
 
 def test_formatting_func_call(parser):
@@ -50,6 +49,88 @@ def test_formatting_func_call(parser):
     nodes = parser.parse('''f @abc 1 "a" b=a foo="bar"''')
 
     assert visitor.visit(nodes[0]) == '''f @abc 1 "a" b=a foo="bar"'''
+
+
+def test_formatting_for_in_compact(parser):
+    visitor = FormattingVisitor(pretty=False)
+    nodes = parser.parse('''for a in [1, 2, 3] {
+        echo a
+        for b in c {
+            echo b
+            let x = b
+        }
+        echo a + 1
+    }''')
+
+    assert visitor.visit(nodes[0]) == '''for a in [1,2,3] {
+  echo a
+  for b in c {
+    echo b
+    let x=b
+  }
+  echo a+1
+}'''
+
+
+def test_formatting_pretty(parser):
+    visitor = FormattingVisitor(pretty=True)
+    nodes = parser.parse('''for x in [1,2] {
+    let a = { 1: 2, 3: 4, 'foo': [42, "hello"]}
+    echo a x
+    for y in c {
+        echo [1, 3, 5] b={'foo': 42, "bar": [6, 7, [8, 9]]}
+        GET /path
+        {"foo": {"q": [1, 2,{'x': [3, "5", {}]}]}}
+    }
+}''')
+    assert visitor.visit(nodes[0]) == '''for x in [
+  1,
+  2
+] {
+  let a={
+      1: 2,
+      3: 4,
+      'foo': [
+        42,
+        "hello"
+      ]
+    }
+  echo a x
+  for y in c {
+    echo [
+        1,
+        3,
+        5
+      ] b={
+        'foo': 42,
+        "bar": [
+          6,
+          7,
+          [
+            8,
+            9
+          ]
+        ]
+      }
+    GET /path
+    {
+      "foo": {
+        "q": [
+          1,
+          2,
+          {
+            'x': [
+              3,
+              "5",
+              {}
+            ]
+          }
+        ]
+      }
+    }
+
+  }
+}'''
 
 
 def test_tree_formatting(parser):
@@ -85,3 +166,45 @@ def test_tree_formatting_func_expr_chain(parser):
     visitor = TreeFormattingVisitor()
     nodes = parser.parse('''f a.@b(1)''')
     assert "FuncExpr('a . b')" in visitor.visit(nodes[0])
+
+
+def test_tree_formatting_for_in(parser):
+    visitor = TreeFormattingVisitor()
+    nodes = parser.parse('''for a in [1, 2, 3] {
+    echo a
+    for b in c {
+        echo b
+    }
+    echo a + 1
+}
+for x in y {}''')
+    assert visitor.visit(nodes[0]) == '''ForIn
+  a
+  Array
+    1
+    2
+    3
+  FuncStmt('echo')
+    Array
+    Array
+      a
+    Dict
+  ForIn
+    b
+    c
+    FuncStmt('echo')
+      Array
+      Array
+        b
+      Dict
+  FuncStmt('echo')
+    Array
+    Array
+      BinOp(+)
+        a
+        1
+    Dict'''
+
+    assert visitor.visit(nodes[1]) == '''ForIn
+  x
+  y'''

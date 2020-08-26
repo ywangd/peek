@@ -77,7 +77,9 @@ class PeekCompleter(Completer):
                 _logger.debug(f'Completing function/http method name: {last_token}')
                 return itertools.chain(
                     _HTTP_METHOD_COMPLETER.get_completions(document, complete_event),
-                    WordCompleter(self.app.vm.functions.keys()).get_completions(document, complete_event))
+                    WordCompleter(['for', 'let']).get_completions(document, complete_event),
+                    WordCompleter(self.app.vm.functions.keys()).get_completions(document, complete_event)
+                )
 
             # The token right before cursor is HttpMethod, go for path completion
             if head_token.ttype is HttpMethod and idx_head_token == len(tokens) - 2 and last_token.ttype is Literal:

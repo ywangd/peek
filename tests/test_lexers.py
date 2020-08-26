@@ -236,6 +236,23 @@ def test_function_expr_chain(peek_lexer):
     do_test(peek_lexer, text='''f a.b.c().d.e().f.1.2 {}()''')
 
 
+def test_for_stmt(peek_lexer):
+    do_test(peek_lexer, text='''for i in [1,2,3] {
+    do_something a b c d=1
+    !shellout
+    GET /api/path
+    {}
+    for j in [4,5,6] {
+        nested_call
+        GET /
+        {}
+        echo hello
+    }
+    another_call
+    history
+}''')
+
+
 @pytest.fixture
 def url_path_lexer():
     return UrlPathLexer()
