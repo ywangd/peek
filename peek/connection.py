@@ -252,8 +252,10 @@ class EsClientManager:
     def clients(self):
         return self._clients
 
-    def get_client(self, x):
-        if isinstance(x, str):
+    def get_client(self, x=None):
+        if x is None:
+            return self.current
+        elif isinstance(x, str):
             name = x
             if not name:
                 raise ValueError('Name cannot be empty')
