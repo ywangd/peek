@@ -93,6 +93,12 @@ class PeekApp:
     def signal_exit(self):
         self._should_exit = True
 
+    def reset(self):
+        self._init_es_client()
+        for _ in range(len(self.es_client_manager.clients()) - 1):
+            self.es_client_manager.remove_client(0)
+        self.vm.context = {}
+
     @property
     def preserved_text(self):
         return self._preserved_text

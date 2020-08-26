@@ -98,6 +98,16 @@ class RunFunc:
         return 'Load and execute external script'
 
 
+class ResetFunc:
+
+    def __call__(self, app, *args, **kwargs):
+        app.reset()
+
+    @property
+    def description(self):
+        return 'Reset state of the program'
+
+
 class HistoryFunc:
 
     def __call__(self, app, index=None, **options):
@@ -168,6 +178,7 @@ EXPORTS = {
     'history': HistoryFunc(),
     'echo': EchoFunc(),
     'range': RangeFunc(),
+    'reset': ResetFunc(),
     'help': HelpFunc(),
     'saml_authenticate': SamlAuthenticateFunc(),
     'oidc_authenticate': OidcAuthenticateFunc(),
