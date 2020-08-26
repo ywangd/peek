@@ -134,7 +134,7 @@ def test_formatting_pretty(parser):
 
 
 def test_formatting_looped_api_calls(parser):
-    nodes = parser.parse('''for i in range(1 10) {
+    nodes = parser.parse('''for i in range(@foo @bar 1 10 a=4 b=2) {
   POST test-1/_doc
   { "tag": i }
   POST test-2/_doc
@@ -142,7 +142,7 @@ def test_formatting_looped_api_calls(parser):
 }
 ''')
 
-    assert FormattingVisitor(pretty=True).visit(nodes[0]) == '''for i in range(1 10) {
+    assert FormattingVisitor(pretty=True).visit(nodes[0]) == '''for i in range(@foo, @bar, 1, 10, a=4, b=2) {
   POST test-1/_doc
   {
     "tag": i
@@ -155,7 +155,7 @@ def test_formatting_looped_api_calls(parser):
 
 }'''
 
-    assert FormattingVisitor(pretty=False).visit(nodes[0]) == '''for i in range(1 10) {
+    assert FormattingVisitor(pretty=False).visit(nodes[0]) == '''for i in range(@foo,@bar,1,10,a=4,b=2) {
   POST test-1/_doc
   {"tag":i}
 

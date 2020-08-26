@@ -61,37 +61,45 @@ class FormattingVisitor(Visitor):
         else:
             self.consume('(')
 
+        arg_separator = self._arg_separator(node)
+
         symbols_parts = []
 
         def func_symbols_consumer(*args):
             for v in args:
                 if v == ',':
-                    symbols_parts.append(' ')
+                    symbols_parts.append(arg_separator)
                 elif v not in ['[', ']'] and v.strip() != '':
                     symbols_parts.append(f'{v}')
 
         self._do_visit_array_node(node.symbols_node, func_symbols_consumer)
         if symbols_parts:
-            self.consume(''.join(symbols_parts), ' ')
+            self.consume(''.join(symbols_parts))
 
         args_parts = []
 
         def func_args_consumer(*args):
             for v in args:
                 if v == ',':
-                    args_parts.append(' ')
+                    args_parts.append(arg_separator)
                 elif v not in ['[', ']'] and v.strip() != '':
                     args_parts.append(v)
 
         self._do_visit_array_node(node.args_node, func_args_consumer)
+
         if args_parts:
+            if symbols_parts:
+                self.consume(arg_separator)
             self.consume(''.join(args_parts))
 
         kwargs_parts = []
         func_kwargs_consumer = functools.partial(options_consumer_maker, kwargs_parts)
         self._do_visit_dict_node(node.kwargs_node, func_kwargs_consumer)
         if kwargs_parts:
-            self.consume(' ', ''.join(kwargs_parts))
+            kwargs_parts = [x if x != ' ' else arg_separator for x in kwargs_parts]
+            if args_parts or args_parts:
+                self.consume(arg_separator)
+            self.consume(''.join(kwargs_parts))
         if not node.is_stmt:
             self.consume(')')
 
@@ -209,6 +217,15 @@ class FormattingVisitor(Visitor):
 
     def _indent(self):
         return '  ' * self.indent_level
+
+    def _arg_separator(self, node: FuncCallNode):
+        if node.is_stmt:
+            return ' '
+        else:
+            if self.pretty:
+                return ', '
+            else:
+                return ','
 
 
 class TreeFormattingVisitor(Visitor):
