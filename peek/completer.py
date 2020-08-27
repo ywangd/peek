@@ -34,7 +34,7 @@ class PeekCompleter(Completer):
         self.url_path_lexer = UrlPathLexer()
         from peek import __file__ as package_root
         package_root = os.path.dirname(package_root)
-        kibana_dir = os.path.join(package_root, 'specs', 'kibana-7.8.1')
+        kibana_dir = app.config['kibana_dir'] or os.path.join(package_root, 'specs', 'kibana-7.8.1')
         if self.app.config.as_bool('load_api_specs'):
             self.specs = load_specs(kibana_dir)
         else:

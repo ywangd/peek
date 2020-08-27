@@ -4,6 +4,7 @@ log_level = info
 use_keyring = True
 pretty_print = True
 history_max = 10000
+kibana_dir =
 load_api_specs = True
 load_extension = True
 extension_path =
