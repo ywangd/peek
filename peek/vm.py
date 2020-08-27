@@ -5,6 +5,7 @@ import logging
 import operator
 import os
 import sys
+from numbers import Number
 from subprocess import Popen
 
 from pygments.token import Name
@@ -34,8 +35,17 @@ def dot(left_operand, right_operand):
         raise PeekError(f'Value {left_operand!r} must be either an array or dict')
 
 
+def add(left_operand, right_operand):
+    if isinstance(left_operand, str) and isinstance(right_operand, Number):
+        return operator.add(left_operand, str(right_operand))
+    elif isinstance(left_operand, Number) and isinstance(right_operand, str):
+        return operator.add(str(left_operand), right_operand)
+    else:
+        return operator.add(left_operand, right_operand)
+
+
 _BIN_OP_FUNCS = {
-    '+': operator.add,
+    '+': add,
     '-': operator.sub,
     '*': operator.mul,
     '/': operator.truediv,
@@ -70,6 +80,15 @@ class PeekVM(Visitor):
         node.accept(self)
 
     def visit_es_api_call_node(self, node: EsApiCallNode):
+        if isinstance(node.path_node, TextNode):
+            path = node.path
+        else:
+            path_ref = Ref()
+            with self.consumer(lambda v: path_ref.set(v)):
+                node.path_node.accept(self)
+            path = path_ref.get()
+            path = path if path.startswith('/') else ('/' + path)
+
         options = Ref()
         self.push_consumer(lambda v: options.set(v))
         self._do_visit_dict_node(node.options_node)
@@ -113,7 +132,7 @@ class PeekVM(Visitor):
             return
 
         try:
-            response = es_client.perform_request(node.method, node.path, payload, headers=headers if headers else None)
+            response = es_client.perform_request(node.method, path, payload, headers=headers if headers else None)
             self.context['_'] = _maybe_jsonify(response)
             self.app.display.info(response, header_text=self._get_header_text(conn, runas))
         except Exception as e:

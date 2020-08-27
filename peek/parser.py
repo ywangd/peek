@@ -85,7 +85,14 @@ class PeekParser:
                 self.text, method_token,
                 title='Invalid HTTP method',
                 message=f'Expect HTTP method of value in {HTTP_METHODS!r}, got {method_token.value!r}')
-        path_node = NameNode(self._consume_token(Literal))
+        if self._peek_token().ttype is Literal:
+            path_node = TextNode(self._consume_token(Literal))
+        elif self._peek_token().ttype is ParenLeft:
+            path_node = self._parse_expr()
+        else:
+            raise PeekSyntaxError(
+                self.text, self._peek_token(),
+                message='HTTP path must be either text literal or an expression enclosed by parenthesis')
         option_nodes = []
         while self._peek_token().ttype is OptionName:
             n = NameNode(self._consume_token(OptionName))

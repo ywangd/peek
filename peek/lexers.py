@@ -124,6 +124,7 @@ class PeekLexer(RegexLexer):
             (r'(\s*)(\})', bygroups(Whitespace, CurlyRight), '#pop'),
         ],
         'api_path': [
+            (r'(\s*)(?=\()', Whitespace, ('#pop', 'api_options', 'group')),
             (r'\S+', Literal, ('#pop', 'api_options')),
         ],
         'api_options': [

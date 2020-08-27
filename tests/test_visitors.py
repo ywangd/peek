@@ -22,6 +22,8 @@ def test_formatting_api_call_compact(parser):
     assert visitor.visit(nodes[0]) == '''get / conn=1 runas="foo"
 {"a":"b","q":[1,2]}
 '''
+    nodes = parser.parse('get ("foo" + "/" + 42 + "/" + 1)')
+    assert visitor.visit(nodes[0]) == 'get ("foo"+"/"+42+"/"+1)\n'
 
 
 def test_formatting_api_call_pretty(parser):
@@ -167,7 +169,8 @@ def test_formatting_looped_api_calls(parser):
 
 def test_tree_formatting(parser):
     visitor = TreeFormattingVisitor()
-    nodes = parser.parse('''f @abc 1 "a" b=a foo="bar" 1 * 2 + (3-2) * 5 / 6''')
+    nodes = parser.parse('''f @abc 1 "a" b=a foo="bar" 1 * 2 + (3-2) * 5 / 6
+get ("hello" + 42 + "world")''')
     assert visitor.visit(nodes[0]) == '''FuncStmt('f')
   Array
     @abc
@@ -192,6 +195,15 @@ def test_tree_formatting(parser):
     KV
       foo
       "bar"'''
+
+    assert visitor.visit(nodes[1]) == '''EsApiStmt
+  get
+  BinOp(+)
+    BinOp(+)
+      "hello"
+      42
+    "world"
+  Dict'''
 
 
 def test_tree_formatting_func_expr_chain(parser):

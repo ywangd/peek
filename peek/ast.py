@@ -1,6 +1,6 @@
 from abc import ABCMeta, abstractmethod
 from contextlib import contextmanager
-from typing import List
+from typing import List, Union
 
 from peek.common import PeekToken
 
@@ -281,7 +281,7 @@ class GroupNode(Node):
 
 class EsApiCallNode(Node, metaclass=ABCMeta):
 
-    def __init__(self, method_node: NameNode, path_node: NameNode, options_node: DictNode):
+    def __init__(self, method_node: NameNode, path_node: Union[TextNode, GroupNode], options_node: DictNode):
         self.method_node = method_node
         self.path_node = path_node
         self.options_node = options_node
@@ -300,13 +300,17 @@ class EsApiCallNode(Node, metaclass=ABCMeta):
 
     @property
     def path(self):
-        path = self.path_node.token.value
-        return path if path.startswith('/') else ('/' + path)
+        if isinstance(self.path_node, TextNode):
+            path = self.path_node.token.value
+            return path if path.startswith('/') else ('/' + path)
+        else:
+            raise ValueError('simple path is only available when path node is simple text')
 
 
 class EsApiCallInlinePayloadNode(EsApiCallNode):
 
-    def __init__(self, method_node: NameNode, path_node: NameNode, options_node: DictNode, dict_nodes: List[DictNode]):
+    def __init__(self, method_node: NameNode, path_node: Union[TextNode, GroupNode], options_node: DictNode,
+                 dict_nodes: List[DictNode]):
         super().__init__(method_node, path_node, options_node)
         self.dict_nodes = dict_nodes
 
@@ -326,7 +330,8 @@ class EsApiCallInlinePayloadNode(EsApiCallNode):
 
 class EsApiCallFilePayloadNode(EsApiCallNode):
 
-    def __init__(self, method_node: NameNode, path_node: NameNode, options_node: DictNode, file_node: TextNode):
+    def __init__(self, method_node: NameNode, path_node: Union[TextNode, GroupNode], options_node: DictNode,
+                 file_node: TextNode):
         super().__init__(method_node, path_node, options_node)
         self.file_node = file_node
 

@@ -59,6 +59,16 @@ def test_parser_single_es_api_call(parser):
     assert len(n.dict_nodes) == 0
 
 
+def test_api_path_variable(parser):
+    text = """get ("a" + "bc")"""
+    nodes = parser.parse(text)
+    assert len(nodes) == 1
+    n = nodes[0]
+    assert isinstance(n, EsApiCallNode)
+    assert n.method == 'GET'
+    assert str(n.path_node) == '("a" + "bc")'
+
+
 def test_parser_multiple_simple_statements(parser):
     text = """get abc
 
@@ -223,7 +233,7 @@ def test_parser_incomplete(parser):
         parser.parse(text)
 
     assert 'Syntax error at Line 1, Column 4' in str(e.value)
-    assert 'Expect token of type Token.Literal, got Token.Text' in str(e.value)
+    assert 'HTTP path must be either text literal or an expression enclosed by parenthesis' in str(e.value)
 
 
 def test_parser_expr(parser):

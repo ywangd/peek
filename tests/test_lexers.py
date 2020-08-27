@@ -68,6 +68,10 @@ get abc
 """)
 
 
+def test_es_api_call_path_variable(peek_lexer):
+    do_test(peek_lexer, '''GET ("hello" + "world" + 1)''')
+
+
 def test_es_api_call_payloads(peek_lexer):
     do_test(peek_lexer, """get abc
   // comment is ok

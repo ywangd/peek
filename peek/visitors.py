@@ -35,7 +35,11 @@ class FormattingVisitor(Visitor):
         return ''.join(self.parts)
 
     def visit_es_api_call_node(self, node: EsApiCallNode):
-        self.consume(node.method_node.token.value, ' ', node.path_node.token.value)
+        self.consume(node.method_node.token.value, ' ')
+        if isinstance(node.path_node, TextNode):
+            self.consume(node.path_node.token.value)
+        else:
+            node.path_node.accept(self)
         options_parts = []
         options_consumer = functools.partial(options_consumer_maker, options_parts)
         self._do_visit_dict_node(node.options_node, options_consumer)
