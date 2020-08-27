@@ -49,8 +49,8 @@ setup(
     license="MIT license",
     long_description=readme + '\n\n' + history,
     include_package_data=True,
-    keywords='peek',
-    name='peek',
+    keywords='peek,elasticsearch,cli',
+    name='es-peek',
     packages=find_packages(include=['peek', 'peek.*']),
     setup_requires=setup_requirements,
     extras_require={

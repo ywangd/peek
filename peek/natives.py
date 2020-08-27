@@ -2,6 +2,7 @@ import logging
 
 from configobj import ConfigObj
 
+from peek.config import config_location
 from peek.connection import ConnectFunc
 from peek.errors import PeekError
 from peek.krb import KrbAuthenticateFunc
@@ -15,7 +16,10 @@ class ConfigFunc:
 
     def __call__(self, app, **options):
         if not options:
-            return app.config
+            return {
+                'location': config_location(),
+                'config': app.config
+            }
 
         extra_config = {}
         for key, value in options.items():
