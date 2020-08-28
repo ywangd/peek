@@ -56,7 +56,8 @@ a Peek session:
 
 .. code-block:: javascript
 
-  // Basic API call
+  // Basic API call (note a blank line is necessary to trigger the execution)
+  // Exit the interactive session any time by pressing Ctrl-D or type exit
   GET /_cluster/health
 
   // Index a single document
@@ -95,14 +96,20 @@ a Peek session:
   // The dot notation is used to index into JSON object and array
   connect api_key=_.@id + ":" + _.@api_key  // default host is localhost:9200
 
-  // Can also connect to Elastic Cloud with Cloud ID
+  // Connect to Elastic Cloud with Cloud ID
   connect cloud_id='YOUR_CLOUD_ID' username='elastic'
+
+  // Issue a call to the cloud cluster
+  GET /
+  GET / conn=0  // send the call to the first local connection (zero-based index)
 
   // List available connections
   session
   session @info  // check details
   session rename='my-cloud-cluster'  // give a friendly name to the current connection
-  session remove=0  // remove the first connection (zero-based index)
+  session 0  // switch to the first connection
+  session remove=0  // remove the first connection
+  session 'my-cloud-cluster'  // switch to the cloud cluster connection
 
   // Builtin help
   help  // list available functions

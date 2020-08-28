@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, call
 import pytest
 from configobj import ConfigObj
 
+from peek.errors import PeekError
 from peek.parser import PeekParser
 from peek.vm import PeekVM
 
@@ -71,6 +72,17 @@ def test_peek_vm_let(peek_vm, parser):
     peek_vm.execute_node(parser.parse('let foo.@a.1 = 42')[0])
     peek_vm.execute_node(parser.parse('debug foo')[0])
     assert_called_with(peek_vm, {"a": [3, 42, 5]})
+
+
+def test_invalid_let(peek_vm, parser):
+    peek_vm.execute_node(parser.parse('let foo=[[1, 2], echo]')[0])
+    with pytest.raises(PeekError) as e:
+        peek_vm.execute_node(parser.parse('let foo.0."x" = 42')[0])
+    assert "Invalid lhs for assignment: ['foo', 0, 'x']" in str(e.value)
+
+    with pytest.raises(PeekError) as e:
+        peek_vm.execute_node(parser.parse('let foo.1."x" = 42')[0])
+    assert "Invalid lhs for assignment: ['foo', 1, 'x']" in str(e.value)
 
 
 def test_for_in(peek_vm, parser):

@@ -226,10 +226,7 @@ class FormattingVisitor(Visitor):
         if node.is_stmt:
             return ' '
         else:
-            if self.pretty:
-                return ', '
-            else:
-                return ','
+            return ', ' if self.pretty else ','
 
 
 class TreeFormattingVisitor(Visitor):

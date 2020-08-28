@@ -55,7 +55,7 @@ class PeekApp:
         self.is_pretty = True
 
     def run(self):
-        while True:
+        while not self._should_exit:
             try:
                 text: str = self.prompt.prompt(
                     message=self._get_message(),

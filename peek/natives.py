@@ -95,7 +95,7 @@ class RunFunc:
 
     @property
     def options(self):
-        return {'echo': False}
+        return {'echo': True}
 
     @property
     def description(self):
@@ -181,6 +181,17 @@ class CaptureFunc:
         return 'Capture session'
 
 
+class ExitFunc:
+
+    def __call__(self, app):
+        if not app.batch_mode:
+            app.signal_exit()
+
+    @property
+    def description(self):
+        return 'Exit the current interactive session'
+
+
 class HelpFunc:
 
     def __call__(self, app, func=None, **options):
@@ -210,6 +221,7 @@ EXPORTS = {
     'range': RangeFunc(),
     'reset': ResetFunc(),
     'capture': CaptureFunc(),
+    'exit': ExitFunc(),
     'help': HelpFunc(),
     'saml_authenticate': SamlAuthenticateFunc(),
     'oidc_authenticate': OidcAuthenticateFunc(),

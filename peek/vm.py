@@ -68,9 +68,6 @@ class PeekVM(Visitor):
         self.builtins = EXPORTS
         if self.app.config.as_bool('load_extension'):
             self._load_extensions()
-        self.es_api_payload_line = []
-        self.func_args = []
-        self.func_kwargs = {}
 
     @property
     def functions(self):
@@ -206,7 +203,7 @@ class PeekVM(Visitor):
                     if isinstance(lhs, dict) or (isinstance(lhs, list) and isinstance(x, int)):
                         lhs = lhs[x]
                     else:
-                        raise PeekError(f'Invalid lhs for assignment: {".".join(lhs_chain)}')
+                        raise PeekError(f'Invalid lhs for assignment: {lhs_chain}')
 
                 x = lhs_chain[-1]
                 if isinstance(lhs, dict) or (isinstance(lhs, list) and isinstance(x, int)):
