@@ -128,6 +128,7 @@ def test_es_client_to_and_from_dict():
 
 def test_refreshing_es_client_to_and_from_dict():
     mock_app = MagicMock(name='PeekApp')
+    mock_app.config.as_bool = MagicMock(return_value=False)
     parent = connect(mock_app, **{
         'username': 'foo',
         'password': 'password',
