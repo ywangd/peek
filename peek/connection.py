@@ -380,7 +380,7 @@ DEFAULT_OPTIONS = {
     'password': None,
     'api_key': None,
     'token': None,
-    'use_ssl': None,
+    'use_ssl': False,
     'verify_certs': False,
     'assert_hostname': False,
     'ca_certs': None,

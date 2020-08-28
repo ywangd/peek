@@ -1,4 +1,5 @@
 """Main module."""
+import json
 import logging
 import logging.handlers
 import sys
@@ -16,13 +17,12 @@ from peek.capture import NoOpCapture, FileCapture
 from peek.common import NONE_NS
 from peek.completer import PeekCompleter
 from peek.config import get_config, config_location
-from peek.connection import EsClientManager
+from peek.connection import EsClientManager, connect
 from peek.display import Display
 from peek.errors import PeekError, PeekSyntaxError
 from peek.history import SqLiteHistory
 from peek.key_bindings import key_bindings
 from peek.lexers import PeekLexer, PeekStyle, Heading, TipsMinor
-from peek.natives import ConnectFunc
 from peek.parser import PeekParser
 from peek.vm import PeekVM
 
@@ -43,9 +43,8 @@ class PeekApp:
         self.config = get_config(config_file, extra_config_options)
         self.cli_ns = cli_ns
         self._init_logging()
-        self.es_client_manager = EsClientManager()
-        self._init_es_client()
         self.history = SqLiteHistory(self.config.as_int('history_max'))
+        self.es_client_manager = self._init_es_client()
         self.prompt = self._init_prompt()
         self.display = Display(self)
         self.parser = PeekParser()
@@ -55,22 +54,25 @@ class PeekApp:
         self.is_pretty = True
 
     def run(self):
-        while not self._should_exit:
-            try:
-                text: str = self.prompt.prompt(
-                    message=self._get_message(),
-                    default=self._get_default_text(),
-                )
-                _logger.debug(f'input: {text!r}')
-                if self._should_exit:
-                    raise EOFError()
-                if text.strip() == '':
+        try:
+            while not self._should_exit:
+                try:
+                    text: str = self.prompt.prompt(
+                        message=self._get_message(),
+                        default=self._get_default_text(),
+                    )
+                    _logger.debug(f'input: {text!r}')
+                    if self._should_exit:
+                        raise EOFError()
+                    if text.strip() == '':
+                        continue
+                    self.process_input(text)
+                except KeyboardInterrupt:
                     continue
-                self.process_input(text)
-            except KeyboardInterrupt:
-                continue
-            except EOFError:
-                break
+                except EOFError:
+                    break
+        finally:
+            self.on_exit()
 
     def process_input(self, text, echo=False):
         try:
@@ -97,9 +99,7 @@ class PeekApp:
         self._should_exit = True
 
     def reset(self):
-        self._init_es_client()
-        for _ in range(len(self.es_client_manager.clients()) - 1):
-            self.es_client_manager.remove_client(0)
+        self.es_client_manager = self._init_es_client()
         self.vm.context = {}
 
     def start_capture(self, f=None):
@@ -227,7 +227,28 @@ class PeekApp:
             if v is not None:
                 options[k] = v
 
-        ConnectFunc()(self, **options)
+        if not self.batch_mode and len(options) == 0 and self.config.get('connection') is None:
+            _logger.info('Auto-loading connection state')
+            data = self.load_connections('__auto__')
+            if data is not None:
+                return EsClientManager.from_dict(self, data)
+
+        es_client_manager = EsClientManager()
+        es_client_manager.add(connect(self, **options))
+        return es_client_manager
 
     def _init_vm(self):
         return PeekVM(self)
+
+    def on_exit(self):
+        if not self.batch_mode and self.config.as_bool('auto_save_connections'):
+            _logger.info('Auto-saving connection state')
+            self.save_connections('__auto__')
+
+    def save_connections(self, name):
+        data = self.es_client_manager.to_dict()
+        self.history.save_connections(name, json.dumps(data))
+
+    def load_connections(self, name):
+        data = self.history.load_connections(name)
+        return json.loads(data) if data is not None else None

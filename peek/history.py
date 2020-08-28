@@ -20,6 +20,8 @@ class SqLiteHistory(History):
         self.conn = sqlite3.connect(db_file)
         self.conn.execute('CREATE TABLE IF NOT EXISTS history '
                           '(id INTEGER PRIMARY KEY AUTOINCREMENT, content TEXT NOT NULL, timestamp INTEGER NOT NULL)')
+        self.conn.execute('CREATE TABLE IF NOT EXISTS connection '
+                          '(name TEXT PRIMARY KEY, data TEXT NOT NULL, timestamp INTEGER NOT NULL)')
         self._maintain_size()
         self.conn.commit()
 
@@ -62,5 +64,17 @@ class SqLiteHistory(History):
                 return row[0], row[1]
             else:
                 return None
+        else:
+            return None
+
+    def save_connections(self, name, data):
+        self.conn.execute("INSERT INTO connection(name, data, timestamp) VALUES(?, ?, ?) "
+                          "ON CONFLICT (name) DO UPDATE SET data=excluded.data, timestamp=excluded.timestamp",
+                          (name, data, datetime.datetime.now()))
+        self.conn.commit()
+
+    def load_connections(self, name):
+        for row in self.conn.execute("SELECT data FROM connection WHERE name = ?", (name,)):
+            return row[0]
         else:
             return None

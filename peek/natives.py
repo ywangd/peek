@@ -3,7 +3,7 @@ import logging
 from configobj import ConfigObj
 
 from peek.config import config_location
-from peek.connection import ConnectFunc
+from peek.connection import ConnectFunc, EsClientManager
 from peek.errors import PeekError
 from peek.krb import KrbAuthenticateFunc
 from peek.oidc import OidcAuthenticateFunc
@@ -51,6 +51,14 @@ class ConfigFunc:
 class SessionFunc:
 
     def __call__(self, app, current=None, **options):
+        load = options.get('load', None)
+        if load:
+            data = app.load_connections(load)
+            if data is None:
+                raise PeekError(f'Connection state not found: {load}')
+            else:
+                app.es_client_manager = EsClientManager.from_dict(app, data)
+
         for symbol in options.get('@', []):
             if symbol == 'info':
                 return app.es_client_manager.current.info()
@@ -71,6 +79,13 @@ class SessionFunc:
         if rename:
             app.es_client_manager.current.name = str(rename)
 
+        save = options.get('save', None)
+        if save:
+            if save == '__auto__':
+                raise PeekError('Cannot save using reserved name')
+            else:
+                app.save_connections(save)
+
         info = options.get('info', None)
         if info is not None:
             return app.es_client_manager.get_client(info).info()
@@ -79,6 +94,7 @@ class SessionFunc:
 
     @property
     def options(self):
+        # TODO: add save/load options
         return {'current': None, 'remove': None, 'rename': None, 'info': None,
                 '@info': None, '@remove': None}
 
