@@ -58,14 +58,6 @@ class Visitor(metaclass=ABCMeta):
     def visit_group_node(self, node):
         raise NotImplementedError()
 
-    def push_consumer(self, consumer):
-        self._consumers.append(consumer)
-
-    def pop_consumer(self):
-        if not self._consumers:
-            raise IndexError('No consumer')
-        self._consumers = self._consumers[:-1]
-
     def consume(self, *args, **kwargs):
         if not self._consumers:
             raise IndexError('No consumer')
@@ -73,11 +65,19 @@ class Visitor(metaclass=ABCMeta):
 
     @contextmanager
     def consumer(self, c):
-        self.push_consumer(c)
+        self._push_consumer(c)
         try:
             yield
         finally:
-            self.pop_consumer()
+            self._pop_consumer()
+
+    def _push_consumer(self, consumer):
+        self._consumers.append(consumer)
+
+    def _pop_consumer(self):
+        if not self._consumers:
+            raise IndexError('No consumer')
+        self._consumers = self._consumers[:-1]
 
 
 class Node(metaclass=ABCMeta):

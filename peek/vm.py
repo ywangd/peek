@@ -87,24 +87,21 @@ class PeekVM(Visitor):
             path = path if path.startswith('/') else ('/' + path)
 
         options = Ref()
-        self.push_consumer(lambda v: options.set(v))
-        self._do_visit_dict_node(node.options_node)
-        self.pop_consumer()
+        with self.consumer(lambda v: options.set(v)):
+            self._do_visit_dict_node(node.options_node)
         options = options.get()
 
         if isinstance(node, EsApiCallInlinePayloadNode):
             dicts = []
-            self.push_consumer(lambda v: dicts.append(v))
-            for dict_node in node.dict_nodes:
-                dict_node.accept(self)
-            self.pop_consumer()
+            with self.consumer(lambda v: dicts.append(v)):
+                for dict_node in node.dict_nodes:
+                    dict_node.accept(self)
             lines = [json.dumps(d) for d in dicts]
             payload = ('\n'.join(lines) + '\n') if lines else None
         elif isinstance(node, EsApiCallFilePayloadNode):
             f = Ref()
-            self.push_consumer(lambda v: f.set(v))
-            node.file_node.accept(self)
-            self.pop_consumer()
+            with self.consumer(lambda v: f.set(v)):
+                node.file_node.accept(self)
             with open(os.path.expanduser(f.get())) as ins:
                 payload = ins.read()
                 if not payload.endswith('\n'):
@@ -145,29 +142,25 @@ class PeekVM(Visitor):
             func = self.get_value(node.name_node.token.value)
         else:
             func_ref = Ref()
-            self.push_consumer(lambda v: func_ref.set(v))
-            node.name_node.accept(self)
-            self.pop_consumer()
+            with self.consumer(lambda v: func_ref.set(v)):
+                node.name_node.accept(self)
             func = func_ref.get()
         if not callable(func):
             raise PeekError(f'{node.name_node!r} is not a callable, but {func!r}')
 
         func_symbols = Ref()
-        self.push_consumer(lambda v: func_symbols.set(v))
-        node.symbols_node.accept(self)
-        self.pop_consumer()
+        with self.consumer(lambda v: func_symbols.set(v)):
+            node.symbols_node.accept(self)
 
         func_args = Ref()
-        self.push_consumer(lambda v: func_args.set(v))
-        node.args_node.accept(self)
-        self.pop_consumer()
+        with self.consumer(lambda v: func_args.set(v)):
+            node.args_node.accept(self)
 
         for kv_node in node.kwargs_node.kv_nodes:
             assert isinstance(kv_node.key_node, NameNode), f'{kv_node.key_node!r}'
         func_kwargs = Ref()
-        self.push_consumer(lambda v: func_kwargs.set(v))
-        self._do_visit_dict_node(node.kwargs_node, resolve_key_name=False)
-        self.pop_consumer()
+        with self.consumer(lambda v: func_kwargs.set(v)):
+            self._do_visit_dict_node(node.kwargs_node, resolve_key_name=False)
         kwargs = func_kwargs.get()
         if func_symbols.get():
             kwargs['@'] = func_symbols.get()
@@ -184,14 +177,12 @@ class PeekVM(Visitor):
     def visit_let_node(self, node: LetNode):
         for kv_node in node.assignments_node.kv_nodes:
             lhs_chain = []
-            self.push_consumer(lambda v: lhs_chain.append(v))
-            self._unwind_lhs(kv_node.key_node)
-            self.pop_consumer()
+            with self.consumer(lambda v: lhs_chain.append(v)):
+                self._unwind_lhs(kv_node.key_node)
 
             rhs = Ref()
-            self.push_consumer(lambda v: rhs.set(v))
-            kv_node.value_node.accept(self)
-            self.pop_consumer()
+            with self.consumer(lambda v: rhs.set(v)):
+                kv_node.value_node.accept(self)
 
             if len(lhs_chain) == 1:
                 self.context[lhs_chain[0]] = rhs.get()
@@ -226,9 +217,8 @@ class PeekVM(Visitor):
     def visit_for_in_node(self, node: ForInNode):
         var_name = node.item.token.value
         items_ref = Ref()
-        self.push_consumer(lambda v: items_ref.set(v))
-        node.items.accept(self)
-        self.pop_consumer()
+        with self.consumer(lambda v: items_ref.set(v)):
+            node.items.accept(self)
         items = items_ref.get()
         if not isinstance(items, list):
             raise PeekError(f'For in loop must operator over a list, got {items!r}')
@@ -260,10 +250,9 @@ class PeekVM(Visitor):
 
     def visit_array_node(self, node: ArrayNode):
         values = []
-        self.push_consumer(lambda v: values.append(v))
-        for node in node.value_nodes:
-            node.accept(self)
-        self.pop_consumer()
+        with self.consumer(lambda v: values.append(v)):
+            for node in node.value_nodes:
+                node.accept(self)
         self.consume(values)
 
     def visit_text_node(self, node: TextNode):
@@ -274,14 +263,12 @@ class PeekVM(Visitor):
 
     def visit_bin_op_node(self, node: BinOpNode):
         left_operand = Ref()
-        self.push_consumer(lambda v: left_operand.set(v))
-        node.left_node.accept(self)
-        self.pop_consumer()
+        with self.consumer(lambda v: left_operand.set(v)):
+            node.left_node.accept(self)
 
         right_operand = Ref()
-        self.push_consumer(lambda v: right_operand.set(v))
-        node.right_node.accept(self)
-        self.pop_consumer()
+        with self.consumer(lambda v: right_operand.set(v)):
+            node.right_node.accept(self)
 
         op_func = _BIN_OP_FUNCS.get(node.op_token.value, None)
         if op_func is None:
@@ -290,9 +277,8 @@ class PeekVM(Visitor):
 
     def visit_unary_op_node(self, node: UnaryOpNode):
         operand = Ref()
-        self.push_consumer(lambda v: operand.set(v))
-        node.operand_node.accept(self)
-        self.pop_consumer()
+        with self.consumer(lambda v: operand.set(v)):
+            node.operand_node.accept(self)
 
         op_func = _UNARY_OP_FUNCS.get(node.op_token.value, None)
         if op_func is None:
@@ -306,16 +292,14 @@ class PeekVM(Visitor):
         assert isinstance(node, DictNode)
         keys = []
         values = []
-        self.push_consumer(lambda v: keys.append(v))
-        for kv_node in node.kv_nodes:
-            if resolve_key_name or not isinstance(kv_node.key_node, NameNode):
-                kv_node.key_node.accept(self)
-            else:
-                self.consume(kv_node.key_node.token.value)
-            self.push_consumer(lambda v: values.append(v))
-            kv_node.value_node.accept(self)
-            self.pop_consumer()
-        self.pop_consumer()
+        with self.consumer(lambda v: keys.append(v)):
+            for kv_node in node.kv_nodes:
+                if resolve_key_name or not isinstance(kv_node.key_node, NameNode):
+                    kv_node.key_node.accept(self)
+                else:
+                    self.consume(kv_node.key_node.token.value)
+                with self.consumer(lambda v: values.append(v)):
+                    kv_node.value_node.accept(self)
         assert len(keys) == len(values), f'{keys!r}, {values!r}'
         self.consume(dict(zip(keys, values)))
 

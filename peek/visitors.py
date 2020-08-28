@@ -179,45 +179,43 @@ class FormattingVisitor(Visitor):
         self.consume(')')
 
     def _do_visit_dict_node(self, node: DictNode, consumer):
-        self.push_consumer(consumer)
-        self.consume('{')
-        if node.kv_nodes and self.pretty:
-            self.consume('\n')
-            self.indent_level += 1
-        for i, kv_node in enumerate(node.kv_nodes):
-            if self.pretty:
-                self.consume(self._indent())
-            kv_node.accept(self)
-            if i < len(node.kv_nodes) - 1:
-                self.consume(',')
+        with self.consumer(consumer):
+            self.consume('{')
+            if node.kv_nodes and self.pretty:
+                self.consume('\n')
+                self.indent_level += 1
+            for i, kv_node in enumerate(node.kv_nodes):
                 if self.pretty:
-                    self.consume('\n')
-        if node.kv_nodes and self.pretty:
-            self.consume('\n')
-            self.indent_level -= 1
-            self.consume(self._indent())
-        self.consume('}')
-        self.pop_consumer()
+                    self.consume(self._indent())
+                kv_node.accept(self)
+                if i < len(node.kv_nodes) - 1:
+                    self.consume(',')
+                    if self.pretty:
+                        self.consume('\n')
+            if node.kv_nodes and self.pretty:
+                self.consume('\n')
+                self.indent_level -= 1
+                self.consume(self._indent())
+            self.consume('}')
 
     def _do_visit_array_node(self, node: ArrayNode, consumer):
-        self.push_consumer(consumer)
-        self.consume('[')
-        if node.value_nodes and self.pretty:
-            self.consume('\n')
-            self.indent_level += 1
-        for i, value_node in enumerate(node.value_nodes):
-            self.consume(self._indent())
-            value_node.accept(self)
-            if i < len(node.value_nodes) - 1:
-                self.consume(',')
-                if self.pretty:
-                    self.consume('\n')
-        if node.value_nodes and self.pretty:
-            self.consume('\n')
-            self.indent_level -= 1
-            self.consume(self._indent())
-        self.consume(']')
-        self.pop_consumer()
+        with self.consumer(consumer):
+            self.consume('[')
+            if node.value_nodes and self.pretty:
+                self.consume('\n')
+                self.indent_level += 1
+            for i, value_node in enumerate(node.value_nodes):
+                self.consume(self._indent())
+                value_node.accept(self)
+                if i < len(node.value_nodes) - 1:
+                    self.consume(',')
+                    if self.pretty:
+                        self.consume('\n')
+            if node.value_nodes and self.pretty:
+                self.consume('\n')
+                self.indent_level -= 1
+                self.consume(self._indent())
+            self.consume(']')
 
     def _indent(self):
         return '  ' * self.indent_level
@@ -240,10 +238,9 @@ class TreeFormattingVisitor(Visitor):
 
     def visit(self, node):
         self.lines = []
-        self.push_consumer(lambda v: self.lines.append(v))
-        node.accept(self)
-        self.pop_consumer()
-        return '\n'.join(self.lines)
+        with self.consumer(lambda v: self.lines.append(v)):
+            node.accept(self)
+            return '\n'.join(self.lines)
 
     def visit_es_api_call_node(self, node: EsApiCallNode):
         self.consume(f'{self._indent()}EsApiStmt')

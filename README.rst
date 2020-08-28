@@ -39,7 +39,7 @@ auto-completion (WIP), par-editing, triple-quotes, etc. It also offers following
 * Connect to `Elastic Cloud <https://cloud.elastic.co/>`_ with Cloud ID
 * Multiple authentication schemes in a single terminal, including UserPass, API key, Token, SAML, OIDC, Kerberos, PKI
 * Support run-as, x-opaque-id, and arbitrary request headers
-* More flexible quotes and comma for the JSON payload
+* More flexible quotes and comma for the JSON payload and case-insensitive http methods
 * Load JSON payload from external file
 * Run file input in batch mode
 * History management
@@ -100,8 +100,8 @@ a Peek session:
   connect cloud_id='YOUR_CLOUD_ID' username='elastic'
 
   // Issue a call to the cloud cluster
-  GET /
-  GET / conn=0  // send the call to the first local connection (zero-based index)
+  get /  // HTTP method is case-insensitive
+  get / conn=0  // send the call to the first local connection (zero-based index)
 
   // List available connections
   session
