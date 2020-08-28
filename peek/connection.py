@@ -47,8 +47,7 @@ class EsClient(BaseClient):
                  client_key=None,
                  api_key=None,
                  token=None,
-                 headers=None,
-                 **kwargs):
+                 headers=None):
 
         self.name = name
         self.hosts = hosts
@@ -60,7 +59,7 @@ class EsClient(BaseClient):
         self.ca_certs = ca_certs
         self.client_cert = client_cert
         self.client_key = client_key
-        self.api_key_id = api_key[0] if api_key else None
+        self.api_key = api_key
         self.token = token
         self.headers = dict(headers) if headers is not None else None
         if token:
@@ -84,7 +83,6 @@ class EsClient(BaseClient):
             api_key=api_key,
             headers=headers,
             ssl_assert_hostname=assert_hostname,
-            **kwargs,
         )
 
     def perform_request(self, method, path, payload=None, deserialize_it=False, **kwargs):
@@ -100,8 +98,8 @@ class EsClient(BaseClient):
                 self.es.transport.deserializer = deserializer
 
     def info(self):
-        if self.api_key_id:
-            auth = f'ApiKey {self.api_key_id[:10]}...'
+        if self.api_key:
+            auth = f'ApiKey {self.api_key[0][:10]}...'
         elif self.token:
             auth = f'Token {self.token[:10]}...'
         elif self.auth:
@@ -127,6 +125,28 @@ class EsClient(BaseClient):
             'headers': headers,
         }
 
+    def to_dict(self):
+        return {
+            'name': self.name,
+            'hosts': self.hosts,
+            'cloud_id': self.cloud_id,
+            'username': self.auth.split(':')[0] if self.auth else None,
+            'password': None,  # do not persist password
+            'use_ssl': self.use_ssl,
+            'verify_certs': self.verify_certs,
+            'assert_hostname': self.assert_hostname,
+            'ca_certs': self.ca_certs,
+            'client_cert': self.client_cert,
+            'client_key': self.client_key,
+            'api_key': self.api_key,
+            'token': self.token,
+            'headers': self.headers,
+        }
+
+    @staticmethod
+    def from_dict(d):
+        return EsClient(**d)
+
     def __str__(self):
         if self.name:
             return f'{self.name}'
@@ -142,8 +162,8 @@ class EsClient(BaseClient):
             hosts.append(self.cloud_id)
 
         hosts = ','.join(hosts)
-        if self.api_key_id:
-            return f'K-{self.api_key_id[:10]} @ {hosts}'
+        if self.api_key:
+            return f'K-{self.api_key[0][:10]} @ {hosts}'
         elif self.token:
             return f'T-{self.token[:10]} @ {hosts}'
         elif self.auth:
@@ -154,7 +174,6 @@ class EsClient(BaseClient):
 
 
 class RefreshingEsClient(BaseClient):
-    # TODO: Given a pair of access_token and refresh token, refresh to keep login
 
     def __init__(self,
                  parent: EsClient,
@@ -197,6 +216,20 @@ class RefreshingEsClient(BaseClient):
         info = self.delegate.info()
         info['username'] = self.username
         return info
+
+    def to_dict(self):
+        return {
+            'name': self.name,
+            'username': self.username,
+            'access_token': self.access_token,
+            'refresh_token': self.refresh_token,
+            'expires_in': self.expires_in,
+            'parent': self.parent,
+        }
+
+    @staticmethod
+    def from_dict(d):
+        return RefreshingEsClient(**d)
 
     def __str__(self):
         if self.name:
