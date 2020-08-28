@@ -138,14 +138,14 @@ class EsClient(BaseClient):
             'ca_certs': self.ca_certs,
             'client_cert': self.client_cert,
             'client_key': self.client_key,
-            'api_key': self.api_key,
+            'api_key': ':'.join(self.api_key) if self.api_key else None,
             'token': self.token,
             'headers': self.headers,
         }
 
     @staticmethod
-    def from_dict(d):
-        return EsClient(**d)
+    def from_dict(app, d):
+        return connect(app, **d)
 
     def __str__(self):
         if self.name:
@@ -325,6 +325,43 @@ class EsClientManager:
                 self._index_current = 0
         else:
             raise ValueError(f'Connection must be specified by either name or index, got {x!r}')
+
+    def to_dict(self):
+        result = {
+            '_index_current': self._index_current,
+            '_clients': [],
+        }
+        for client in self._clients:
+            d = client.to_dict()
+            if isinstance(client, RefreshingEsClient):
+                try:
+                    d['parent'] = self._clients.index(d['parent'])
+                except ValueError:
+                    d['parent'] = d['parent'].to_dict()
+            result['_clients'].append(d)
+        return result
+
+    @staticmethod
+    def from_dict(app, d):
+        m = EsClientManager()
+        _clients = []
+        for c in d['_clients']:
+            if 'parent' in c:
+                c = dict(c)  # avoid mutating argument
+                if isinstance(c['parent'], int):
+                    # Based on how clients are arranged, it is guaranteed that parent client must have
+                    # an index less than the refreshing client
+                    c['parent'] = _clients[c['parent']]
+                else:
+                    c['parent'] = EsClient.from_dict(app, c['parent'])
+                client = RefreshingEsClient.from_dict(c)
+            else:
+                client = EsClient.from_dict(app, c)
+            _clients.append(client)
+
+        m._clients = _clients
+        m._index_current = d['_index_current']
+        return m
 
     def __str__(self):
         lines = []

@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch, call
 
 import pytest
 
-from peek.connection import connect, EsClient, RefreshingEsClient
+from peek.connection import connect, EsClient, RefreshingEsClient, EsClientManager
 from peek.errors import PeekError
 
 
@@ -111,6 +111,7 @@ def test_connect_has_second_priority_for_token():
 
 def test_es_client_to_and_from_dict():
     mock_app = MagicMock(name='PeekApp')
+    mock_app.config.as_bool = MagicMock(return_value=False)
     client = connect(mock_app, **{
         'username': 'foo',
         'password': 'password',
@@ -120,8 +121,9 @@ def test_es_client_to_and_from_dict():
 
     d = client.to_dict()
     assert d['password'] is None
-    d['password'] = 'password'
-    assert client.to_dict() == EsClient.from_dict(d).to_dict()
+
+    with patch.dict(os.environ, {'PEEK_PASSWORD': 'password'}):
+        assert client.to_dict() == EsClient.from_dict(mock_app, d).to_dict()
 
 
 def test_refreshing_es_client_to_and_from_dict():
@@ -143,3 +145,65 @@ def test_refreshing_es_client_to_and_from_dict():
     )
 
     assert client.to_dict() == RefreshingEsClient.from_dict(client.to_dict()).to_dict()
+
+
+@patch.dict(os.environ, {'PEEK_PASSWORD': 'password'})
+def test_es_client_manager():
+    mock_app = MagicMock(name='PeekApp')
+    mock_app.config.as_bool = MagicMock(return_value=False)
+
+    es_client_manager = EsClientManager()
+    local_admin_0 = EsClient(name='local-admin', hosts='localhost:9200', username='admin', password='password')
+    local_foo_1 = EsClient(name='local-foo', hosts='localhost:9200', username='foo', password='password')
+    local_bar_saml_2 = RefreshingEsClient(parent=local_admin_0, username='bar@example.com', access_token='access_token',
+                                          refresh_token='refresh_token', expires_in=42, name='local-bar-saml')
+    remote_admin_3 = EsClient(name='remote-admin', hosts='example.com:9200', username='elastic', password='password')
+    remote_oidc_4 = RefreshingEsClient(parent=EsClient(name='removed', hosts='example.com:9200'), username='dangling',
+                                       access_token='access_token', refresh_token='refresh_token', expires_in=42,
+                                       name='remote-dangling-oidc')
+
+    es_client_manager.add(local_admin_0)
+    es_client_manager.add(local_foo_1)
+    es_client_manager.add(local_bar_saml_2)
+    es_client_manager.add(remote_admin_3)
+    es_client_manager.add(remote_oidc_4)
+
+    assert remote_oidc_4 == es_client_manager.current
+
+    es_client_manager.set_current(2)
+    assert local_bar_saml_2 == es_client_manager.current
+
+    es_client_manager.set_current('remote-admin')
+    assert remote_admin_3 == es_client_manager.current
+
+    assert local_foo_1 == es_client_manager.get_client(1)
+    assert local_foo_1 == es_client_manager.get_client('local-foo')
+    assert remote_admin_3 == es_client_manager.get_client(None)  # same as get current
+
+    d = es_client_manager.to_dict()
+    assert d == {'_index_current': 3, '_clients': [
+        {'name': 'local-admin', 'hosts': 'localhost:9200', 'cloud_id': None, 'username': 'admin', 'password': None,
+         'use_ssl': False, 'verify_certs': False, 'assert_hostname': False, 'ca_certs': None, 'client_cert': None,
+         'client_key': None, 'api_key': None, 'token': None, 'headers': None},
+        {'name': 'local-foo', 'hosts': 'localhost:9200', 'cloud_id': None, 'username': 'foo', 'password': None,
+         'use_ssl': False, 'verify_certs': False, 'assert_hostname': False, 'ca_certs': None, 'client_cert': None,
+         'client_key': None, 'api_key': None, 'token': None, 'headers': None},
+        {'name': 'local-bar-saml', 'username': 'bar@example.com', 'access_token': 'access_token',
+         'refresh_token': 'refresh_token', 'expires_in': 42, 'parent': 0},
+        {'name': 'remote-admin', 'hosts': 'example.com:9200', 'cloud_id': None, 'username': 'elastic', 'password': None,
+         'use_ssl': False, 'verify_certs': False, 'assert_hostname': False, 'ca_certs': None, 'client_cert': None,
+         'client_key': None, 'api_key': None, 'token': None, 'headers': None},
+        {'name': 'remote-dangling-oidc', 'username': 'dangling', 'access_token': 'access_token',
+         'refresh_token': 'refresh_token', 'expires_in': 42,
+         'parent': {'name': 'removed', 'hosts': 'example.com:9200', 'cloud_id': None, 'username': None,
+                    'password': None, 'use_ssl': False, 'verify_certs': False, 'assert_hostname': False,
+                    'ca_certs': None, 'client_cert': None, 'client_key': None, 'api_key': None, 'token': None,
+                    'headers': None}}]}
+
+    new_manager = EsClientManager.from_dict(mock_app, d)
+
+    clients = new_manager.clients()
+    assert len(clients) == 5
+    assert clients.index(new_manager.current) == 3
+
+    assert d == new_manager.to_dict()
