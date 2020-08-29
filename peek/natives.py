@@ -1,7 +1,9 @@
+import json
 import logging
 
 from configobj import ConfigObj
 
+from peek.common import DEFAULT_SAVE_NAME
 from peek.config import config_location
 from peek.connection import ConnectFunc, EsClientManager
 from peek.errors import PeekError
@@ -48,24 +50,14 @@ class ConfigFunc:
         return 'View and set config options'
 
 
-class SessionFunc:
+class ConnectionFunc:
 
     def __call__(self, app, current=None, **options):
-        load = options.get('load', None)
-        if load:
-            data = app.load_connections(load)
-            if data is None:
-                raise PeekError(f'Connection state not found: {load}')
-            else:
-                app.es_client_manager = EsClientManager.from_dict(app, data)
-
-        for symbol in options.get('@', []):
-            if symbol == 'info':
-                return app.es_client_manager.current.info()
-            elif symbol == 'remove':
-                app.es_client_manager.remove_client(None)  # remove current client
-            else:
-                raise PeekError(f'Unknown sub-command: {symbol!r}')
+        options = consolidate_options(options, {
+            'info': app.es_client_manager.index_current,
+            'remove': app.es_client_manager.index_current,
+            'keep': app.es_client_manager.index_current,
+        })
 
         current = current if current is not None else options.get('current', None)
         if current is not None:
@@ -75,16 +67,13 @@ class SessionFunc:
         if remove is not None:
             app.es_client_manager.remove_client(remove)
 
+        keep = options.get('keep', None)
+        if keep is not None:
+            app.es_client_manager.keep_client(keep)
+
         rename = options.get('rename', None)
         if rename:
             app.es_client_manager.current.name = str(rename)
-
-        save = options.get('save', None)
-        if save:
-            if save == '__auto__':
-                raise PeekError('Cannot save using reserved name')
-            else:
-                app.save_connections(save)
 
         info = options.get('info', None)
         if info is not None:
@@ -94,13 +83,61 @@ class SessionFunc:
 
     @property
     def options(self):
-        # TODO: add save/load options
-        return {'current': None, 'remove': None, 'rename': None, 'info': None,
-                '@info': None, '@remove': None}
+        return {'current': None, 'remove': None, 'rename': None, 'info': None, 'keep': None,
+                '@info': None, '@remove': None, '@keep': None}
 
     @property
     def description(self):
-        return 'List sessions and set current session'
+        return 'List connections and set current connection'
+
+
+class SessionFunc:
+
+    def __call__(self, app, **options):
+        options = consolidate_options(options, {
+            'load': DEFAULT_SAVE_NAME,
+            'save': DEFAULT_SAVE_NAME,
+            'clear': None,
+        })
+
+        if not options:
+            return app.history.list_sessions()
+
+        if 'load' in options:
+            load = options.get('load')
+            data = app.history.load_session(load)
+            if data is None:
+                raise PeekError(f'Session not found: {load!r}')
+            else:
+                app.es_client_manager = EsClientManager.from_dict(app, json.loads(data))
+            return str(app.es_client_manager)
+
+        elif 'save' in options:
+            save = options.get('save')
+            app.history.save_session(save, json.dumps(app.es_client_manager.to_dict()))
+            return f'Session save as: {save!r}'
+
+        elif 'remove' in options:
+            remove = options.get('remove')
+            if app.history.delete_session(remove):
+                return f'Session removed: {remove!r}'
+            else:
+                raise PeekError(f'Session not found: {remove!r}')
+
+        elif 'clear' in options:
+            app.history.clear_sessions()
+            return 'All sessions cleared'
+        else:
+            raise PeekError(f'Unknown options: {options}')
+
+    @property
+    def options(self):
+        return {'save': None, 'load': None, 'remove': None,
+                '@save': DEFAULT_SAVE_NAME, '@load': DEFAULT_SAVE_NAME, '@clear': None}
+
+    @property
+    def description(self):
+        return 'Manage persisted sessions'
 
 
 class RunFunc:
@@ -116,16 +153,6 @@ class RunFunc:
     @property
     def description(self):
         return 'Load and execute external script'
-
-
-class ResetFunc:
-
-    def __call__(self, app, *args, **kwargs):
-        app.reset()
-
-    @property
-    def description(self):
-        return 'Reset state of the program'
 
 
 class HistoryFunc:
@@ -227,15 +254,27 @@ class HelpFunc:
         return 'List available functions and show help message of a function'
 
 
+def consolidate_options(options, defaults):
+    """
+    Merge shorthanded @symbol into normal options kv pair with provided defaults
+    """
+    final_options = {k: v for k, v in options.items() if k != '@'}
+    for symbol in options.get('@', []):
+        if symbol not in defaults:
+            raise PeekError(f'Unknown shorthanded flag: {symbol}')
+        final_options[symbol] = defaults[symbol]
+    return final_options
+
+
 EXPORTS = {
     'connect': ConnectFunc(),
     'config': ConfigFunc(),
+    'connection': ConnectionFunc(),
     'session': SessionFunc(),
     'run': RunFunc(),
     'history': HistoryFunc(),
     'echo': EchoFunc(),
     'range': RangeFunc(),
-    'reset': ResetFunc(),
     'capture': CaptureFunc(),
     'exit': ExitFunc(),
     'help': HelpFunc(),

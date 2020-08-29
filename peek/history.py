@@ -67,14 +67,23 @@ class SqLiteHistory(History):
         else:
             return None
 
-    def save_connections(self, name, data):
+    def save_session(self, name, data):
         self.conn.execute("INSERT INTO connection(name, data, timestamp) VALUES(?, ?, ?) "
                           "ON CONFLICT (name) DO UPDATE SET data=excluded.data, timestamp=excluded.timestamp",
                           (name, data, datetime.datetime.now()))
         self.conn.commit()
 
-    def load_connections(self, name):
+    def load_session(self, name):
         for row in self.conn.execute("SELECT data FROM connection WHERE name = ?", (name,)):
             return row[0]
         else:
             return None
+
+    def list_sessions(self):
+        return list(self.conn.execute("SELECT name, timestamp FROM connection"))
+
+    def clear_sessions(self):
+        self.conn.execute("DELETE FROM connection")
+
+    def delete_session(self, name):
+        return self.conn.execute("DELETE FROM connection where name = ?", (name,)).rowcount == 1

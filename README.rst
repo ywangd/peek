@@ -104,16 +104,16 @@ a Peek session:
   get / conn=0  // send the call to the first local connection (zero-based index)
 
   // List available connections
-  session
-  session @info  // check details
-  session rename='my-cloud-cluster'  // give a friendly name to the current connection
-  session 0  // switch to the first connection
-  session remove=0  // remove the first connection
-  session 'my-cloud-cluster'  // switch to the cloud cluster connection
+  connection
+  connection @info  // check details
+  connection rename='my-cloud-cluster'  // give a friendly name to the current connection
+  connection 0  // switch to the first connection
+  connection remove=0  // remove the first connection
+  connection 'my-cloud-cluster'  // switch to the cloud cluster connection
 
   // Builtin help
   help  // list available functions
-  help session  // a bit more detailed info about the "session" builtin function
+  help connection  // a bit more detailed info about the "connection" builtin function
 
   // Capture the terminal I/O
   capture @start

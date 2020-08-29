@@ -14,7 +14,7 @@ from prompt_toolkit.lexers import PygmentsLexer
 from prompt_toolkit.styles import style_from_pygments_cls
 
 from peek.capture import NoOpCapture, FileCapture
-from peek.common import NONE_NS
+from peek.common import NONE_NS, AUTO_SAVE_NAME
 from peek.completer import PeekCompleter
 from peek.config import get_config, config_location
 from peek.connection import EsClientManager, connect
@@ -97,10 +97,6 @@ class PeekApp:
 
     def signal_exit(self):
         self._should_exit = True
-
-    def reset(self):
-        self.es_client_manager = self._init_es_client()
-        self.vm.context = {}
 
     def start_capture(self, f=None):
         if not isinstance(self.capture, NoOpCapture):
@@ -227,11 +223,11 @@ class PeekApp:
             if v is not None:
                 options[k] = v
 
-        if not self.batch_mode and len(options) == 0 and self.config.get('connection') is None:
+        if self._should_auto_load_session(options):
             _logger.info('Auto-loading connection state')
-            data = self.load_connections('__auto__')
+            data = self.history.load_session(AUTO_SAVE_NAME)
             if data is not None:
-                return EsClientManager.from_dict(self, data)
+                return EsClientManager.from_dict(self, json.loads(data))
 
         es_client_manager = EsClientManager()
         es_client_manager.add(connect(self, **options))
@@ -241,14 +237,19 @@ class PeekApp:
         return PeekVM(self)
 
     def on_exit(self):
-        if not self.batch_mode and self.config.as_bool('auto_save_connections'):
+        if not self.batch_mode and self.config.as_bool('auto_save_session'):
             _logger.info('Auto-saving connection state')
-            self.save_connections('__auto__')
-
-    def save_connections(self, name):
         data = self.es_client_manager.to_dict()
-        self.history.save_connections(name, json.dumps(data))
+        self.history.save_session(AUTO_SAVE_NAME, json.dumps(data))
 
-    def load_connections(self, name):
-        data = self.history.load_connections(name)
-        return json.loads(data) if data is not None else None
+    def _should_auto_load_session(self, options):
+        """
+        Auto load last auto-saved session only when:
+        * configuration says so
+        * running in interactive mode
+        * No explicit connection parameters are specified (include those specified in connection section of rc file)
+        """
+        return (self.config.as_bool('auto_load_session') and
+                not self.batch_mode and
+                not options and
+                self.config.get('connection') is None)

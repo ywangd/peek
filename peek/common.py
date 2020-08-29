@@ -3,6 +3,8 @@ from typing import NamedTuple
 from pygments.token import _TokenType
 
 HTTP_METHODS = ['get', 'post', 'put', 'delete']
+AUTO_SAVE_NAME = '__auto__'
+DEFAULT_SAVE_NAME = '__default__'
 
 
 class AlwaysNoneNameSpace:

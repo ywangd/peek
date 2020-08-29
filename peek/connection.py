@@ -264,6 +264,10 @@ class EsClientManager:
         # TODO: maintain size
 
     @property
+    def index_current(self):
+        return self._index_current
+
+    @property
     def current(self):
         if self._index_current is None:
             raise PeekError('No ES client is configured')
@@ -325,6 +329,14 @@ class EsClientManager:
                 self._index_current = 0
         else:
             raise ValueError(f'Connection must be specified by either name or index, got {x!r}')
+
+    def keep_client(self, x=None):
+        """
+        Keep the specified client, remove everything else
+        """
+        keep = self.get_client(x)
+        self._index_current = 0
+        self._clients = [keep]
 
     def to_dict(self):
         result = {
