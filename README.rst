@@ -62,7 +62,7 @@ a Peek session:
 
   // Index a single document
   POST /my-index/_doc
-  {'foo': "bar"}
+  {'foo': "bar"}  // both single and double quotes are acceptable
 
   // Bulk indexing
   // Press <F3> to switch between pretty and compact formatting for the JSON payload
@@ -89,7 +89,7 @@ a Peek session:
   // Create an API key
   PUT _security/api_key
   {
-    "name": "key-1",  // extra comma is acceptable
+    "name": "key-1",  // extra comma is OK
   }
 
   // Connect using the above generated API key
@@ -101,7 +101,10 @@ a Peek session:
 
   // Issue a call to the cloud cluster
   get /  // HTTP method is case-insensitive
-  get / conn=0  // send the call to the first local connection (zero-based index)
+  get / conn=0  // send the request to the first connection (zero-based index) with the conn option
+
+  // Check configuration location and values
+  config
 
   // List available connections
   connection
@@ -111,9 +114,15 @@ a Peek session:
   connection remove=0  // remove the first connection
   connection 'my-cloud-cluster'  // switch to the cloud cluster connection
 
+  // Save the connections we have so far. Session is also auto-saved on exit.
+  session @save  // it can be loaded later with "session @load"
+
+  // Session auto-load on start up can be enabled by set "auto_load_session = True" in peekrc file.
+  // This helps preserving connections across restart.
+
   // Builtin help
   help  // list available functions
-  help connection  // a bit more detailed info about the "connection" builtin function
+  help session  // a bit more detailed info about the "session" builtin function
 
   // Capture the terminal I/O
   capture @start
@@ -121,6 +130,9 @@ a Peek session:
 
   // Run-AS etc
   GET _security/_authenticate runas='foo' xoid='my-x-opaque-id' headers={'some-other-header': 'blah'}
+
+  // Show only the first role
+  echo _."roles".0
 
   // If the cluster has SAML integration configured, authenticate with saml
   // Note this opens a web browser to perform the front-channel flow
@@ -131,9 +143,6 @@ a Peek session:
 
   // Stop the capture
   capture @stop
-
-  // Check configuration location and values
-  config
 
   // Minimal scripting for populating an index
   let tags = range(0, 100)

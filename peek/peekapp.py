@@ -239,8 +239,8 @@ class PeekApp:
     def on_exit(self):
         if not self.batch_mode and self.config.as_bool('auto_save_session'):
             _logger.info('Auto-saving connection state')
-        data = self.es_client_manager.to_dict()
-        self.history.save_session(AUTO_SAVE_NAME, json.dumps(data))
+            data = self.es_client_manager.to_dict()
+            self.history.save_session(AUTO_SAVE_NAME, json.dumps(data))
 
     def _should_auto_load_session(self, options):
         """

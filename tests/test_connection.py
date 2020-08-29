@@ -88,7 +88,7 @@ def test_connect_has_highest_priority_for_api_key():
         'api_key': 'id:key',
         'token': 'some-token',
         'username': 'foo',
-        'password': 'password,'
+        'password': 'password',
     })
 
     assert str(client) == 'K-id @ http://localhost:9200'
@@ -102,11 +102,30 @@ def test_connect_has_second_priority_for_token():
     client = connect(mock_app, **{
         'token': 'some-token',
         'username': 'foo',
-        'password': 'password,'
+        'password': 'password',
     })
 
     assert str(client) == 'T-some-token @ http://localhost:9200'
     assert client.info()['auth'].startswith('Token some-token')
+
+
+def test_connect_will_prefer_cloud_id():
+    mock_app = MagicMock(name='PeekApp')
+    mock_app.config.as_bool = MagicMock(return_value=False)
+
+    mock_es = MagicMock
+    MockEs = MagicMock(return_value=mock_es)
+
+    with patch('peek.connection.Elasticsearch', MockEs):
+        client = connect(mock_app, **{
+            'username': 'foo',
+            'password': 'password',
+            'cloud_id': 'my-cloud-id',
+            'hosts': 'example.com:9200',
+        })
+
+    assert str(client) == 'foo @ my-cloud-id'
+    assert client.hosts is None
 
 
 def test_es_client_to_and_from_dict():
