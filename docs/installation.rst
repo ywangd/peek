@@ -12,7 +12,7 @@ To install peek, run this command in your terminal:
 
 .. code-block:: console
 
-    $ pip install peek
+    $ pip install es-peek
 
 This is the preferred method to install peek, as it will always install the most recent stable release.
 

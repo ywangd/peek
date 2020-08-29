@@ -31,7 +31,9 @@ to get a list of builtin functions.
 Features
 --------
 
-Peek supports most editing features offered by Kibana Console, e.g. syntax highlighting, auto-formatting, auto-indent,
+Peek supports most editing features offered by
+`Kibana Console <https://www.elastic.co/guide/en/kibana/current/console-kibana.html>`_,
+e.g. syntax highlighting, auto-formatting, auto-indent,
 auto-completion (WIP), par-editing, triple-quotes, etc. It also offers following additional features:
 
 * Lightweight CLI tool
