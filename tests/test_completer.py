@@ -14,6 +14,8 @@ from peek.natives import EXPORTS
 mock_app = MagicMock(name='PeekApp')
 mock_app.vm.functions = {k: v for k, v in EXPORTS.items() if callable(v)}
 mock_app.config.as_bool.return_value = True
+config = {'kibana_dir': None}
+mock_app.config.__getitem__ = MagicMock(side_effect=lambda x: config.get(x))
 
 completer = PeekCompleter(mock_app)
 
@@ -113,9 +115,10 @@ def test_complete_func_option_name():
     assert completions_has(
         get_completions(Document('''connect
 session ''')),
-        Completion(text='current=', start_position=0),
+        Completion(text='save=', start_position=0),
+        Completion(text='load=', start_position=0),
         Completion(text='remove=', start_position=0),
-        Completion(text='@info', start_position=0),
+        Completion(text='@clear', start_position=0),
     )
 
 
@@ -132,8 +135,13 @@ saml_authenticate r''')),
     )
 
     assert completions_has(
-        get_completions(Document('session @r')),
-        Completion(text='@remove', start_position=-2),
+        get_completions(Document('session @s')),
+        Completion(text='@save', start_position=-2),
+    )
+
+    assert completions_has(
+        get_completions(Document('connection @r')),
+        Completion(text='@remove', start_position=-2)
     )
 
 
