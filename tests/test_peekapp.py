@@ -12,7 +12,14 @@ from peek.common import AUTO_SAVE_NAME
 from peek.peekapp import PeekApp
 
 
-def test_multiple_stmts():
+def test_multiple_stmts(config_obj):
+    mock_history = MagicMock()
+    MockHistory = MagicMock(return_value=mock_history)
+
+    def get_config(_, extra_config):
+        config_obj.merge(ConfigObj(extra_config))
+        return config_obj
+
     text = """get abc
 
 post abc/_doc
@@ -24,9 +31,10 @@ conn foo=bar
 get abc
 """
     nodes = []
-    peek = PeekApp(batch_mode=True, extra_config_options=('log_level=None',))
-    peek.execute_node = lambda stmt: nodes.append(stmt)
-    peek.process_input(text)
+    with patch('peek.peekapp.get_config', get_config), patch('peek.peekapp.SqLiteHistory', MockHistory):
+        peek = PeekApp(batch_mode=True, extra_config_options=('log_level=None', 'use_keyring=False'))
+        peek.execute_node = lambda stmt: nodes.append(stmt)
+        peek.process_input(text)
 
     for n in nodes:
         print(n)
