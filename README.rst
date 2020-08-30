@@ -22,7 +22,9 @@ it in development mode from the source repository for easier update.
 Alternatively, it can be installed from PyPI with ``pip install es-peek``.
 
 The tool is now available as the ``peek`` command. Other than HTTP calls to Elasticsearch clusters, type ``help``
-to get a list of builtin functions.
+to get a list of builtin functions. Peek will ask permission to access system keyring to store credentials.
+It can be disabled permanently by setting ``use_keyring = False`` in ``peekrc`` file or
+temporarily by invoking the program with ``peek -e use_keyring=False``.
 
 * To enable auto-completions for APIs (WIP), run ``make get-specs`` to pull API specs from the
   `Kibana project <https://github.com/elastic/kibana>`_.
