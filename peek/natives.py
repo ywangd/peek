@@ -191,11 +191,21 @@ class RangeFunc:
 class EchoFunc:
 
     def __call__(self, app, *args, **options):
-        return ' '.join(str(arg) for arg in args)
+        content = ' '.join(str(arg) for arg in args)
+        if 'file' in options:
+            end = '\n'  # this does not make sense in interactive mode, so hardcode it for now
+            with open(options.get('file'), 'a') as outs:
+                outs.write(f'{content}{end}')
+        else:
+            return content
+
+    @property
+    def options(self):
+        return {'file': None}
 
     @property
     def description(self):
-        return 'Print given items'
+        return 'Print given items, optionally appending to a file'
 
 
 class CaptureFunc:
