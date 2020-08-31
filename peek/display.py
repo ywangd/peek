@@ -1,5 +1,6 @@
 import json
 import logging
+import sys
 from json import JSONDecodeError
 
 import pygments
@@ -66,12 +67,23 @@ class Display:
             return False
 
     def tee_print(self, *args, **kwargs):
-        print_formatted_text(*args, **kwargs)
+        content = None
+        if self.app.batch_mode:
+            content = all_to_text(*args)
+            print(content, file=sys.stdout, end='')
+        else:
+            print_formatted_text(*args, **kwargs)
+
         if self.app.capture.file() is not None:
-            fragments = []
-            for v in args:
-                fragments.extend(to_text(v))
-            print(''.join([v[1] for v in fragments]), file=self.app.capture.file())
+            content = content or all_to_text(*args)
+            print(content, file=self.app.capture.file())
+
+
+def all_to_text(*args):
+    fragments = []
+    for v in args:
+        fragments.extend(to_text(v))
+    return ''.join([v[1] for v in fragments])
 
 
 def to_text(val):
