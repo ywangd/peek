@@ -15,10 +15,10 @@ def payload_lexer():
     return PeekLexer(stack=('dict',))
 
 
-def do_test(lexer, text, error_tokens=None):
+def do_test(lexer, text, error_tokens=None, stack=('root',)):
     error_tokens = error_tokens or []
     tokens = []
-    for t in lexer.get_tokens_unprocessed(text):
+    for t in lexer.get_tokens_unprocessed(text, stack=stack):
         print(t)
         tokens.append(t)
         if t[1] is Token.Error and error_tokens:
@@ -265,6 +265,17 @@ def test_whitespace_comma(peek_lexer):
     tokens = do_test(peek_lexer, text='''f g(a,b,c)''')
     tokens = [t for t in tokens if t.ttype is not Whitespace]
     assert len(tokens) == 7
+
+
+def test_payload_only(peek_lexer):
+    text = '''
+    // comment
+    {'index': {'_index': 'index', '_id': '1'}} // trailing comment
+    // another comment
+{'category': 'click', 'tag': 1}
+{'index': {'_index': 'index', '_id': '2'}}
+{'category': 'click', 'tag': 2}'''
+    do_test(peek_lexer, text, stack=('dict',))
 
 
 @pytest.fixture

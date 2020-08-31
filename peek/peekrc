@@ -4,6 +4,7 @@ log_level = info
 use_keyring = True
 pretty_print = True
 history_max = 10000
+parse_payload_file = True
 auto_save_session = True
 auto_load_session = False
 kibana_dir =

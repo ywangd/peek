@@ -104,7 +104,17 @@ class PeekVM(Visitor):
                 node.file_node.accept(self)
             with open(os.path.expanduser(f.get())) as ins:
                 payload = ins.read()
-                if not payload.endswith('\n'):
+                if self.app.config.as_bool('parse_payload_file'):
+                    dicts = []
+                    with self.consumer(lambda v: dicts.append(v)):
+                        # NOTE this reuses the parser from the main app. It is not a problem
+                        # because parser always finishes its job before returning. So in a
+                        # single thread execution model, we won't corrupt the internals.
+                        for pnode in self.app.parser.parse(payload, payload_only=True):
+                            self.execute_node(pnode)
+                    lines = [json.dumps(d) for d in dicts]
+                    payload = ('\n'.join(lines) + '\n') if lines else None
+                elif not payload.endswith('\n'):
                     payload += '\n'
         else:
             raise ValueError(f'Unknown node: {node!r}')

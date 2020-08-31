@@ -1,3 +1,4 @@
+import os
 from unittest.mock import MagicMock, call
 
 import pytest
@@ -14,7 +15,12 @@ def peek_vm():
 
     vm = PeekVM(mock_app)
     mock_app.vm = vm
-    mock_app.config = ConfigObj()
+    from peek import __file__ as package_root
+    package_root = os.path.dirname(package_root)
+    package_config_file = os.path.join(package_root, 'peekrc')
+
+    mock_app.config = ConfigObj(package_config_file)
+    mock_app.parser = PeekParser()
     vm.context['debug'] = MagicMock(return_value=None)
     mock_app.display.info = MagicMock(return_value=None)
     mock_app.display.error = MagicMock(return_value=None)
@@ -94,3 +100,41 @@ def test_for_in(peek_vm, parser):
     assert peek_vm.get_value('y') == 3
     peek_vm.context['debug'].assert_has_calls(
         [call(peek_vm.app, 1), call(peek_vm.app, 2), call(peek_vm.app, 3)])
+
+
+def test_payload_file(peek_vm, parser):
+    peek_vm.execute_node(parser.parse('''let data = {
+    "category": "click",
+    "tags": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+}''')[0])
+
+    payload_file = os.path.join(os.path.dirname(__file__), 'payload.json')
+
+    peek_vm.execute_node(parser.parse('''PUT _bulk
+@{}'''.format(payload_file))[0])
+
+    peek_vm.app.es_client_manager.current.perform_request.assert_called_with(
+        'PUT',
+        '/_bulk',
+        '{"index": {"_index": "index", "_id": "1"}}\n'
+        '{"category": "click", "tag": 1}\n'
+        '{"index": {"_index": "index", "_id": "2"}}\n'
+        '{"category": "click", "tag": 2}\n'
+        '{"index": {"_index": "index", "_id": "3"}}\n'
+        '{"category": "click", "tag": 3}\n'
+        '{"index": {"_index": "index", "_id": "4"}}\n'
+        '{"category": "click", "tag": 4}\n'
+        '{"index": {"_index": "index", "_id": "5"}}\n'
+        '{"category": "click", "tag": 5}\n'
+        '{"index": {"_index": "index", "_id": "6"}}\n'
+        '{"category": "click", "tag": 6}\n'
+        '{"index": {"_index": "index", "_id": "7"}}\n'
+        '{"category": "click", "tag": 7}\n'
+        '{"index": {"_index": "index", "_id": "8"}}\n'
+        '{"category": "click", "tag": 8}\n'
+        '{"index": {"_index": "index", "_id": "9"}}\n'
+        '{"category": "click", "tag": 9}\n'
+        '{"index": {"_index": "index", "_id": "10"}}\n'
+        '{"category": "click", "tag": 10}\n',
+        headers=None,
+    )

@@ -260,3 +260,16 @@ def test_func_expr_chain(parser):
     text = '''f a.@b(1)'''
     nodes = parser.parse(text)
     assert str(nodes[0]) == 'f [] [a . b [] [1] {}] {}\n'
+
+
+def test_payload_file(parser):
+    text = '''{'index': {'_index': 'index', '_id': '1'}}
+{'category': 'click', 'tag': 1}
+{'index': {'_index': 'index', '_id': '2'}}
+{'category': 'click', 'tag': 2}'''
+    nodes = parser.parse(text, payload_only=True)
+    assert len(nodes) == 4
+    assert '\n'.join(str(n) for n in nodes) == '''{'index':{'_index':'index','_id':'1'}}
+{'category':'click','tag':1}
+{'index':{'_index':'index','_id':'2'}}
+{'category':'click','tag':2}'''
