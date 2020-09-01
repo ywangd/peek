@@ -178,4 +178,6 @@ for examples.
 
 Credits
 -------
-
+`Pgcli <https://github.com/dbcli/pgcli>`_ has been a great reference of learning how to use
+`prompt-toolkit <https://github.com/prompt-toolkit/python-prompt-toolkit>`_, which is a critical
+dependency of this project.

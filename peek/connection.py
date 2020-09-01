@@ -536,3 +536,7 @@ class ConnectFunc:
     @property
     def options(self):
         return dict(DEFAULT_OPTIONS)
+
+    @property
+    def description(self):
+        return 'Connect to an Elasticsearch cluster'

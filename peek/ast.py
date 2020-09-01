@@ -102,7 +102,7 @@ class NameNode(Node):
     def __init__(self, token: PeekToken):
         self.token = token
 
-    def accept(self, visitor):
+    def accept(self, visitor: Visitor):
         visitor.visit_name_node(self)
 
     def tokens(self):
@@ -114,7 +114,7 @@ class TextNode(Node):
     def __init__(self, token: PeekToken):
         self.token = token
 
-    def accept(self, visitor):
+    def accept(self, visitor: Visitor):
         visitor.visit_text_node(self)
 
     def tokens(self):
@@ -126,7 +126,7 @@ class SymbolNode(Node):
     def __init__(self, token: PeekToken):
         self.token = token
 
-    def accept(self, visitor):
+    def accept(self, visitor: Visitor):
         visitor.visit_symbol_node(self)
 
     def tokens(self):
@@ -139,7 +139,7 @@ class KeyValueNode(Node):
         self.key_node = key_node
         self.value_node = value_node
 
-    def accept(self, visitor):
+    def accept(self, visitor: Visitor):
         visitor.visit_key_value_node(self)
 
     def tokens(self):
@@ -286,7 +286,7 @@ class EsApiCallNode(Node, metaclass=ABCMeta):
         self.path_node = path_node
         self.options_node = options_node
 
-    def accept(self, visitor):
+    def accept(self, visitor: Visitor):
         visitor.visit_es_api_call_node(self)
 
     def tokens(self):

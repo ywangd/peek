@@ -32,9 +32,9 @@ class ConfigFunc:
                 if child is None:
                     parent[key_component] = {}
                 elif not isinstance(child, dict):
-                    _logger.warning(f'Config key [{key}] conflicts. '
-                                    f'Value of [{key_component}] is not a [dict], '
-                                    f'but [{type(child)}]')
+                    _logger.warning(f'Config key {key!r} conflicts. '
+                                    f'Value of {key_component!r} is not a dict, '
+                                    f'but {type(child)!r}')
                     parent = None
                     break
                 parent = parent[key_component]
@@ -175,7 +175,7 @@ class HistoryFunc:
 
     @property
     def description(self):
-        return 'View history and execute by history id'
+        return 'View history and execute by history index'
 
 
 class RangeFunc:
@@ -185,7 +185,7 @@ class RangeFunc:
 
     @property
     def description(self):
-        return 'Range over given start and stop (exclusive) and optionally a step'
+        return 'Range over given start and stop (exclusive) with an optional step'
 
 
 class EchoFunc:
@@ -231,7 +231,7 @@ class CaptureFunc:
 
     @property
     def description(self):
-        return 'Capture session'
+        return 'Capture session IO into a file'
 
 
 class ExitFunc:

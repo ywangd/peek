@@ -35,7 +35,7 @@ class PeekCompleter(Completer):
         from peek import __file__ as package_root
         package_root = os.path.dirname(package_root)
         kibana_dir = app.config['kibana_dir'] or os.path.join(package_root, 'specs', 'kibana-7.8.1')
-        if self.app.config.as_bool('load_api_specs'):
+        if not self.app.batch_mode and self.app.config.as_bool('load_api_specs'):
             self.specs = load_specs(kibana_dir)
         else:
             self.specs = {}
