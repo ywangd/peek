@@ -281,7 +281,7 @@ class EsClientManager:
             self._index_current = self._clients.index(self.get_client(name))
         elif isinstance(x, int):
             if x < 0 or x >= len(self._clients):
-                raise PeekError(f'Attempt to set ES client at invalid index [{x}]')
+                raise PeekError(f'Attempt to set ES client at invalid index {x!r}')
             self._index_current = x
         else:
             raise ValueError(f'Connection must be specified by either name or index, got {x!r}')
@@ -337,6 +337,17 @@ class EsClientManager:
         keep = self.get_client(x)
         self._index_current = 0
         self._clients = [keep]
+
+    def move_current_to(self, idx: int):
+        if not isinstance(idx, int):
+            raise PeekError(f'Index must be integer, got {idx!r}')
+        if 0 <= idx < len(self._clients):
+            if idx == self._index_current:
+                return
+            self._clients.insert(idx, self._clients.pop(self._index_current))
+            self._index_current = idx
+        else:
+            raise PeekError(f'Attempt to move ES client to an invalid index: {idx!r}')
 
     def to_dict(self):
         result = {

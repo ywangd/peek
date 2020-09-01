@@ -88,6 +88,21 @@ def test_connection_related_funcs(peek_app):
    [2] K-id @ http://example.com:9200
    [3] token-auth'''
 
+    assert connection_f(peek_app, move=0) == '''*  [0] bar @ https://localhost:9200
+   [1] foo @ http://localhost:9200
+   [2] K-id @ http://example.com:9200
+   [3] token-auth'''
+
+    assert connection_f(peek_app, move=3) == '''   [0] foo @ http://localhost:9200
+   [1] K-id @ http://example.com:9200
+   [2] token-auth
+*  [3] bar @ https://localhost:9200'''
+
+    assert connection_f(peek_app, move=3) == '''   [0] foo @ http://localhost:9200
+   [1] K-id @ http://example.com:9200
+   [2] token-auth
+*  [3] bar @ https://localhost:9200'''
+
 
 def test_connect_with_failed_test_will_not_be_added(peek_app):
     peek_app.display = MagicMock()

@@ -227,3 +227,11 @@ def test_es_client_manager():
     assert clients.index(new_manager.current) == 3
 
     assert d == new_manager.to_dict()
+
+    es_client_manager.move_current_to(1)
+    assert es_client_manager.current == remote_admin_3
+    assert es_client_manager.get_client(1) == remote_admin_3
+
+    es_client_manager.move_current_to(4)
+    assert es_client_manager.current == remote_admin_3
+    assert es_client_manager.get_client(4) == remote_admin_3

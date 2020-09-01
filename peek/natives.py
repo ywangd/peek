@@ -67,6 +67,10 @@ class ConnectionFunc:
         if remove is not None:
             app.es_client_manager.remove_client(remove)
 
+        move = options.get('move', None)
+        if move is not None:
+            app.es_client_manager.move_current_to(move)
+
         keep = options.get('keep', None)
         if keep is not None:
             app.es_client_manager.keep_client(keep)
@@ -83,7 +87,7 @@ class ConnectionFunc:
 
     @property
     def options(self):
-        return {'current': None, 'remove': None, 'rename': None, 'info': None, 'keep': None,
+        return {'current': None, 'remove': None, 'move': None, 'rename': None, 'info': None, 'keep': None,
                 '@info': None, '@remove': None, '@keep': None}
 
     @property
