@@ -1,15 +1,40 @@
 # vi: ft=dosini
+# Log file name under the configuration folder
 log_file = log
 log_level = info
+
+# Use system keyring to store credentials
 use_keyring = True
+
+# Test server connection by issuing an authenticate request after invoking the connect function
+test_connection = False
+
+# Pretty print the response JSON
 pretty_print = True
+
+# Maximum number of history entries to keep
 history_max = 10000
+
+# Parse the external payload file the same way as inline payload
 parse_payload_file = True
+
+# Automatically save all connections when exiting an interactive session
 auto_save_session = True
+
+# Automatically load last auto saved session
 auto_load_session = False
+
+# Kibana project directory to look for API spec files
 kibana_dir =
+
+# Load API spec files
 load_api_specs = True
+
+# Load extension scripts
 load_extension = True
+
+# Colon separate file or folder path for extension scripts
 extension_path =
 
+# Swap dark and light colours
 swap_colour = False

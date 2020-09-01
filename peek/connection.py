@@ -530,12 +530,25 @@ def _keyring(service_name, key, value=None):
 
 class ConnectFunc:
     def __call__(self, app, **options):
-        app.es_client_manager.add(connect(app, **options))
+        test_connection = app.config.as_bool('test_connection')
+        opt = options.pop('test', None)
+        if opt is not None:
+            test_connection = opt
+        es_client = connect(app, **options)
+        if test_connection:
+            try:
+                app.display.info(es_client.perform_request('GET', '/_security/_authenticate'))
+            except Exception as e:
+                app.display.error(e)
+                return
+        app.es_client_manager.add(es_client)
         return str(app.es_client_manager)
 
     @property
     def options(self):
-        return dict(DEFAULT_OPTIONS)
+        _options = dict(DEFAULT_OPTIONS)
+        _options['test'] = None
+        return _options
 
     @property
     def description(self):

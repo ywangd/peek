@@ -68,7 +68,7 @@ class Display:
 
     def tee_print(self, *args, **kwargs):
         content = None
-        if self.app.batch_mode:
+        if self.app.batch_mode and not sys.stdout.isatty():
             content = all_to_text(*args)
             print(content, file=sys.stdout, end='')
         else:
