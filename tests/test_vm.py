@@ -64,11 +64,19 @@ def test_peek_vm_func(peek_vm, parser):
 
 def test_peek_vm_es_api_call(peek_vm, parser):
     peek_vm.execute_node(parser.parse('GET /')[0])
+    peek_vm.app.display.info.assert_called_with(
+        '{"foo": [1, 2, 3, 4], "bar": {"hello": [42, "world"]}}', header_text='')
     assert peek_vm.get_value('_') == {'foo': [1, 2, 3, 4], 'bar': {'hello': [42, 'world']}}
     peek_vm.execute_node(parser.parse('debug _."bar".@hello.1')[0])
     assert_called_with(peek_vm, 'world')
     peek_vm.execute_node(parser.parse('GET ("foo" + "/" + 42)')[0])
     peek_vm.app.es_client_manager.current.perform_request.assert_called_with('GET', '/foo/42', None, headers=None)
+
+
+def test_es_api_call_quiet(peek_vm, parser):
+    peek_vm.execute_node(parser.parse('GET / quiet=true')[0])
+    peek_vm.app.display.info.assert_not_called()
+    assert peek_vm.get_value('_') == {'foo': [1, 2, 3, 4], 'bar': {'hello': [42, 'world']}}
 
 
 def test_peek_vm_let(peek_vm, parser):

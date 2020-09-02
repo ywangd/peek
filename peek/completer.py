@@ -20,7 +20,7 @@ _logger = logging.getLogger(__name__)
 
 _HTTP_METHOD_COMPLETER = WordCompleter(['GET', 'POST', 'PUT', 'DELETE'], ignore_case=True)
 
-_ES_API_CALL_OPTION_COMPLETER = WordCompleter([w + '=' for w in sorted(['conn', 'runas', 'headers', 'xoid'])])
+_ES_API_CALL_OPTION_COMPLETER = WordCompleter([w + '=' for w in sorted(['conn', 'runas', 'headers', 'xoid', 'quiet'])])
 
 _PATH_COMPLETER = PathCompleter(expanduser=True)
 _SYSTEM_COMPLETER = SystemCompleter()

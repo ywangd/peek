@@ -131,6 +131,7 @@ class PeekVM(Visitor):
             es_client = self.app.es_client_manager.get_client(conn)
         else:
             es_client = self.app.es_client_manager.current
+        quiet = options.pop('quiet', False)
         if options:
             self.app.display.error(f'Unknown options: {options}')
             return
@@ -138,7 +139,8 @@ class PeekVM(Visitor):
         try:
             response = es_client.perform_request(node.method, path, payload, headers=headers if headers else None)
             self.context['_'] = _maybe_jsonify(response)
-            self.app.display.info(response, header_text=self._get_header_text(conn, runas))
+            if not quiet:
+                self.app.display.info(response, header_text=self._get_header_text(conn, runas))
         except Exception as e:
             if getattr(e, 'info', None) and isinstance(getattr(e, 'status_code', None), int):
                 self.context['_'] = _maybe_jsonify(e.info)
