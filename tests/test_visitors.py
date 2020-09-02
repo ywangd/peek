@@ -167,6 +167,18 @@ def test_formatting_looped_api_calls(parser):
 }'''
 
 
+def test_formatting_symbol_inside_dict(parser):
+    nodes = parser.parse('''POST _search
+{
+  'foo': {
+    'bar': r.@id
+  }
+}''')
+    assert FormattingVisitor(pretty=False).visit(nodes[0]) == '''POST _search
+{'foo':{'bar':r.@id}}
+'''
+
+
 def test_tree_formatting(parser):
     visitor = TreeFormattingVisitor()
     nodes = parser.parse('''f @abc 1 "a" b=a foo="bar" 1 * 2 + (3-2) * 5 / 6

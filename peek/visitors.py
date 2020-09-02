@@ -142,7 +142,8 @@ class FormattingVisitor(Visitor):
         self.consume(node.token.value)
 
     def visit_symbol_node(self, node: SymbolNode):
-        self.consume('@', node.token.value)
+        self.consume('@')
+        self.consume(node.token.value)
 
     def visit_text_node(self, node: TextNode):
         self.consume(node.token.value)
