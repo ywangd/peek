@@ -121,3 +121,17 @@ def test_connect_with_failed_test_will_not_be_added(peek_app):
         assert connect_f(peek_app, username=None, test=True) is None
         peek_app.display.error.assert_called_with(error)
         assert str(peek_app.es_client_manager) == '*  [0] foo @ http://localhost:9200'
+
+
+def test_echo(peek_app):
+    echo_f = peek_app.vm.functions['echo']
+
+    assert echo_f(peek_app, 0) == '0'
+    assert echo_f(peek_app, 1) == '1'
+    assert echo_f(peek_app, True) == 'true'
+    assert echo_f(peek_app, False) == 'false'
+    assert echo_f(peek_app, None) == 'null'
+    assert echo_f(peek_app, 'hello') == '"hello"'
+    assert echo_f(peek_app, echo_f) == 'echo'
+    assert echo_f(peek_app, {'foo': [True, False, None, 'bar', echo_f]}) == '{"foo":[true,false,null,"bar",echo]}'
+    assert echo_f(peek_app, {}, [], 42) == '{} [] 42'
