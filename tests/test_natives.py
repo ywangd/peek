@@ -135,3 +135,20 @@ def test_echo(peek_app):
     assert echo_f(peek_app, echo_f) == 'echo'
     assert echo_f(peek_app, {'foo': [True, False, None, 'bar', echo_f]}) == '{"foo":[true,false,null,"bar",echo]}'
     assert echo_f(peek_app, {}, [], 42) == '{} [] 42'
+
+
+@patch.dict(os.environ, {'PEEK_PASSWORD': 'password'})
+def test_reset(peek_app):
+    peek_app.display.info = MagicMock()
+
+    peek_app.process_input('let foo = 42')
+    assert peek_app.vm.get_value('foo') == 42
+
+    peek_app.process_input('connection rename="c0"')
+    peek_app.process_input('connect name="c1"')
+    peek_app.process_input('connect name="c2"')
+    assert len(peek_app.es_client_manager.clients()) == 3
+
+    peek_app.process_input('reset')
+    assert len(peek_app.es_client_manager.clients()) == 1
+    assert str(peek_app.es_client_manager) == '*  [0] foo @ http://localhost:9200'

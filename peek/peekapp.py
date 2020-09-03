@@ -44,7 +44,8 @@ class PeekApp:
         self.cli_ns = cli_ns
         self._init_logging()
         self.history = SqLiteHistory(self.config.as_int('history_max'))
-        self.es_client_manager = self._init_es_client()
+        self.es_client_manager = self._init_es_client_manager()
+        self.ecm_backup_data = self.es_client_manager.to_dict()
         self.prompt = self._init_prompt()
         self.display = Display(self)
         self.parser = PeekParser()
@@ -126,6 +127,10 @@ class PeekApp:
     def input(self, message='', is_secret=False):
         return prompt(message=message, is_password=is_secret)
 
+    def reset(self):
+        self.es_client_manager = EsClientManager.from_dict(self, self.ecm_backup_data)
+        self.vm.context = {}
+
     def _get_message(self):
         idx = self.es_client_manager.clients().index(self.es_client_manager.current)
         info_line = f' [{idx}] {self.es_client_manager.current}'
@@ -199,7 +204,7 @@ class PeekApp:
                 ],
             )
 
-    def _init_es_client(self):
+    def _init_es_client_manager(self):
         options = {}
         keys = [
             'name',

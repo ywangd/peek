@@ -301,6 +301,16 @@ class CaptureFunc:
         return 'Capture session IO into a file'
 
 
+class ResetFunc:
+
+    def __call__(self, app, **options):
+        app.reset()
+
+    @property
+    def description(self):
+        return 'Reset current session back to its initial start state'
+
+
 class ExitFunc:
 
     def __call__(self, app):
@@ -353,6 +363,7 @@ EXPORTS = {
     'echo': EchoFunc(),
     'range': RangeFunc(),
     'capture': CaptureFunc(),
+    'reset': ResetFunc(),
     'exit': ExitFunc(),
     'help': HelpFunc(),
     'saml_authenticate': SamlAuthenticateFunc(),
