@@ -1,8 +1,8 @@
 import logging
-import os
 
 from prompt_toolkit.application import get_app
 from prompt_toolkit.buffer import ValidationState, Buffer
+from prompt_toolkit.document import Document
 from prompt_toolkit.enums import DEFAULT_BUFFER
 from prompt_toolkit.filters import Condition, completion_is_selected, is_searching, has_completions
 from prompt_toolkit.key_binding import KeyBindings
@@ -10,6 +10,9 @@ from prompt_toolkit.key_binding.key_processor import KeyPressEvent
 
 from peek.common import HTTP_METHODS
 from peek.errors import PeekSyntaxError, PeekError
+from peek.lexers import PeekLexer, TripleD, TripleS, ParenLeft, BracketLeft, CurlyLeft, ParenRight, BracketRight, \
+    CurlyRight
+from peek.parser import process_tokens
 from peek.visitors import FormattingVisitor
 
 _logger = logging.getLogger(__name__)
@@ -32,7 +35,6 @@ def key_bindings(app):
     def _(event):
         b = event.current_buffer  # type: Buffer
         c = b.document.current_char
-        _logger.debug(f'not handling enter, current char {c!r}')
 
         # When cursor is on the right curly bracket, just use the ident of the current line
         existing_indent = 0
@@ -49,7 +51,7 @@ def key_bindings(app):
 
     @kb.add('escape', 'enter', filter=~(completion_is_selected | is_searching))
     def _(event):
-        event.app.current_buffer.newline()
+        event.current_buffer.validate_and_handle()
 
     @kb.add('escape', 'c')
     def _(event: KeyPressEvent):
@@ -193,33 +195,48 @@ def key_bindings(app):
 
 
 def buffer_should_be_handled(app):
+    peek_lexer = PeekLexer()
+
     @Condition
     def cond():
-        doc = get_app().layout.get_buffer_by_name(DEFAULT_BUFFER).document
-        _logger.debug(f'current doc: {doc}')
+        document: Document = get_app().layout.get_buffer_by_name(DEFAULT_BUFFER).document
+        _logger.debug(f'current document: {document}')
         # Always handle empty text
-        if doc.text.strip() == '':
+        if document.text.strip() == '':
             return True
 
-        if doc.empty_line_count_at_the_end() + 1 == doc.line_count and doc.line_count > 1:
-            _logger.debug('Lines are all blank after the first one')
-            return True
+        if document.line_count == 1:
+            if document.text.strip().split(maxsplit=1)[0].lower() in (HTTP_METHODS + ['for']):
+                return False
+            else:
+                tokens = process_tokens(peek_lexer.get_tokens_unprocessed(document.text_before_cursor))
+                last_token = tokens[-1]
+                if last_token.ttype in (TripleS, TripleD):
+                    remainder = last_token.value[3:][-3:]
+                    text = remainder + document.text_after_cursor
+                    marker = '"""' if last_token.ttype is TripleD else "'''"
+                    for i in range(min(len(remainder), 3)):
+                        if text[i:i + 3] == marker:
+                            return True
+                    _logger.debug('Cursor is inside triple quotes')
+                    return False
+                balance = 0
+                for t in tokens:
+                    if t.ttype in (ParenLeft, BracketLeft, CurlyLeft):
+                        balance -= 1
+                    elif t.ttype in (ParenRight, BracketRight, CurlyRight):
+                        balance += 1
 
-        # Do not handle if there are chars after the cursor position
-        if doc.text[doc.cursor_position:].strip() != '':
-            _logger.debug('Extra non-white chars found after cursor')
-            return False
-
-        # Handle if extra blank line found
-        last_linesep_position = doc.text.rfind(os.linesep)
-        if last_linesep_position != -1 and doc.text[last_linesep_position:].strip() == '':
-            return True
-
-        # If there are existing lines already, do not handle
-        if doc.text.count('\n') > 0:
-            _logger.debug('Existing line found above current line')
-            return False
-        else:  # If this is the 1st line, do not handle if it is ES API call
-            return doc.text.lstrip().split(maxsplit=1)[0].lower() not in (HTTP_METHODS + ['for'])
+                if balance < 0:
+                    _logger.debug('Cursor is inside brackets')
+                    return False
+                else:
+                    return True
+        else:
+            if document.current_line.strip() == '' and document.text_after_cursor.strip() == '':
+                _logger.debug('lines are empty at and after cursor')
+                return True
+            else:
+                return False
 
     return cond
