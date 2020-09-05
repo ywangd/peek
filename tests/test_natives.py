@@ -132,8 +132,9 @@ def test_echo(peek_app):
     assert echo_f(peek_app, False) == 'false'
     assert echo_f(peek_app, None) == 'null'
     assert echo_f(peek_app, 'hello') == '"hello"'
-    assert echo_f(peek_app, echo_f) == 'echo'
-    assert echo_f(peek_app, {'foo': [True, False, None, 'bar', echo_f]}) == '{"foo":[true,false,null,"bar",echo]}'
+    assert echo_f(peek_app, echo_f) == '"<PeekFunction echo>"'
+    assert echo_f(peek_app, {'foo': [True, False, None, 'bar', echo_f]}) == \
+           '{"foo":[true,false,null,"bar","<PeekFunction echo>"]}'
     assert echo_f(peek_app, {}, [], 42) == '{} [] 42'
 
 

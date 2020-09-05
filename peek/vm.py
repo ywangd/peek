@@ -138,12 +138,12 @@ class PeekVM(Visitor):
 
         try:
             response = es_client.perform_request(node.method, path, payload, headers=headers if headers else None)
-            self.context['_'] = _maybe_jsonify(response)
+            self.context['_'] = _maybe_decode_json(response)
             if not quiet:
                 self.app.display.info(response, header_text=self._get_header_text(conn, runas))
         except Exception as e:
-            if getattr(e, 'info', None) and isinstance(getattr(e, 'status_code', None), int):
-                self.context['_'] = _maybe_jsonify(e.info)
+            if getattr(e, 'info', None) is not None and isinstance(getattr(e, 'status_code', None), int):
+                self.context['_'] = _maybe_decode_json(e.info) if isinstance(e.info, str) else e.info
                 self.app.display.info(e.info, header_text=self._get_header_text(conn, runas))
             else:
                 self.app.display.error(e, header_text=self._get_header_text(conn, runas))
@@ -386,7 +386,7 @@ class PeekVM(Visitor):
         return ' '.join(parts)
 
 
-def _maybe_jsonify(r):
+def _maybe_decode_json(r):
     try:
         return json.loads(r)
     except Exception:

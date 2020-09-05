@@ -1,12 +1,12 @@
 import json
 import logging
-import numbers
 
 from configobj import ConfigObj
 
 from peek.common import DEFAULT_SAVE_NAME
 from peek.config import config_location
 from peek.connection import ConnectFunc, EsClientManager
+from peek.display import PeekEncoder
 from peek.errors import PeekError
 from peek.krb import KrbAuthenticateFunc
 from peek.oidc import OidcAuthenticateFunc
@@ -206,65 +206,18 @@ class EchoFunc:
         self.function_lookup = {v: k for k, v in app.vm.functions.items()}
         content = []
         for arg in args:
-            self.parts = []
-            self._repr(arg)
-            content.append(''.join(self.parts))
+            content.append(json.dumps(arg, cls=PeekEncoder, app=app, separators=(',', ':')))
 
         content = ' '.join(content)
         if 'file' in options:
             end = '\n'  # this does not make sense in interactive mode, so hardcode it for now
-            with open(options.get('file'), 'a') as outs:
+            fname = options.get('file')
+            if not isinstance(fname, str):
+                raise PeekError(f'file name must be string, got {fname!r}')
+            with open(fname, 'a') as outs:
                 outs.write(f'{content}{end}')
         else:
             return content
-
-    def _repr(self, value):
-        if value is True or value is False or value is None:  # Must compare with is, not in
-            self._repr_builtin(value)
-        elif isinstance(value, dict):
-            self._repr_dict(value)
-        elif isinstance(value, list):
-            self._repr_array(value)
-        elif isinstance(value, str):
-            self._repr_str(value)
-        elif isinstance(value, numbers.Number):
-            self._repr_number(value)
-        elif callable(value):
-            self._repr_function(value)
-        else:
-            raise PeekError(f'Unknown value type: {value!r}')
-
-    def _repr_dict(self, value):
-        self.parts.append('{')
-        for k, v in value.items():
-            self._repr(k)
-            self.parts.append(':')
-            self._repr(v)
-            self.parts.append(',')
-        if len(value) > 0:
-            self.parts.pop()
-        self.parts.append('}')
-
-    def _repr_array(self, value):
-        self.parts.append('[')
-        for v in value:
-            self._repr(v)
-            self.parts.append(',')
-        if len(value) > 0:
-            self.parts.pop()
-        self.parts.append(']')
-
-    def _repr_str(self, value):
-        self.parts.append(json.dumps(value))
-
-    def _repr_number(self, value):
-        self.parts.append(str(value))
-
-    def _repr_builtin(self, value):
-        self.parts.append(self.builtin_lookup[value])
-
-    def _repr_function(self, value):
-        self.parts.append(self.function_lookup[value])
 
     @property
     def options(self):
