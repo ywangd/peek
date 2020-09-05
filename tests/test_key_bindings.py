@@ -91,6 +91,9 @@ def test_single_line_buffer_will_be_handled_when_cursor_is_on_triple_quotes():
 
 @patch('peek.key_bindings.get_app', get_app)
 def test_single_line_func_stmt_will_be_handled_if_cursor_is_not_within_quotes_or_brackets():
+    buffer.document = Document('echo "abc" 1 2 42', cursor_position=0)
+    assert buffer_should_be_handled(mock_app)() is True
+
     for c in range(10, 15):
         buffer.document = Document('echo "abc" 1 2 42', cursor_position=c)
         assert buffer_should_be_handled(mock_app)() is True
@@ -120,7 +123,10 @@ def test_single_line_for_stmt_will_not_be_handled():
 
 
 @patch('peek.key_bindings.get_app', get_app)
-def test_multi_line_buffer_will_be_handled_if_cursor_line_is_not_blank():
+def test_multi_line_buffer_will_be_not_handled_if_cursor_line_is_not_blank():
+    buffer.document = Document('''echo "foo"\nget /\n ''', cursor_position=0)
+    assert buffer_should_be_handled(mock_app)() is False
+
     buffer.document = Document('''echo "foo"\nget /\n ''', cursor_position=16)
     assert buffer_should_be_handled(mock_app)() is False
 

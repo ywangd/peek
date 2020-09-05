@@ -210,6 +210,8 @@ def buffer_should_be_handled(app):
                 return False
             else:
                 tokens = process_tokens(peek_lexer.get_tokens_unprocessed(document.text_before_cursor))
+                if len(tokens) == 0:  # cursor is at the very beginning
+                    return True
                 last_token = tokens[-1]
                 if last_token.ttype in (TripleS, TripleD):
                     remainder = last_token.value[3:][-3:]
