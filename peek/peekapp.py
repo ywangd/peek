@@ -16,6 +16,7 @@ from prompt_toolkit.styles import style_from_pygments_cls
 from peek.capture import NoOpCapture, FileCapture
 from peek.common import NONE_NS, AUTO_SAVE_NAME
 from peek.completer import PeekCompleter
+from peek.completions import completion_monkey_patch
 from peek.config import get_config, config_location
 from peek.connection import EsClientManager, connect
 from peek.display import Display
@@ -47,6 +48,7 @@ class PeekApp:
         self.es_client_manager = self._init_es_client_manager()
         self.ecm_backup_data = self.es_client_manager.to_dict()
         self.prompt = self._init_prompt()
+        completion_monkey_patch()
         self.display = Display(self)
         self.parser = PeekParser()
         self.vm = self._init_vm()
