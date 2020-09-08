@@ -49,6 +49,11 @@ def key_bindings(app):
         else:
             b.insert_text('\n' + ' ' * existing_indent)
 
+    @kb.add("enter", filter=completion_is_selected)
+    def _(event):
+        event.current_buffer.complete_state = None
+        event.app.current_buffer.complete_state = None
+
     @kb.add('escape', 'enter', filter=~(completion_is_selected | is_searching))
     def _(event):
         event.current_buffer.validate_and_handle()
