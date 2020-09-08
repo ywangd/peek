@@ -45,6 +45,7 @@ def proxy_new_text_and_position(self: CompletionState) -> Tuple[str, int]:
 
     key_fill = f'{json.dumps(c.text)}: '
     # TODO: Indent of last line is incorrect
+    # TODO: actually indent is all wrong
     if isinstance(c.value, dict):
         if '__template' in c.value:
             value_fill = json.dumps(c.value['__template'], indent=current_indent + 2)
