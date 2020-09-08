@@ -43,7 +43,7 @@ def key_bindings(app):
                 existing_indent += 1
             else:
                 break
-        if c == '}':
+        if c in ('}', ']'):
             b.insert_text('\n' + ' ' * (existing_indent + 2))
             b.insert_text('\n' + ' ' * existing_indent, move_cursor=False)
         else:

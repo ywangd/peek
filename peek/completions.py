@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Tuple
+from typing import Tuple, Any
 
 from prompt_toolkit.buffer import CompletionState
 from prompt_toolkit.completion import Completion
@@ -8,8 +8,14 @@ from prompt_toolkit.completion import Completion
 _logger = logging.getLogger(__name__)
 
 
+class PayloadKeyCompletion(Completion):
+
+    def __init__(self, text: str, value, *args, **kwargs):
+        super().__init__(text, *args, **kwargs)
+        self.value = value
+
+
 def proxy_new_text_and_position(self: CompletionState) -> Tuple[str, int]:
-    _logger.warning('proxying!!!!!!')
     if self.complete_index is None:
         return self.original_new_text_and_position()
 
@@ -18,9 +24,8 @@ def proxy_new_text_and_position(self: CompletionState) -> Tuple[str, int]:
         return self.original_new_text_and_position()
 
     # check whether original text and cursor is something like "CURSOR"
-    # Optionally check whether new text is followed by a quote
+    # Optionally check whether new text is followed by a quote and
     # remove the quote
-
     original_text_before_cursor = self.original_document.text_before_cursor
     original_text_after_cursor = self.original_document.text_after_cursor
 
@@ -44,53 +49,65 @@ def proxy_new_text_and_position(self: CompletionState) -> Tuple[str, int]:
     current_indent = len(self.original_document.current_line) - len(self.original_document.current_line.lstrip())
 
     key_fill = f'{json.dumps(c.text)}: '
-    # TODO: Indent of last line is incorrect
-    # TODO: actually indent is all wrong
-    if isinstance(c.value, dict):
-        if '__template' in c.value:
-            value_fill = json.dumps(c.value['__template'], indent=current_indent + 2)
-        else:
-            value_fill = '{}'
-    elif isinstance(c.value, list):
-        if len(c.value) > 0:
-            value_fill = json.dumps([{}], indent=current_indent + 2)
-        else:
-            value_fill = '[]'
-    elif isinstance(c.value, str):
-        value_fill = json.dumps(c.value)
-    else:
-        value_fill = str(c.value)
-
-    value_fill += ', '
+    value_fill = get_value_fill(c.value, current_indent)
 
     before = before + key_fill
     new_text = before + value_fill + original_text_after_cursor[idx_quote_end:]
 
+    seen_left_curly = False
+    seen_quote = 0
     for idx, c in enumerate(value_fill):
+        if c == '{':
+            seen_left_curly = True
+
         if c in (']', ')', '}'):
             new_cursor_position = len(before) + idx
             break
         elif c in ('"', "'"):
-            new_cursor_position = len(before) + idx + 1
-            break
+            if not seen_left_curly or (seen_left_curly and seen_quote >= 2):
+                new_cursor_position = len(before) + idx + 1
+                break
+            else:
+                seen_quote += 1
         elif c == ',':
             new_cursor_position = len(before) + idx - 1
             break
     else:
         new_cursor_position = len(before)
 
-    # TODO: Remove completion menu
     return new_text, new_cursor_position
+
+
+def get_value_fill(value: Any, current_indent: int):
+    if isinstance(value, dict):
+        if '__template' in value:
+            value_fill = serialise_and_indent_json(value['__template'], current_indent)
+        elif '__one_of' in value:
+            return get_value_fill(value['__one_of'][0], current_indent)
+        else:
+            value_fill = '{}'
+    elif isinstance(value, list):
+        if len(value) > 0:
+            value_fill = serialise_and_indent_json([{}], current_indent)
+        else:
+            value_fill = '[]'
+    elif isinstance(value, str):
+        value_fill = json.dumps(value)
+    else:
+        value_fill = str(value)
+
+    value_fill += ', '
+
+    return value_fill
+
+
+def serialise_and_indent_json(data, current_indent):
+    indent = current_indent * ' '
+    res = json.dumps(data, indent=2)
+    return res.replace('\n', f'\n{indent}')
 
 
 def completion_monkey_patch():
     if CompletionState.new_text_and_position != proxy_new_text_and_position:
         setattr(CompletionState, 'original_new_text_and_position', CompletionState.new_text_and_position)
         setattr(CompletionState, 'new_text_and_position', proxy_new_text_and_position)
-
-
-class PayloadKeyCompletion(Completion):
-
-    def __init__(self, text: str, value, *args, **kwargs):
-        super().__init__(text, *args, **kwargs)
-        self.value = value

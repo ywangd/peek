@@ -281,7 +281,9 @@ class PeekCompleter(Completer):
                 _logger.debug(f'Rules not available for key: {k}')
                 return []
 
-        constant_completer = ConstantCompleter([Completion(k, start_position=0) for k in rules.keys()])
+        # TODO: handle __scope_link
+        constant_completer = ConstantCompleter([Completion(k, start_position=0) for k in rules.keys()
+                                                if k not in ('__scope_link', '__template', '__one_of')])
         for c in FuzzyCompleter(constant_completer).get_completions(document, complete_event):
             yield PayloadKeyCompletion(c.text, rules[c.text],
                                        c.start_position, c.display, c.display_meta, c.style, c.selected_style)
