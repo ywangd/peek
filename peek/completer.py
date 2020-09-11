@@ -11,6 +11,7 @@ from prompt_toolkit.document import Document
 from pygments.token import Error, Name, Literal, String
 
 from peek.common import PeekToken
+from peek.completions import PayloadKeyCompletion
 from peek.errors import PeekError
 from peek.lexers import PeekLexer, UrlPathLexer, PathPart, ParamName, Ampersand, QuestionMark, Slash, HttpMethod, \
     FuncName, OptionName, Assign, CurlyLeft, CurlyRight, DictKey, ShellOut, At
@@ -280,8 +281,12 @@ class PeekCompleter(Completer):
                 _logger.debug(f'Rules not available for key: {k}')
                 return []
 
-        return FuzzyCompleter(ConstantCompleter(
-            [Completion(c, start_position=0) for c in rules.keys()])).get_completions(document, complete_event)
+        # TODO: handle __scope_link
+        constant_completer = ConstantCompleter([Completion(k, start_position=0) for k in rules.keys()
+                                                if k not in ('__scope_link', '__template', '__one_of')])
+        for c in FuzzyCompleter(constant_completer).get_completions(document, complete_event):
+            yield PayloadKeyCompletion(c.text, rules[c.text],
+                                       c.start_position, c.display, c.display_meta, c.style, c.selected_style)
 
 
 def _maybe_unwrap_for_dict(rules):

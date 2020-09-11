@@ -73,6 +73,7 @@ class Display:
             for t in pygments.lex(source, lexer=self.payload_lexer):
                 tokens.append(t)
                 if t[0] is Token.Error:
+                    _logger.debug(f'Source string is not valid payload type: {t!r}')
                     return source, source
             return PygmentsTokens(tokens), source
         except Exception as e:
