@@ -162,3 +162,9 @@ def test_randint(peek_app):
 
     peek_app.process_input('let bar = randint(1,10)')
     assert 1 <= peek_app.vm.get_value('bar') < 10
+
+    peek_app.process_input('let fiz = randint(10)')
+    assert 0 <= peek_app.vm.get_value('bar') < 10
+
+    peek_app.process_input('let fiz = randint()')
+    assert 0 <= peek_app.vm.get_value('bar') < 100

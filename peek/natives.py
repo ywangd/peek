@@ -196,12 +196,18 @@ class RangeFunc:
 
 class RandIntFunc:
 
-    def __call__(self, app, min_value, max_value=None):
+    def __call__(self, app, min_value=None, max_value=None):
+        if min_value is None and max_value is None:
+            min_value = 0
+            max_value = 100
+        elif max_value is None:
+            max_value = min_value
+            min_value = 0
         return random.randrange(min_value, max_value)
 
     @property
     def description(self):
-        return 'Return a random integer between the given [min, max) values'
+        return 'Return a random integer between the given [min, max) values, default to [0, 100)'
 
 
 class EchoFunc:
