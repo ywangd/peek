@@ -153,3 +153,12 @@ def test_reset(peek_app):
     peek_app.process_input('reset')
     assert len(peek_app.es_client_manager.clients()) == 1
     assert str(peek_app.es_client_manager) == '*  [0] foo @ http://localhost:9200'
+
+
+def test_randint(peek_app):
+    peek_app.display.info = MagicMock()
+    peek_app.process_input('let foo = randint(1,2)')
+    assert peek_app.vm.get_value('foo') == 1
+
+    peek_app.process_input('let bar = randint(1,10)')
+    assert 1 <= peek_app.vm.get_value('bar') < 10

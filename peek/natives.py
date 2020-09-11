@@ -1,5 +1,6 @@
 import json
 import logging
+import random
 
 from configobj import ConfigObj
 
@@ -193,6 +194,16 @@ class RangeFunc:
         return 'Range over given start and stop (exclusive) with an optional step'
 
 
+class RandIntFunc:
+
+    def __call__(self, app, min_value, max_value=None):
+        return random.randrange(min_value, max_value)
+
+    @property
+    def description(self):
+        return 'Return a random integer between the given [min, max) values'
+
+
 class EchoFunc:
 
     def __init__(self):
@@ -315,6 +326,7 @@ EXPORTS = {
     'history': HistoryFunc(),
     'echo': EchoFunc(),
     'range': RangeFunc(),
+    'randint': RandIntFunc(),
     'capture': CaptureFunc(),
     'reset': ResetFunc(),
     'exit': ExitFunc(),
