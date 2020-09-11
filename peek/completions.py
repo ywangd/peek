@@ -87,7 +87,7 @@ def get_value_fill(value: Any, current_indent: int):
         else:
             value_fill = '{}'
     elif isinstance(value, list):
-        if len(value) > 0:
+        if len(value) > 0 and isinstance(value[0], dict):
             value_fill = serialise_and_indent_json([{}], current_indent)
         else:
             value_fill = '[]'
@@ -107,7 +107,7 @@ def serialise_and_indent_json(data, current_indent):
     return res.replace('\n', f'\n{indent}')
 
 
-def completion_monkey_patch():
+def monkey_patch_completion_state():
     if CompletionState.new_text_and_position != proxy_new_text_and_position:
         setattr(CompletionState, 'original_new_text_and_position', CompletionState.new_text_and_position)
         setattr(CompletionState, 'new_text_and_position', proxy_new_text_and_position)
