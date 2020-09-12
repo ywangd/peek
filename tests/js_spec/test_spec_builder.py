@@ -11,18 +11,20 @@ kibana_dir = os.path.join(package_root, 'specs', 'kibana-7.8.1')
 
 @pytest.mark.skipif(not os.path.exists(kibana_dir), reason='Kibana directory not available')
 def test_extract_all_specs():
-    spec_parser = JsSpecParser()
-    spec_parser.parse(kibana_dir)
+    spec_parser = JsSpecParser(kibana_dir)
+    spec_parser.parse()
     # spec_parser.save('tmp-specs.es')
 
 
 @pytest.mark.skipif(not os.path.exists(kibana_dir), reason='Kibana directory not available')
 def test_eval_specs():
-    spec_parser = JsSpecParser()
-    nodes = spec_parser.parse(kibana_dir)
+    spec_parser = JsSpecParser(kibana_dir)
+    nodes = spec_parser.parse()
     spec_evaluator = JsSpecEvaluator()
     specs = spec_evaluator.visit(nodes)
-    print(specs)
+    assert 'GLOBAL' in specs
+    assert 'search' in specs
+    assert 'put_mapping' in specs
     # import json
     # with open('tmp-specs.json', 'w') as outs:
     #     json.dump(specs, outs, indent=2)
