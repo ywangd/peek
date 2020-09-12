@@ -13,6 +13,7 @@ from pygments.token import Error, Name, Literal, String
 from peek.common import PeekToken
 from peek.completions import PayloadKeyCompletion
 from peek.errors import PeekError
+from peek.js_spec.spec_builder import build_js_specs
 from peek.lexers import PeekLexer, UrlPathLexer, PathPart, ParamName, Ampersand, QuestionMark, Slash, HttpMethod, \
     FuncName, OptionName, Assign, CurlyLeft, CurlyRight, DictKey, ShellOut, At
 from peek.parser import process_tokens
@@ -37,7 +38,11 @@ class PeekCompleter(Completer):
         package_root = os.path.dirname(package_root)
         kibana_dir = app.config['kibana_dir'] or os.path.join(package_root, 'specs', 'kibana-7.8.1')
         if not self.app.batch_mode and self.app.config.as_bool('load_api_specs'):
+            _logger.info(f'Build API specs from: {kibana_dir}')
             self.specs = load_specs(kibana_dir)
+            if self.app.config.as_bool('load_extended_api_specs'):
+                _logger.info(f'Build extended API specs from: {kibana_dir}')
+                self.js_specs = build_js_specs(kibana_dir)
         else:
             self.specs = {}
 

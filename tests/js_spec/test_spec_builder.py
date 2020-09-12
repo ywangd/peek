@@ -3,7 +3,7 @@ import os
 import pytest
 
 from peek import __file__ as package_root
-from peek.js_spec.spec_builder import JsSpecParser, JsSpecBuilder
+from peek.js_spec.spec_builder import JsSpecParser, JsSpecEvaluator
 
 package_root = os.path.dirname(package_root)
 kibana_dir = os.path.join(package_root, 'specs', 'kibana-7.8.1')
@@ -20,8 +20,8 @@ def test_extract_all_specs():
 def test_eval_specs():
     spec_parser = JsSpecParser()
     nodes = spec_parser.parse(kibana_dir)
-    spec_builder = JsSpecBuilder()
-    specs = spec_builder.visit(nodes)
+    spec_evaluator = JsSpecEvaluator()
+    specs = spec_evaluator.visit(nodes)
     print(specs)
     # import json
     # with open('tmp-specs.json', 'w') as outs:

@@ -27,8 +27,10 @@ auto_load_session = False
 # Kibana project directory to look for API spec files
 kibana_dir =
 
-# Load API spec files
+# Load API spec from JSON files
 load_api_specs = True
+# Load extended API specs from TypeScript files
+load_extended_api_specs = True
 
 # Load extension scripts
 load_extension = True

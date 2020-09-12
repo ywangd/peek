@@ -1,4 +1,5 @@
 import itertools
+import logging
 import os
 import re
 from unittest.mock import MagicMock
@@ -6,6 +7,7 @@ from unittest.mock import MagicMock
 from configobj import ConfigObj
 
 from peek.ast import NameNode, SymbolNode, DictNode, BinOpNode, TextNode, Node
+from peek.config import config_location
 from peek.parser import PeekParser
 from peek.visitors import FormattingVisitor
 from peek.visitors import Ref
@@ -19,15 +21,39 @@ _RECORD_MEMBER_PATTERN = re.compile(r'(?P<assign>^\w+\.\w+ = {[^;]*);?')
 _FUNCTION_PATTERN = re.compile(r'function \((?P<args>[^)]*)\) { *;?]')
 _RETURN_PATTERN = re.compile(r'return (?P<value>.*)')
 
+_logger = logging.getLogger(__name__)
+
+
+def build_js_specs(kibana_dir):
+    # Cache is not for efficiency, but rather because the spec building from TypeScript
+    # files is hacky and likely to go wrong with new Kibana releases. Cache it so at least
+    # we can have some usable version till a fix is ready for new releases.
+    cached_extended_specs_file = os.path.expanduser(config_location()) + 'extended_specs.es'
+    source = None
+    if os.path.exists(cached_extended_specs_file):
+        _logger.info(f'Found cached extended specs file: {cached_extended_specs_file!r}')
+        with open(cached_extended_specs_file) as ins:
+            source = ins.read()
+    spec_parser = JsSpecParser(kibana_dir, source=source)
+    nodes = spec_parser.parse()
+    spec_evaluator = JsSpecEvaluator()
+    specs = spec_evaluator.visit(nodes)
+    if source is None:
+        spec_parser.save(cached_extended_specs_file)
+    _logger.info('Complete building extended specs')
+    return specs
+
 
 class JsSpecParser:
 
-    def __init__(self):
-        self.source = None
+    def __init__(self, kibana_dir, source=None):
+        self.kibana_dir = kibana_dir
+        self.source = source
         self.nodes = []
 
-    def parse(self, kibana_dir):
-        self.source = self._extract_all(kibana_dir)
+    def parse(self):
+        if self.source is None:
+            self.source = self._extract_all()
         parser = PeekParser()
         self.nodes = parser.parse(self.source)
         return self.nodes
@@ -39,8 +65,8 @@ class JsSpecParser:
         with open(output_file, 'w') as outs:
             outs.write('\n'.join(content))
 
-    def _extract_all(self, kibana_dir):
-        spec_file_contents = self.load_ts_specs(kibana_dir)
+    def _extract_all(self):
+        spec_file_contents = self.load_ts_specs(self.kibana_dir)
         sources = []
         for file_name, file_content in spec_file_contents.items():
             sources.extend(self._extract_from_one_file(file_name, file_content))
@@ -213,7 +239,7 @@ mock_app.display = MagicMock()
 mock_app.parser = PeekParser()
 
 
-class JsSpecBuilder(PeekVM):
+class JsSpecEvaluator(PeekVM):
 
     def __init__(self):
         super().__init__(mock_app)
@@ -246,7 +272,7 @@ class JsSpecBuilder(PeekVM):
     def visit_bin_op_node(self, node: BinOpNode):
         if node.op_token.value == '.' and isinstance(node.right_node, NameNode):
             node.right_node = TextNode(node.right_node.token)
-        super(JsSpecBuilder, self).visit_bin_op_node(node)
+        super(JsSpecEvaluator, self).visit_bin_op_node(node)
 
     def visit_dict_node(self, node: DictNode):
         d_ref = Ref()
@@ -272,7 +298,7 @@ class JsSpecBuilder(PeekVM):
         if isinstance(node, BinOpNode):
             if node.op_token.value == '.' and isinstance(node.right_node, NameNode):
                 node.right_node = TextNode(node.right_node.token)
-        super(JsSpecBuilder, self)._unwind_lhs(node)
+        super(JsSpecEvaluator, self)._unwind_lhs(node)
 
 
 def add_global_autocomplete_rules(app, name, rule):
