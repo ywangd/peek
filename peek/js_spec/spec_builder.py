@@ -1,8 +1,15 @@
+import itertools
 import os
 import re
+from unittest.mock import MagicMock
 
+from configobj import ConfigObj
+
+from peek.ast import NameNode, SymbolNode, DictNode, BinOpNode, TextNode, Node
 from peek.parser import PeekParser
 from peek.visitors import FormattingVisitor
+from peek.visitors import Ref
+from peek.vm import PeekVM
 
 _CONST_SIMPLE_PATTERN = re.compile(r'^(export )?const (?P<name>\w+)[^=]* = (?P<rest>{[^;]*);?')
 _CONST_COMPLEX_PATTERN = re.compile(r'^(export )?const (?P<name>\w+)[^=]* = '
@@ -13,15 +20,14 @@ _FUNCTION_PATTERN = re.compile(r'function \((?P<args>[^)]*)\) { *;?]')
 _RETURN_PATTERN = re.compile(r'return (?P<value>.*)')
 
 
-class SpecBuilder:
+class JsSpecParser:
 
-    def __init__(self, kibana_dir):
-        self.kibana_dir = kibana_dir
+    def __init__(self):
         self.source = None
         self.nodes = []
 
-    def build(self):
-        self.source = self._extract_all()
+    def parse(self, kibana_dir):
+        self.source = self._extract_all(kibana_dir)
         parser = PeekParser()
         self.nodes = parser.parse(self.source)
         return self.nodes
@@ -33,8 +39,8 @@ class SpecBuilder:
         with open(output_file, 'w') as outs:
             outs.write('\n'.join(content))
 
-    def _extract_all(self):
-        spec_file_contents = load_ts_specs(self.kibana_dir)
+    def _extract_all(self, kibana_dir):
+        spec_file_contents = self.load_ts_specs(kibana_dir)
         sources = []
         for file_name, file_content in spec_file_contents.items():
             sources.extend(self._extract_from_one_file(file_name, file_content))
@@ -133,7 +139,7 @@ class SpecBuilder:
 
     def _try_spec_service(self, sources, stripped):
         if stripped.startswith('specService.'):
-            sources.append(_trim_semicolon(stripped.replace('specService.', 'specService ', 1)))
+            sources.append(self._trim_semicolon(stripped.replace('specService.', 'specService ', 1)))
             return True
         else:
             return False
@@ -171,32 +177,133 @@ class SpecBuilder:
         else:
             return False
 
+    def load_ts_specs(self, kibana_dir):
+        oss_path = os.path.join(
+            kibana_dir, 'src', 'plugins', 'console', 'server', 'lib', 'spec_definitions', 'js')
+        xpack_path = os.path.join(
+            kibana_dir, 'x-pack', 'plugins', 'console_extensions', 'server', 'lib', 'spec_definitions', 'js')
 
-def load_ts_specs(kibana_dir):
-    oss_path = os.path.join(
-        kibana_dir, 'src', 'plugins', 'console', 'server', 'lib', 'spec_definitions', 'js')
-    xpack_path = os.path.join(
-        kibana_dir, 'x-pack', 'plugins', 'console_extensions', 'server', 'lib', 'spec_definitions', 'js')
+        spec_file_contents = self._load_ts_specs(oss_path)
+        spec_file_contents.update(self._load_ts_specs(xpack_path))
+        return spec_file_contents
 
-    spec_file_contents = _load_ts_specs(oss_path)
-    spec_file_contents.update(_load_ts_specs(xpack_path))
-    return spec_file_contents
+    def _load_ts_specs(self, base_dir):
+        prefix = 'x-pack' if 'x-pack' in base_dir else 'oss'
+        spec_file_contents = {}
+        for root, dirs, files in os.walk(base_dir):
+            for f in files:
+                if not f.endswith('.ts'):
+                    continue
+                if f == 'shared.ts':  # TODO: skip
+                    continue
+                with open(os.path.join(root, f)) as ins:
+                    spec_file_contents[f'{prefix}/{f[:-3]}'] = ins.read()
 
+        return spec_file_contents
 
-def _load_ts_specs(base_dir):
-    prefix = 'x-pack' if 'x-pack' in base_dir else 'oss'
-    spec_file_contents = {}
-    for root, dirs, files in os.walk(base_dir):
-        for f in files:
-            if not f.endswith('.ts'):
-                continue
-            if f == 'shared.ts':  # TODO: skip
-                continue
-            with open(os.path.join(root, f)) as ins:
-                spec_file_contents[f'{prefix}/{f[:-3]}'] = ins.read()
-
-    return spec_file_contents
+    def _trim_semicolon(self, line):
+        return line[:-1] if line.endswith(';') else line
 
 
-def _trim_semicolon(line):
-    return line[:-1] if line.endswith(';') else line
+mock_app = MagicMock()
+ConfigObj({
+    'load_extension': False,
+})
+mock_app.display = MagicMock()
+mock_app.parser = PeekParser()
+
+
+class JsSpecBuilder(PeekVM):
+
+    def __init__(self):
+        super().__init__(mock_app)
+        mock_app.vm = self
+        self.builtins = {
+            '_': {
+                'defaults': _defaults,
+                'flatten': _flatten,
+                'map': _map,
+            },
+            'return': lambda _, v: v,
+            'specService': lambda _, v: v,
+            'addGlobalAutocompleteRules': add_global_autocomplete_rules,
+            'addEndpointDescription': add_endpoint_description,
+        }
+        self.context = {
+            'BOOLEAN': {
+                "__one_of": [True, False]
+            },
+            'GLOBAL': {},
+        }
+
+    def visit(self, nodes):
+        for node in nodes:
+            self.execute_node(node)
+        # Remove all loop iterator variables
+        self.context = {k: v for k, v in self.context.items() if v != 0 and k != 's'}
+        return self.context
+
+    def visit_bin_op_node(self, node: BinOpNode):
+        if node.op_token.value == '.' and isinstance(node.right_node, NameNode):
+            node.right_node = TextNode(node.right_node.token)
+        super(JsSpecBuilder, self).visit_bin_op_node(node)
+
+    def visit_dict_node(self, node: DictNode):
+        d_ref = Ref()
+        with self.consumer(lambda v: d_ref.set(v)):
+            self._do_visit_dict_node(node, resolve_key_name=False)
+        d = d_ref.get()
+        if d.get('...', None) is not None:
+            splat = d.pop('...')
+            assert isinstance(splat, dict), f'Cannot splat type other than dict, got: {splat!r}'
+            d.update(splat)
+        self.consume(d)
+
+    def visit_symbol_node(self, node: SymbolNode):
+        self.consume(self.get_value(node.token.value))
+
+    def visit_es_api_call_node(self, node):
+        raise ValueError(f'SpecEvaluator cannot take ES API call node: {node!r}')
+
+    def visit_shell_out_node(self, node):
+        raise ValueError(f'SpecEvaluator cannot take shell out node: {node!r}')
+
+    def _unwind_lhs(self, node: Node):
+        if isinstance(node, BinOpNode):
+            if node.op_token.value == '.' and isinstance(node.right_node, NameNode):
+                node.right_node = TextNode(node.right_node.token)
+        super(JsSpecBuilder, self)._unwind_lhs(node)
+
+
+def add_global_autocomplete_rules(app, name, rule):
+    app.vm.context['GLOBAL'][name] = rule
+
+
+def add_endpoint_description(app, name, rule):
+    app.vm.context[name] = rule
+
+
+def _map(app, values, ret):
+    ret_nodes = app.parser.parse('return ' + ret['return'])
+    results = []
+    for value in values:
+        app.vm.context['s'] = value
+        v_ref = Ref()
+        with app.vm.consumer(lambda v: v_ref.set(v)):
+            ret_nodes[0].args_node.value_nodes[0].accept(app.vm)
+        results.append(v_ref.get())
+    return results
+
+
+def _defaults(app, *args):
+    d = {}
+    for arg in args:
+        d.update(arg)
+    return d
+
+
+def _flatten(app, *args):
+    """
+    This is specific to mappings.properties.format. NOT a generic flatten function
+    """
+    return list(itertools.chain(*args[0][0]))
