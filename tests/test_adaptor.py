@@ -35,7 +35,7 @@ def test_extract_all_specs():
 def test_extract_all_specs():
     spec_extractor = SpecExtractor(kibana_dir)
     specs = spec_extractor.extract_all()
-    with open('specs.es', 'w') as outs:
+    with open('tmp-specs.es', 'w') as outs:
         outs.write(specs)
 
     print(spec_extractor.parse_all())

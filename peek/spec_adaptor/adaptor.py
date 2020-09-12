@@ -91,13 +91,25 @@ class SpecExtractor:
                         state = ''
                     else:
                         continue
+                elif state == 'import':
+                    if stripped.endswith(';'):
+                        state = ''
+                    continue
                 elif stripped.startswith('/*'):
                     if not stripped.endswith('*/'):
                         state = 'comments'
                     continue
-                elif stripped == '' or stripped.startswith('import ') or stripped.startswith('// '):
+                elif stripped == '' or stripped.startswith('// '):
                     continue
-                # TODO: import needs to be skip as a whole block
+                elif stripped.startswith('import '):
+                    if stripped.endswith(';'):
+                        continue
+                    elif stripped.endswith('{'):
+                        assert state == '', f'import within other state: {state!r}'
+                        state = 'import'
+                        continue
+                    else:
+                        raise ValueError(f'Unrecognised import variant: {stripped!r}')
                 elif self._try_speical_0001(sources, stripped):
                     continue
                 elif self._try_special_0002(sources, stripped):
@@ -125,7 +137,8 @@ class SpecExtractor:
                 else:
                     sources.append(stripped)
 
-        return '\n'.join(sources)
+        text = '\n'.join(sources)
+        return text.replace("rules['*']", "rules.'*'")
 
     def _try_const_simple_pattern(self, sources, stripped):
         m = _CONST_SIMPLE_PATTERN.match(stripped)
