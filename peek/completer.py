@@ -285,11 +285,10 @@ class PeekCompleter(Completer):
         if curly_level == len(payload_keys):
             payload_keys.pop()
 
-        for k in payload_keys:
-            rules = _maybe_unwrap_for_dict(rules.get(k, None))
-            if rules is None:
-                _logger.debug(f'Rules not available for key: {k}')
-                return []
+        rules = self._resolve_rules_for_keys(rules, payload_keys)
+        if rules is None:
+            _logger.debug(f'Rules not available for key: {payload_keys!r}')
+            return []
 
         # TODO: handle __scope_link
         constant_completer = ConstantCompleter([Completion(k, start_position=0) for k in rules.keys()
@@ -298,8 +297,21 @@ class PeekCompleter(Completer):
             yield PayloadKeyCompletion(c.text, rules[c.text],
                                        c.start_position, c.display, c.display_meta, c.style, c.selected_style)
 
+    def _resolve_rules_for_keys(self, rules, payload_keys):
+        for i, k in enumerate(payload_keys):
+            rules = rules.get(k, None)
+            # Special handle for query
+            if k == 'query' and rules == {}:
+                rules = self.specs['GLOBAL']['query']
+            if rules is None:
+                break
+        return _maybe_unwrap_for_dict(rules)
+
 
 def _maybe_unwrap_for_dict(rules):
+    """
+    If the rules is an list of dict, return the first dict
+    """
     if isinstance(rules, dict):
         return rules
     elif isinstance(rules, list) and len(rules) > 0:
