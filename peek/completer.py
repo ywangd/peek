@@ -42,9 +42,12 @@ class PeekCompleter(Completer):
             self.specs = load_specs(kibana_dir)
             if self.app.config.as_bool('load_extended_api_specs'):
                 _logger.info(f'Build extended API specs from: {kibana_dir}')
-                self.js_specs = build_js_specs(kibana_dir)
+                self.specs = _merge_specs(self.specs, build_js_specs(kibana_dir))
         else:
             self.specs = {}
+
+        with open('tmp-all-specs.json', 'w') as outs:
+            json.dump(self.specs, outs, indent=2)
 
     def get_completions(self, document: Document, complete_event: CompleteEvent) -> Iterable[Completion]:
         _logger.debug(f'doc: {document}, event: {complete_event}')
@@ -161,6 +164,8 @@ class PeekCompleter(Completer):
         _logger.debug(f'ts: {ts}')
         candidates = []
         for api_name, api_spec in self.specs.items():
+            if 'methods' not in api_spec:
+                continue
             if method not in api_spec['methods']:
                 continue
             for api_path in api_spec['patterns']:
@@ -394,4 +399,20 @@ def _load_json_specs(base_dir):
                         else:
                             specs['xpack.' + k].update(v)
 
+    return specs
+
+
+def _merge_specs(basic_specs, extended_specs):
+    specs = dict(basic_specs)
+    for k, v in extended_specs.items():
+        if k not in specs:
+            specs[k] = v
+        else:
+            for kk, vv in v.items():
+                if kk in specs[k]:
+                    _logger.debug(f'Duplicated key found: {k}.{kk}')
+                    if isinstance(specs[k][kk], dict) and isinstance(vv, dict):
+                        specs[k][kk].update(vv)
+                else:
+                    specs[k][kk] = vv
     return specs

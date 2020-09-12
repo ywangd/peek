@@ -24,6 +24,8 @@ _RETURN_PATTERN = re.compile(r'return (?P<value>.*)')
 _logger = logging.getLogger(__name__)
 
 
+# TODO: ingest.ts is parsed but processors seem to be ignored. Also don't know how it is referenced.
+
 def build_js_specs(kibana_dir):
     # Cache is not for efficiency, but rather because the spec building from TypeScript
     # files is hacky and likely to go wrong with new Kibana releases. Cache it so at least

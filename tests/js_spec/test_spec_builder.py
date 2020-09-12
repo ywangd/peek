@@ -26,5 +26,5 @@ def test_eval_specs():
     assert 'search' in specs
     assert 'put_mapping' in specs
     # import json
-    # with open('tmp-specs.json', 'w') as outs:
+    # with open('tmp-extended-specs.json', 'w') as outs:
     #     json.dump(specs, outs, indent=2)
