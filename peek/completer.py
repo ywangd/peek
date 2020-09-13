@@ -3,17 +3,17 @@ import logging
 import os
 from typing import Iterable, List, Tuple, Optional
 
-from prompt_toolkit.completion import Completer, CompleteEvent, Completion, WordCompleter, FuzzyCompleter, PathCompleter
-from prompt_toolkit.contrib.completers import SystemCompleter
-from prompt_toolkit.document import Document
-from pygments.token import Error, Name, Literal, String
-
 from peek.common import PeekToken
 from peek.completions import PayloadKeyCompletion
 from peek.es_api_spec.spec import ApiSpec
 from peek.lexers import PeekLexer, UrlPathLexer, PathPart, ParamName, Ampersand, QuestionMark, Slash, HttpMethod, \
-    FuncName, OptionName, Assign, DictKey, ShellOut, At
+    FuncName, OptionName, Assign, DictKey, ShellOut, At, CurlyLeft, BracketLeft, ParenLeft, CurlyRight, BracketRight, \
+    ParenRight
 from peek.parser import process_tokens
+from prompt_toolkit.completion import Completer, CompleteEvent, Completion, WordCompleter, FuzzyCompleter, PathCompleter
+from prompt_toolkit.contrib.completers import SystemCompleter
+from prompt_toolkit.document import Document
+from pygments.token import Error, Name, Literal, String
 
 _logger = logging.getLogger(__name__)
 
@@ -23,6 +23,12 @@ _ES_API_CALL_OPTION_COMPLETER = WordCompleter([w + '=' for w in sorted(['conn', 
 
 _PATH_COMPLETER = PathCompleter(expanduser=True)
 _SYSTEM_COMPLETER = SystemCompleter()
+
+_CLOSING_LOOKUP = {
+    CurlyLeft: CurlyRight,
+    BracketLeft: BracketRight,
+    ParenLeft: ParenRight,
+}
 
 
 class PeekCompleter(Completer):
@@ -188,6 +194,14 @@ class PeekCompleter(Completer):
         _logger.debug(f'Completing for payload with tokens: {tokens}')
         method_token, path_token = tokens[0], tokens[1]
         path_tokens = list(self.url_path_lexer.get_tokens_unprocessed(path_token.value))
+        effective_text = document.text_before_cursor[method_token.index:]
+        idx_nl = effective_text.find('\n')
+        # If there is no newline, it is definitely an option value
+        if idx_nl == -1:
+            return []
+        # TODO: it is still possible that an option value is multi-line, e.g. headers.
+        #       Theoretically, it also be function call
+
         # TODO: this is not correct since there maybe options after the first 2 tokens
         #       In fact, there is no way to tell for sure where the payload begins without
         #       parse the token stream

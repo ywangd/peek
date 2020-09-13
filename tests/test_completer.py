@@ -2,6 +2,7 @@ import os
 from typing import Iterable
 from unittest.mock import MagicMock
 
+import pytest
 from prompt_toolkit.completion import CompleteEvent, Completion
 from prompt_toolkit.document import Document
 from pygments.token import Literal
@@ -298,10 +299,31 @@ def test_file_payload_completion():
     )
 
 
-def test_option_completion_does_not_appear_inside_payload():
+def test_option_completion_will_not_appear_inside_payload():
     assert no_completion(
         get_completions(Document('''GET /
 {
 c
 }''', 9))
+    )
+
+
+def test_payload_completion_will_not_appear_inside_option_value():
+    assert no_completion(
+        get_completions(Document('''GET _search headers={ "" }
+{
+""
+}''', 23))
+    )
+
+
+@pytest.mark.skip('Complex option values still affect payload autocompletion')
+def test_payload_completion_will_not_appear_inside_multi_line_option_value():
+    assert no_completion(
+        get_completions(Document('''GET _search headers={
+""
+}
+{
+""
+}''', 23))
     )
