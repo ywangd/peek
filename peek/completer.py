@@ -255,7 +255,7 @@ class PeekCompleter(Completer):
         except StopIteration:
             return []
 
-        rules = _maybe_unwrap_for_dict(api_spec.get('data_autocomplete_rules', None))
+        rules = self._maybe_process_rules(api_spec.get('data_autocomplete_rules', None))
         if rules is None:
             return []
 
@@ -291,6 +291,10 @@ class PeekCompleter(Completer):
             return []
 
         # TODO: handle __scope_link
+        # TODO: __one_of, e.g. POST _render/template
+        # TODO: '*' matching
+        # TODO: top-level __template, e.g. POST _reindex
+        # TODO: filters how does it work
         constant_completer = ConstantCompleter([Completion(k, start_position=0) for k in rules.keys()
                                                 if k not in ('__scope_link', '__template', '__one_of')])
         for c in FuzzyCompleter(constant_completer).get_completions(document, complete_event):
@@ -299,28 +303,72 @@ class PeekCompleter(Completer):
 
     def _resolve_rules_for_keys(self, rules, payload_keys):
         for i, k in enumerate(payload_keys):
-            rules = rules.get(k, None)
+            rules = self._maybe_process_rules(rules.get(k, None))
             # Special handle for query
             if k == 'query' and rules == {}:
                 rules = self.specs['GLOBAL']['query']
             if rules is None:
                 break
-        return _maybe_unwrap_for_dict(rules)
-
-
-def _maybe_unwrap_for_dict(rules):
-    """
-    If the rules is an list of dict, return the first dict
-    """
-    if isinstance(rules, dict):
         return rules
-    elif isinstance(rules, list) and len(rules) > 0:
-        if isinstance(rules[0], dict):
-            return rules[0]
+
+    def _maybe_process_rules(self, rules):
+        processors = [
+            self._maybe_resolve_scope_link,
+            self._maybe_unwrap_for_dict,
+            self._maybe_lift_one_of,
+        ]
+        while True:
+            original_rules = rules
+            for p in processors:
+                rules = p(rules)
+            if rules == original_rules:
+                break
+        return rules
+
+    def _maybe_resolve_scope_link(self, rules):
+        if isinstance(rules, dict) and '__scope_link' in rules:
+            rules = dict(rules)  # avoid mutating original value
+            _logger.debug(f'Found scope link: {rules!r}')
+            scope_link = rules.pop('__scope_link')
+            if scope_link.startswith('.'):  # TODO: relative scope link
+                _logger.debug('Relative scope link not implemented')
+            elif '.' in scope_link:
+                scope = self.specs
+                for scope_link_key in scope_link.split('.'):
+                    if scope_link_key in scope:
+                        scope = scope[scope_link_key]
+                if id(scope) != id(self.specs):
+                    rules.update(scope['data_autocomplete_rules'] if 'data_autocomplete_rules' in scope else scope)
+            else:
+                scope = self.specs.get(scope_link, None)
+                if isinstance(scope, dict):
+                    rules.update(scope['data_autocomplete_rules'] if 'data_autocomplete_rules' in scope else scope)
+        return rules
+
+    def _maybe_lift_one_of(self, rules):
+        if isinstance(rules, dict) and '__one_of' in rules:
+            rules = dict(rules)
+            one_of = rules.pop('__one_of')
+            if isinstance(one_of[0], dict):
+                for e in one_of:
+                    rules.update(e)
+            else:
+                rules['__one_of'] = one_of
+        return rules
+
+    def _maybe_unwrap_for_dict(self, rules):
+        """
+        If the rules is an list of dict, return the first dict
+        """
+        if isinstance(rules, dict):
+            return rules
+        elif isinstance(rules, list) and len(rules) > 0:
+            if isinstance(rules[0], dict):
+                return rules[0]
+            else:
+                return None
         else:
             return None
-    else:
-        return None
 
 
 def find_beginning_token(tokens) -> Tuple[Optional[int], Optional[PeekToken]]:
