@@ -91,10 +91,8 @@ def get_value_fill(value: Any, current_indent: int):
             value_fill = serialise_and_indent_json([{}], current_indent)
         else:
             value_fill = '[]'
-    elif isinstance(value, str):
-        value_fill = json.dumps(value)
     else:
-        value_fill = str(value)
+        value_fill = json.dumps(value)
 
     value_fill += ', '
 
