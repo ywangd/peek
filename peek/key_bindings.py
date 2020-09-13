@@ -72,6 +72,14 @@ def key_bindings(app):
         event.current_buffer.validation_state = ValidationState.VALID
         event.current_buffer.validate_and_handle()
 
+    @kb.add("c-space")
+    def _(event):
+        b = event.app.current_buffer
+        if b.complete_state:
+            b.complete_next()
+        else:
+            b.start_completion(select_first=False)
+
     @kb.add('f3')
     def _(event):
         _logger.debug('Reformatting payload json')
