@@ -110,18 +110,20 @@ class ApiSpec:
             _logger.debug(f'Rules not available for key: {payload_keys!r}')
             return []
 
-        # TODO: handle __scope_link
         # TODO: __one_of, e.g. POST _render/template
-        # TODO: '*' matching
         # TODO: top-level __template, e.g. POST _reindex
         # TODO: filters how does it work
         candidates = [Completion(k, start_position=0) for k in rules.keys()
-                      if k not in ('__scope_link', '__template', '__one_of')]
+                      if k not in ('__scope_link', '__template', '__one_of', '*')]
         return candidates, rules
 
     def _resolve_rules_for_keys(self, rules, payload_keys):
         for i, k in enumerate(payload_keys):
-            rules = self._maybe_process_rules(rules.get(k, None))
+            if k not in rules and '*' in rules:
+                rules = rules['*']
+            else:
+                rules = rules.get(k, None)
+            rules = self._maybe_process_rules(rules)
             # Special handle for query
             if k == 'query' and rules == {}:
                 rules = self.specs['GLOBAL']['query']
