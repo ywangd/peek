@@ -190,6 +190,8 @@ class PeekCompleter(Completer):
         payload_tokens = tokens[2:]
         candidates, rules = self.api_spec.complete_payload(
             document, complete_event, method_token.value.upper(), path_tokens, payload_tokens)
+        if not candidates:
+            return []
         constant_completer = ConstantCompleter(candidates)
         for c in FuzzyCompleter(constant_completer).get_completions(document, complete_event):
             yield PayloadKeyCompletion(c.text, rules[c.text],

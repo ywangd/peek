@@ -73,11 +73,11 @@ class ApiSpec:
             api_spec = next(matchable_specs(method, token_stream, self.specs,
                                             required_field='data_autocomplete_rules'))
         except StopIteration:
-            return []
+            return [], {}
 
         rules = self._maybe_process_rules(api_spec.get('data_autocomplete_rules', None))
         if rules is None:
-            return []
+            return [], {}
 
         _logger.debug(f'Found rules from spec: {rules}')
 
@@ -99,7 +99,7 @@ class ApiSpec:
 
         _logger.debug(f'Payload status: level: {curly_level}, keys: {payload_keys}')
         if curly_level == 0:  # not even in the first curly bracket, no completion
-            return []
+            return [], {}
 
         # Remove the payload key that is at the same level
         if curly_level == len(payload_keys):
@@ -108,7 +108,7 @@ class ApiSpec:
         rules = self._resolve_rules_for_keys(rules, payload_keys)
         if rules is None:
             _logger.debug(f'Rules not available for key: {payload_keys!r}')
-            return []
+            return [], {}
 
         # TODO: __one_of, e.g. POST _render/template
         # TODO: top-level __template, e.g. POST _reindex
