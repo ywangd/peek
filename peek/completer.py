@@ -13,7 +13,7 @@ from pygments.token import Error, Name, Literal, String
 from peek.common import PeekToken
 from peek.completions import PayloadKeyCompletion
 from peek.errors import PeekError
-from peek.js_spec.spec_builder import build_js_specs
+from peek.es_api_spec.spec_builder import build_js_specs
 from peek.lexers import PeekLexer, UrlPathLexer, PathPart, ParamName, Ampersand, QuestionMark, Slash, HttpMethod, \
     FuncName, OptionName, Assign, CurlyLeft, CurlyRight, DictKey, ShellOut, At
 from peek.parser import process_tokens
