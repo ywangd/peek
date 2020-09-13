@@ -40,18 +40,25 @@ class PeekParser:
         self.position = 0  # position is token position, not character
         self.tokens = []
 
-    def parse(self, text, payload_only=False):
-        self.text = text
-        self.position = 0
-        self.tokens = []
+    def parse(self, text, payload_only=False, log_level=None):
+        saved_log_level = _logger.getEffectiveLevel()
+        try:
+            if log_level is not None:
+                _logger.setLevel(log_level)
+            self.text = text
+            self.position = 0
+            self.tokens = []
 
-        stack = ('dict',) if payload_only else ('root',)
-        self.tokens = process_tokens(self.lexer.get_tokens_unprocessed(self.text, stack=stack))
-        for token in self.tokens:
-            if token.ttype in Token.Error:
-                raise PeekSyntaxError(self.text, token)
+            stack = ('dict',) if payload_only else ('root',)
+            self.tokens = process_tokens(self.lexer.get_tokens_unprocessed(self.text, stack=stack))
+            for token in self.tokens:
+                if token.ttype in Token.Error:
+                    raise PeekSyntaxError(self.text, token)
 
-        return self._do_parse_payload() if payload_only else self._do_parse()
+            return self._do_parse_payload() if payload_only else self._do_parse()
+        finally:
+            if log_level is not None:
+                _logger.setLevel(saved_log_level)
 
     def _do_parse(self):
         nodes = []

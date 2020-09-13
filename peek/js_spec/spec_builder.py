@@ -57,7 +57,7 @@ class JsSpecParser:
         if self.source is None:
             self.source = self._extract_all()
         parser = PeekParser()
-        self.nodes = parser.parse(self.source)
+        self.nodes = parser.parse(self.source, log_level='WARNING')
         return self.nodes
 
     def save(self, output_file):
@@ -312,7 +312,7 @@ def add_endpoint_description(app, name, rule):
 
 
 def _map(app, values, ret):
-    ret_nodes = app.parser.parse('return ' + ret['return'])
+    ret_nodes = app.parser.parse('return ' + ret['return'], log_level='WARNING')
     results = []
     for value in values:
         app.vm.context['s'] = value

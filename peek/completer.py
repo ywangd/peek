@@ -335,6 +335,8 @@ def matchable_specs(method: str, ts: List[str], specs: Dict, required_field='url
     Find the matchable spec for the given HTTP method and input path.
     """
     for api_name, api_spec in specs.items():
+        if 'methods' not in api_spec:
+            continue
         if method not in api_spec['methods']:
             continue
         if not api_spec.get(required_field, None):
