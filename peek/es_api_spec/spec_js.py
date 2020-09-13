@@ -26,13 +26,13 @@ _logger = logging.getLogger(__name__)
 
 # TODO: ingest.ts is parsed but processors seem to be ignored. Also don't know how it is referenced.
 
-def build_js_specs(kibana_dir):
+def build_js_specs(kibana_dir, use_cache_file):
     # Cache is not for efficiency, but rather because the spec building from TypeScript
     # files is hacky and likely to go wrong with new Kibana releases. Cache it so at least
     # we can have some usable version till a fix is ready for new releases.
     cached_extended_specs_file = os.path.expanduser(config_location()) + 'extended_specs.es'
     source = None
-    if os.path.exists(cached_extended_specs_file):
+    if use_cache_file and os.path.exists(cached_extended_specs_file):
         _logger.info(f'Found cached extended specs file: {cached_extended_specs_file!r}')
         with open(cached_extended_specs_file) as ins:
             source = ins.read()
@@ -40,7 +40,7 @@ def build_js_specs(kibana_dir):
     nodes = spec_parser.parse()
     spec_evaluator = JsSpecEvaluator()
     specs = spec_evaluator.visit(nodes)
-    if source is None:
+    if use_cache_file and source is None:
         spec_parser.save(cached_extended_specs_file)
     _logger.info('Complete building extended specs')
     return specs

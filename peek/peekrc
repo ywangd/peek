@@ -30,7 +30,9 @@ kibana_dir =
 # Load API spec from JSON files
 load_api_specs = True
 # Load extended API specs from TypeScript files
-load_extended_api_specs = False
+build_extended_api_specs = True
+# Cache the transformed extended API specs because Kibana upgrade may break the hacky parsing
+cache_extended_api_specs = True
 
 # Load extension scripts
 load_extension = True

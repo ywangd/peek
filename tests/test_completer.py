@@ -6,14 +6,19 @@ from prompt_toolkit.completion import CompleteEvent, Completion
 from prompt_toolkit.document import Document
 from pygments.token import Literal
 
+from peek import __file__ as package_root
 from peek.common import PeekToken
-from peek.completer import load_specs, PeekCompleter, find_beginning_token, matchable_specs
+from peek.completer import PeekCompleter, find_beginning_token
 from peek.lexers import HttpMethod, FuncName, BlankLine
 from peek.natives import EXPORTS
+
+package_root = os.path.dirname(package_root)
+kibana_dir = os.path.join(package_root, 'specs', 'kibana-7.8.1')
 
 mock_app = MagicMock(name='PeekApp')
 mock_app.vm.functions = {k: v for k, v in EXPORTS.items() if callable(v)}
 mock_app.config.as_bool.return_value = True
+mock_app.batch_mode = False
 config = {'kibana_dir': None}
 mock_app.config.__getitem__ = MagicMock(side_effect=lambda x: config.get(x))
 
@@ -25,7 +30,7 @@ def equivalent_completions(c0: Completion, c1: Completion):
 
 
 def completions_has(cs: Iterable[Completion], *cc: Completion):
-    if not completer.specs:
+    if not os.path.exists(kibana_dir):
         return True
 
     actual = set((x.text, x.start_position) for x in cs)
@@ -41,25 +46,6 @@ def completions_has(cs: Iterable[Completion], *cc: Completion):
 
 def get_completions(document: Document):
     return completer.get_completions(document, CompleteEvent(True))
-
-
-def test_load_specs():
-    from peek import __file__ as package_root
-    package_root = os.path.dirname(package_root)
-    kibana_dir = os.path.join(package_root, 'specs', 'kibana-7.8.1')
-    specs = load_specs(kibana_dir)
-    # Skip the test if no specs are found
-    if not specs:
-        return
-
-    # Make sure loading and merging work
-    print(specs['indices.create']['data_autocomplete_rules'])
-    print(specs['security.put_user']['data_autocomplete_rules'])
-
-    next(matchable_specs('POST', ['_security', 'api_key'], specs))
-
-    next(matchable_specs('POST', ['_security', 'oauth2', 'token'], specs,
-                         required_field='data_autocomplete_rules'))
 
 
 def test_find_beginning_token():
