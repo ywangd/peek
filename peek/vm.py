@@ -301,7 +301,6 @@ class PeekVM(Visitor):
         node.grouped.accept(self)
 
     def _do_visit_dict_node(self, node: DictNode, resolve_key_name=False):
-        assert isinstance(node, DictNode)
         keys = []
         values = []
         with self.consumer(lambda v: keys.append(v)):
@@ -312,7 +311,7 @@ class PeekVM(Visitor):
                     self.consume(kv_node.key_node.token.value)
                 with self.consumer(lambda v: values.append(v)):
                     kv_node.value_node.accept(self)
-        assert len(keys) == len(values), f'{keys!r}, {values!r}'
+        assert len(keys) == len(values), f'key length is not equal to value length: {keys!r}, {values!r}'
         self.consume(dict(zip(keys, values)))
 
     def get_value(self, name):
@@ -320,7 +319,7 @@ class PeekVM(Visitor):
         if value is None:
             value = self.context.get(name)
         if value is None:
-            raise PeekError(f'Unknown name: {name!r}')
+            raise NameError(f'Unknown name: {name!r}')
         return value
 
     def _unwind_lhs(self, node: Node):
