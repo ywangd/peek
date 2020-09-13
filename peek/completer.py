@@ -39,11 +39,11 @@ class PeekCompleter(Completer):
     def get_completions(self, document: Document, complete_event: CompleteEvent) -> Iterable[Completion]:
         _logger.debug(f'doc: {document}, event: {complete_event}')
 
-        text = document.text_before_cursor
-        _logger.debug(f'text before cursor: {text!r}')
+        text_before_cursor = document.text_before_cursor
+        _logger.debug(f'text before cursor: {text_before_cursor!r}')
 
         # Parse tokens for only the text before cursor and merge certain consecutive tokens
-        tokens = process_tokens(self.lexer.get_tokens_unprocessed(text))
+        tokens = process_tokens(self.lexer.get_tokens_unprocessed(text_before_cursor))
         _logger.debug(f'processed tokens: {tokens}')
 
         # Nothing to complete if no significant tokens are found
@@ -65,7 +65,8 @@ class PeekCompleter(Completer):
 
         if head_token.ttype is ShellOut:
             _logger.debug('Completing for shell out')
-            return _SYSTEM_COMPLETER.get_completions(Document(text[head_token.index + 1:]), complete_event)
+            return _SYSTEM_COMPLETER.get_completions(
+                Document(text_before_cursor[head_token.index + 1:]), complete_event)
 
         if is_cursor_on_non_white_token:
             _logger.debug(f'Cursor token: {last_token}')
@@ -82,7 +83,7 @@ class PeekCompleter(Completer):
                 return self._complete_http_path(document, complete_event, tokens[idx_head_token:])
 
             if head_token.value == 'run' and idx_head_token == len(tokens) - 2 and last_token.ttype in String:
-                arg = text.split()[-1]
+                arg = text_before_cursor.split()[-1]
                 if last_token.ttype in (String.Single, String.Double):
                     doc = Document(arg[1:])
                 else:
@@ -92,19 +93,22 @@ class PeekCompleter(Completer):
 
             if head_token.ttype is HttpMethod:
                 if last_token.ttype is At:
-                    return _PATH_COMPLETER.get_completions(Document(text[last_token.index + 1:]), complete_event)
+                    return _PATH_COMPLETER.get_completions(
+                        Document(text_before_cursor[last_token.index + 1:]), complete_event)
                 elif last_token.ttype is Literal and len(tokens) > 1 and tokens[-2].ttype is At:
                     return _PATH_COMPLETER.get_completions(Document(last_token.value), complete_event)
                 elif last_token.ttype is DictKey:
                     return self._complete_payload(document, complete_event, tokens[idx_head_token:])
+                elif last_token.ttype in (OptionName, Name) and '\n' not in text_before_cursor[head_token.index:]:
+                    return self._complete_options(document, complete_event, tokens[idx_head_token:],
+                                                  is_cursor_on_non_white_token)
             elif head_token.ttype is FuncName:
                 if last_token.ttype in (At, Literal):
                     return self._complete_options(document, complete_event, tokens[idx_head_token:],
                                                   is_cursor_on_non_white_token)
-
-            if last_token.ttype in (OptionName, Name):
-                return self._complete_options(document, complete_event, tokens[idx_head_token:],
-                                              is_cursor_on_non_white_token)
+                elif last_token.ttype in (OptionName, Name):
+                    return self._complete_options(document, complete_event, tokens[idx_head_token:],
+                                                  is_cursor_on_non_white_token)
 
             return []
 

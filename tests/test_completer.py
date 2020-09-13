@@ -35,12 +35,20 @@ def completions_has(cs: Iterable[Completion], *cc: Completion):
 
     actual = set((x.text, x.start_position) for x in cs)
     expected = set((x.text, x.start_position) for x in cc)
-    if len(expected) == 0:
-        ret = len(actual) == 0
-    else:
-        ret = actual.issuperset(expected)
+    ret = actual.issuperset(expected)
     if ret is False:
         print(f'actual: {actual!r} is not superset of {expected!r}')
+    return ret
+
+
+def no_completion(cs: Iterable[Completion]):
+    if not os.path.exists(kibana_dir):
+        return True
+
+    actual = set((x.text, x.start_position) for x in cs)
+    ret = len(actual) == 0
+    if ret is False:
+        print(f'actual: {actual!r} is not empty')
     return ret
 
 
@@ -131,20 +139,20 @@ saml_authenticate r''')),
     )
 
 
-def test_complete_option_name_should_not_be_in_value_place():
-    assert completions_has(
+def test_complete_option_name_will_not_be_in_value_place():
+    assert no_completion(
         get_completions(Document('''connect hosts='''))
     )
 
-    assert completions_has(
+    assert no_completion(
         get_completions(Document('''connect hosts=h'''))
     )
 
-    assert completions_has(
+    assert no_completion(
         get_completions(Document('''get _search runas='''))
     )
 
-    assert completions_has(
+    assert no_completion(
         get_completions(Document('''get _search runas=r'''))
     )
 
@@ -212,7 +220,7 @@ def test_not_complete_http_options():
 
 
 def test_not_complete_http_path():
-    assert completions_has(
+    assert no_completion(
         get_completions(Document('''get
 ''')))
 
@@ -287,4 +295,13 @@ def test_file_payload_completion():
         get_completions(Document('''get /
 @''')),
         Completion(text=f, start_position=0)
+    )
+
+
+def test_option_completion_does_not_appear_inside_payload():
+    assert no_completion(
+        get_completions(Document('''GET /
+{
+c
+}''', 9))
     )
