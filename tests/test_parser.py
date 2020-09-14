@@ -306,3 +306,18 @@ def test_parser_events(parser):
     assert len(events) == 4
     assert events[2].type is ParserEventType.ES_OPTIONS
     assert events[3].type is ParserEventType.ES_PAYLOAD
+
+
+def test_allow_error_token(parser):
+    text = 'GET _ ()'
+
+    events = []
+    parser.listeners.append(ParserListener(lambda event: events.append(event)))
+
+    with pytest.raises(PeekSyntaxError):
+        parser.parse(text)
+    assert len(events) == 0
+
+    with pytest.raises(PeekSyntaxError):
+        parser.parse(text, fail_fast_on_error_token=False)
+    assert len(events) > 0

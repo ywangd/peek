@@ -69,7 +69,7 @@ class PeekParser:
         self.tokens = []
         self.listeners = listeners or []
 
-    def parse(self, text, payload_only=False, log_level=None):
+    def parse(self, text, payload_only=False, fail_fast_on_error_token=True, log_level=None):
         saved_log_level = _logger.getEffectiveLevel()
         try:
             if log_level is not None:
@@ -80,9 +80,10 @@ class PeekParser:
 
             stack = ('dict',) if payload_only else ('root',)
             self.tokens = process_tokens(self.lexer.get_tokens_unprocessed(self.text, stack=stack))
-            for token in self.tokens:
-                if token.ttype in Token.Error:
-                    raise PeekSyntaxError(self.text, token)
+            if fail_fast_on_error_token:
+                for token in self.tokens:
+                    if token.ttype in Token.Error:
+                        raise PeekSyntaxError(self.text, token)
 
             return self._do_parse_payload() if payload_only else self._do_parse()
         finally:
