@@ -4,7 +4,7 @@ from pygments.token import String, Whitespace, Comment
 from peek.ast import EsApiCallNode, ShellOutNode
 from peek.errors import PeekSyntaxError
 from peek.lexers import CurlyLeft, CurlyRight
-from peek.parser import PeekParser, process_tokens, PeekToken
+from peek.parser import PeekParser, process_tokens, PeekToken, ParserListener, ParserEventType
 
 
 @pytest.fixture
@@ -273,3 +273,36 @@ def test_payload_file(parser):
 {'category':'click','tag':1}
 {'index':{'_index':'index','_id':'2'}}
 {'category':'click','tag':2}'''
+
+
+def test_parser_events(parser):
+    events = []
+    parser.listeners.append(ParserListener(lambda event: events.append(event)))
+    text = '''GET _search conn=10'''
+
+    parser.parse(text)
+    assert len(events) == 4
+    assert events[2].type is ParserEventType.ES_OPTIONS
+    assert events[3].type is ParserEventType.ES_PAYLOAD
+
+    events = []
+    text = '''GET _search conn=10 headers={
+    "foo":
+'''
+    with pytest.raises(PeekSyntaxError):
+        parser.parse(text)
+    assert len(events) == 3
+    assert events[2].type is ParserEventType.ES_OPTIONS
+
+    events = []
+    text = '''GET _search conn=10 headers={
+    "foo": "bar"
+}
+{
+   "hello
+'''
+    with pytest.raises(PeekSyntaxError):
+        parser.parse(text)
+    assert len(events) == 4
+    assert events[2].type is ParserEventType.ES_OPTIONS
+    assert events[3].type is ParserEventType.ES_PAYLOAD

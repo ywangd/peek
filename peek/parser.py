@@ -1,7 +1,8 @@
 import ast
 import json
 import logging
-from typing import Iterable
+from enum import Enum
+from typing import Iterable, NamedTuple
 
 from pygments.token import Token, Whitespace, String, Comment, Literal, Number, Name, Error
 
@@ -29,16 +30,44 @@ _BIN_OP_ORDERS = {
 }
 
 
+class ParserEventType(Enum):
+    ES_METHOD = 'ES_METHOD'
+    ES_URL = 'ES_URL'
+    ES_OPTIONS = 'ES_OPTIONS'
+    ES_PAYLOAD = 'ES_PAYLOAD'
+    FUNC_STMT_NAME = 'FUNC_STMT_NAME'
+    FUNC_ARGS = 'FUNC_ARGS'
+    FUNC_OPTION_VALUE = 'FUNC_OPTION_VALUE'
+    SHELL_OUT = 'SHELL_OUT'
+    LET = 'LET'
+    FOR = 'FOR'
+    FOR_SUITE = 'FOR_SUITE'
+
+
+# Event to be published right before the actual parsing
+ParserEvent = NamedTuple('ParsingEvent', [('type', ParserEventType), ('token', PeekToken)])
+
+
+class ParserListener:
+
+    def __init__(self, before_func):
+        self.before_func = before_func
+
+    def before_parsing(self, event):
+        self.before_func(event)
+
+
 class PeekParser:
     """
     The parser if not thread safe and does not pretend to be.
     """
 
-    def __init__(self):
+    def __init__(self, listeners=None):
         self.lexer = PeekLexer()
         self.text = ''
         self.position = 0  # position is token position, not character
         self.tokens = []
+        self.listeners = listeners or []
 
     def parse(self, text, payload_only=False, log_level=None):
         saved_log_level = _logger.getEffectiveLevel()
@@ -95,6 +124,7 @@ class PeekParser:
                 message='Expect beginning of a statement')
 
     def _parse_es_api_call(self):
+        self._before_parsing(ParserEventType.ES_METHOD)
         method_token = self._consume_token(HttpMethod)
         method_node = NameNode(method_token)
         if method_token.value.upper() not in HTTP_METHODS:
@@ -102,6 +132,8 @@ class PeekParser:
                 self.text, method_token,
                 title='Invalid HTTP method',
                 message=f'Expect HTTP method of value in {HTTP_METHODS!r}, got {method_token.value!r}')
+
+        self._before_parsing(ParserEventType.ES_URL)
         if self._peek_token().ttype is Literal:
             path_node = TextNode(self._consume_token(Literal))
         elif self._peek_token().ttype is ParenLeft:
@@ -110,12 +142,15 @@ class PeekParser:
             raise PeekSyntaxError(
                 self.text, self._peek_token(),
                 message='HTTP path must be either text literal or an expression enclosed by parenthesis')
+
+        self._before_parsing(ParserEventType.ES_OPTIONS)
         option_nodes = []
         while self._peek_token().ttype is OptionName:
             n = NameNode(self._consume_token(OptionName))
             self._consume_token(Assign)
             option_nodes.append(KeyValueNode(n, self._parse_expr()))
 
+        self._before_parsing(ParserEventType.ES_PAYLOAD)
         if self._peek_token().ttype is At:
             self._consume_token(At)
             return EsApiCallFilePayloadNode(
@@ -130,6 +165,7 @@ class PeekParser:
             return EsApiCallInlinePayloadNode(method_node, path_node, DictNode(option_nodes), dict_nodes)
 
     def _parse_let_stmt(self):
+        self._before_parsing(ParserEventType.LET)
         self._consume_token(Let)
         kv_nodes = []
         while self._peek_token().ttype is not EOF:
@@ -143,10 +179,12 @@ class PeekParser:
         return LetNode(DictNode(kv_nodes))
 
     def _parse_for_stmt(self):
+        self._before_parsing(ParserEventType.FOR)
         self._consume_token(For)
         item = NameNode(self._consume_token(Name))
         self._consume_token(In)
         items = self._parse_expr()
+        self._before_parsing(ParserEventType.FOR_SUITE)
         self._consume_token(CurlyLeft)
         suite = []
         while self._peek_token().ttype is not CurlyRight:
@@ -207,11 +245,13 @@ class PeekParser:
             raise PeekSyntaxError(self.text, token, message=f'Unexpected token: {token!r}')
 
     def _parse_func_call(self):
+        self._before_parsing(ParserEventType.FUNC_STMT_NAME)
         name_node = NameNode(self._consume_token(FuncName))
         symbol_nodes, arg_nodes, kwarg_nodes = self._parse_func_call_args()
         return FuncCallNode(name_node, ArrayNode(symbol_nodes), ArrayNode(arg_nodes), DictNode(kwarg_nodes))
 
     def _parse_func_call_args(self, is_stmt=True):
+        self._before_parsing(ParserEventType.FUNC_ARGS)
         symbol_nodes = []
         arg_nodes = []
         kwarg_nodes = []
@@ -231,6 +271,7 @@ class PeekParser:
                 n = NameNode(self._consume_token(Name))
                 if self._peek_token().ttype is Assign:
                     self._consume_token(Assign)
+                    self._before_parsing(ParserEventType.FUNC_OPTION_VALUE)
                     kwarg_nodes.append(KeyValueNode(n, self._parse_expr()))
                 elif self._peek_token().ttype is ParenLeft:  # nested function expr
                     self._consume_token(ParenLeft)
@@ -253,6 +294,7 @@ class PeekParser:
         return symbol_nodes, arg_nodes, kwarg_nodes
 
     def _parse_shell_out(self):
+        self._before_parsing(ParserEventType.SHELL_OUT)
         self._consume_token(ShellOut)
         return ShellOutNode(TextNode(self._consume_token(Literal)))
 
@@ -322,6 +364,10 @@ class PeekParser:
             raise PeekSyntaxError(self.text, token,
                                   message=f'Expect token of value {value!r}, got {token.value!r}')
         return token
+
+    def _before_parsing(self, event_type: ParserEventType):
+        for listener in self.listeners:
+            listener.before_parsing(ParserEvent(event_type, self._peek_token()))
 
 
 def normalise_string(value):
