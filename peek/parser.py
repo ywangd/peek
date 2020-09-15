@@ -33,10 +33,13 @@ _BIN_OP_ORDERS = {
 class ParserEventType(Enum):
     BEFORE_ES_METHOD = 'BEFORE_ES_METHOD'
     BEFORE_ES_URL = 'BEFORE_ES_URL'
-    BEFORE_ES_OPTIONS = 'BEFORE_ES_OPTIONS'
-    BEFORE_ES_PAYLOAD = 'BEFORE_ES_PAYLOAD'
-    BEFORE_FUNC_STMT_NAME = 'BEFORE_FUNC_STMT_NAME'
-    BEFORE_FUNC_ARGS = 'BEFORE_FUNC_ARGS'
+    BEFORE_ES_OPTION_NAME = 'BEFORE_ES_OPTION_NAME'
+    BEFORE_ES_OPTION_VALUE = 'BEFORE_ES_OPTION_VALUE'
+    BEFORE_ES_PAYLOAD_INLINE = 'BEFORE_ES_PAYLOAD_INLINE'
+    BEFORE_ES_PAYLOAD_FILE = 'BEFORE_ES_PAYLOAD_FILE'
+    BEFORE_FUNC_STMT = 'BEFORE_FUNC_STMT_NAME'
+    BEFORE_FUNC_ARG_SYMBOL = 'BEFORE_FUNC_ARG_SYMBOL'
+    BEFORE_FUNC_OPTION_NAME = 'BEFORE_FUNC_OPTION_NAME'
     BEFORE_FUNC_OPTION_VALUE = 'BEFORE_FUNC_OPTION_VALUE'
     BEFORE_SHELL_OUT = 'BEFORE_SHELL_OUT'
     BEFORE_LET = 'BEFORE_LET'
@@ -135,15 +138,16 @@ class PeekParser:
                 self.text, self._peek_token(),
                 message='HTTP path must be either text literal or an expression enclosed by parenthesis')
 
-        self._publish_event(ParserEventType.BEFORE_ES_OPTIONS)
         option_nodes = []
         while self._peek_token().ttype is OptionName:
+            self._publish_event(ParserEventType.BEFORE_ES_OPTION_NAME)
             n = NameNode(self._consume_token(OptionName))
             self._consume_token(Assign)
+            self._publish_event(ParserEventType.BEFORE_ES_OPTION_VALUE)
             option_nodes.append(KeyValueNode(n, self._parse_expr()))
 
-        self._publish_event(ParserEventType.BEFORE_ES_PAYLOAD)
         if self._peek_token().ttype is At:
+            self._publish_event(ParserEventType.BEFORE_ES_PAYLOAD_FILE)
             self._consume_token(At)
             return EsApiCallFilePayloadNode(
                 method_node, path_node, DictNode(option_nodes), TextNode(self._consume_token(Literal)))
@@ -151,6 +155,7 @@ class PeekParser:
             dict_nodes = []
             while self._peek_token().ttype is not EOF:
                 if self._peek_token().ttype is CurlyLeft:
+                    self._publish_event(ParserEventType.BEFORE_ES_PAYLOAD_INLINE)
                     dict_nodes.append(self._parse_dict())
                 else:
                     break
@@ -237,13 +242,12 @@ class PeekParser:
             raise PeekSyntaxError(self.text, token, message=f'Unexpected token: {token!r}')
 
     def _parse_func_call(self):
-        self._publish_event(ParserEventType.BEFORE_FUNC_STMT_NAME)
+        self._publish_event(ParserEventType.BEFORE_FUNC_STMT)
         name_node = NameNode(self._consume_token(FuncName))
         symbol_nodes, arg_nodes, kwarg_nodes = self._parse_func_call_args()
         return FuncCallNode(name_node, ArrayNode(symbol_nodes), ArrayNode(arg_nodes), DictNode(kwarg_nodes))
 
     def _parse_func_call_args(self, is_stmt=True):
-        self._publish_event(ParserEventType.BEFORE_FUNC_ARGS)
         symbol_nodes = []
         arg_nodes = []
         kwarg_nodes = []
@@ -260,6 +264,7 @@ class PeekParser:
                 else:
                     break
             elif self._peek_token().ttype is Name:
+                self._publish_event(ParserEventType.BEFORE_FUNC_OPTION_NAME)
                 n = NameNode(self._consume_token(Name))
                 if self._peek_token().ttype is Assign:
                     self._consume_token(Assign)
@@ -279,6 +284,7 @@ class PeekParser:
                 else:
                     arg_nodes.append(self._parse_expr_after_left_operand(n))
             elif self._peek_token().ttype is At:
+                self._publish_event(ParserEventType.BEFORE_FUNC_ARG_SYMBOL)
                 self._consume_token(At)
                 symbol_nodes.append(SymbolNode(self._consume_token(Literal)))
             else:

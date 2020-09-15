@@ -283,8 +283,10 @@ def test_parser_events(parser):
 
     parser.parse(text)
     assert len(events) == 4
-    assert events[2].type is ParserEventType.BEFORE_ES_OPTIONS
-    assert events[3].type is ParserEventType.BEFORE_ES_PAYLOAD
+    assert events[0].type is ParserEventType.BEFORE_ES_METHOD
+    assert events[1].type is ParserEventType.BEFORE_ES_URL
+    assert events[2].type is ParserEventType.BEFORE_ES_OPTION_NAME
+    assert events[3].type is ParserEventType.BEFORE_ES_OPTION_VALUE
 
     events = []
     text = '''GET _search conn=10 headers={
@@ -292,8 +294,9 @@ def test_parser_events(parser):
 '''
     with pytest.raises(PeekSyntaxError):
         parser.parse(text)
-    assert len(events) == 3
-    assert events[2].type is ParserEventType.BEFORE_ES_OPTIONS
+    assert len(events) == 6
+    assert events[4].type is ParserEventType.BEFORE_ES_OPTION_NAME
+    assert events[5].type is ParserEventType.BEFORE_ES_OPTION_VALUE
 
     events = []
     text = '''GET _search conn=10 headers={
@@ -304,9 +307,24 @@ def test_parser_events(parser):
 '''
     with pytest.raises(PeekSyntaxError):
         parser.parse(text)
+    assert len(events) == 7
+    assert events[6].type is ParserEventType.BEFORE_ES_PAYLOAD_INLINE
+
+    events = []
+    text = '''GET _search
+{"foo": "bar"}
+{"hello'''
+    with pytest.raises(PeekSyntaxError):
+        parser.parse(text)
     assert len(events) == 4
-    assert events[2].type is ParserEventType.BEFORE_ES_OPTIONS
-    assert events[3].type is ParserEventType.BEFORE_ES_PAYLOAD
+    assert events[3].type is ParserEventType.BEFORE_ES_PAYLOAD_INLINE
+
+    events = []
+    text = '''GET _search
+    @a'''
+    parser.parse(text)
+    assert len(events) == 3
+    assert events[2].type is ParserEventType.BEFORE_ES_PAYLOAD_FILE
 
 
 def test_allow_error_token(parser):
