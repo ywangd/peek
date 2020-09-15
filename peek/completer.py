@@ -1,6 +1,7 @@
 import itertools
 import logging
 import os
+from enum import Enum
 from typing import Iterable, List, Tuple, Optional
 
 from prompt_toolkit.completion import Completer, CompleteEvent, Completion, WordCompleter, FuzzyCompleter, PathCompleter
@@ -13,7 +14,7 @@ from peek.completions import PayloadKeyCompletion
 from peek.es_api_spec.spec import ApiSpec
 from peek.lexers import PeekLexer, UrlPathLexer, PathPart, ParamName, Ampersand, QuestionMark, Slash, HttpMethod, \
     FuncName, OptionName, Assign, DictKey, ShellOut, At, Let, For
-from peek.parser import process_tokens
+from peek.parser import process_tokens, PeekParser, ParserEvent, ParserEventType
 
 _logger = logging.getLogger(__name__)
 
@@ -23,6 +24,39 @@ _ES_API_CALL_OPTION_COMPLETER = WordCompleter([w + '=' for w in sorted(['conn', 
 
 _PATH_COMPLETER = PathCompleter(expanduser=True)
 _SYSTEM_COMPLETER = SystemCompleter()
+
+
+class CompletionCategory(Enum):
+    BEGIN_OF_STMT = 'BEGIN_OF_STMT'
+
+
+class CompletionDecider:
+
+    def __init__(self):
+        self.events = []
+        self.state = None
+
+    def __call__(self, event: ParserEvent):
+        self.events.append(event)
+
+    def _handle_event(self, event: ParserEvent):
+        if event is ParserEventType.BEFORE_ES_METHOD:
+            self.state = 'es_api_stmt'
+        elif event is ParserEventType.BEFORE_FUNC_STMT:
+            self.state = 'func_stmt'
+        elif event is ParserEventType.BEFORE_LET:
+            self.state = 'let_stmt'
+        elif event is ParserEventType.BEFORE_FOR:
+            self.state = 'for_stmt'
+        elif event is ParserEventType.BEFORE_SHELL_OUT:
+            self.state = 'shell_out_stmt'
+        elif event is ParserEventType.BEFORE_ES_URL:
+            self.state = 'es_url'
+        elif event is ParserEventType.BEFORE_ES_OPTION_NAME:
+            self.state = 'es_option_name'
+        elif event is ParserEventType.BEFORE_ES_OPTION_VALUE:
+            self.state = 'es_option_value'
+
 
 
 class PeekCompleter(Completer):
@@ -37,23 +71,37 @@ class PeekCompleter(Completer):
         self.api_spec = ApiSpec(app, kibana_dir)
 
     def get_completions(self, document: Document, complete_event: CompleteEvent) -> Iterable[Completion]:
-        _logger.debug(f'doc: {document}, event: {complete_event}')
+        _logger.debug(f'Document: {document}, Event: {complete_event}')
 
         text_before_cursor = document.text_before_cursor
-        _logger.debug(f'text before cursor: {text_before_cursor!r}')
+        _logger.debug(f'Text before cursor: {text_before_cursor!r}')
+
+        # decider = CompletionDecider()
+        # try:
+        #     PeekParser((decider,)).parse(text_before_cursor,
+        #                                  fail_fast_on_error_token=False,
+        #                                  last_stmt_only=True,
+        #                                  log_level='WARNING')
+        # except Exception:
+        #     pass
 
         # Parse tokens for only the text before cursor and merge certain consecutive tokens
         tokens = process_tokens(self.lexer.get_tokens_unprocessed(text_before_cursor))
-        _logger.debug(f'processed tokens: {tokens}')
+        _logger.debug(f'Processed tokens: {tokens}')
 
-        # Nothing to complete if no significant tokens are found
+        # Nothing to complete if no token is found
         if len(tokens) == 0:
             return []
 
-        idx_head_token, head_token = find_beginning_token(tokens)
-        _logger.debug(f'head token: {head_token} at {idx_head_token}')
+        idx_head_token, head_token = find_head_token(tokens)
+        _logger.debug(f'Found head token: {head_token} at {idx_head_token}')
         if head_token is None:
             return []
+
+        effective_text = text_before_cursor[head_token.index:]
+
+
+
 
         pos_head_token = document.translate_index_to_position(head_token.index)
         last_token = tokens[-1]
@@ -210,7 +258,10 @@ class PeekCompleter(Completer):
                                        c.start_position, c.display, c.display_meta, c.style, c.selected_style)
 
 
-def find_beginning_token(tokens) -> Tuple[Optional[int], Optional[PeekToken]]:
+def find_head_token(tokens) -> Tuple[Optional[int], Optional[PeekToken]]:
+    """
+    Find the last token that can start a statement
+    """
     for i, t in zip(reversed(range(len(tokens))), tokens[::-1]):
         if t.ttype in (HttpMethod, FuncName, ShellOut, Let, For):
             return i, t

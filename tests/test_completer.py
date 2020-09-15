@@ -9,7 +9,7 @@ from pygments.token import Literal, Name
 
 from peek import __file__ as package_root
 from peek.common import PeekToken
-from peek.completer import PeekCompleter, find_beginning_token
+from peek.completer import PeekCompleter, find_head_token
 from peek.lexers import HttpMethod, FuncName, BlankLine, Let
 from peek.natives import EXPORTS
 
@@ -63,7 +63,7 @@ def test_find_beginning_token():
         PeekToken(index=4, ttype=Literal, value='abc'),
         PeekToken(index=8, ttype=FuncName, value='ge')
     ]
-    i, t = find_beginning_token(tokens)
+    i, t = find_head_token(tokens)
     assert i == 2
 
     tokens = [
@@ -71,7 +71,7 @@ def test_find_beginning_token():
         PeekToken(index=7, ttype=BlankLine, value='\n'),
         PeekToken(index=8, ttype=FuncName, value='session')
     ]
-    i, t = find_beginning_token(tokens)
+    i, t = find_head_token(tokens)
     assert i == 2
 
     tokens = [
@@ -80,7 +80,7 @@ def test_find_beginning_token():
         PeekToken(index=8, ttype=Let, value='let'),
         PeekToken(index=8, ttype=Name, value='foo'),
     ]
-    i, t = find_beginning_token(tokens)
+    i, t = find_head_token(tokens)
     assert i == 2
 
 

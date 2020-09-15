@@ -2,7 +2,7 @@ import ast
 import json
 import logging
 from enum import Enum
-from typing import Iterable, NamedTuple, Callable
+from typing import Iterable, NamedTuple, Callable, Tuple, Optional
 
 from pygments.token import Token, Whitespace, String, Comment, Literal, Number, Name, Error
 
@@ -65,7 +65,7 @@ class PeekParser:
         self.tokens = []
         self.listeners: Iterable[Callable] = listeners or []
 
-    def parse(self, text, payload_only=False, fail_fast_on_error_token=True, log_level=None):
+    def parse(self, text, payload_only=False, fail_fast_on_error_token=True, last_stmt_only=False, log_level=None):
         saved_log_level = _logger.getEffectiveLevel()
         try:
             if log_level is not None:
@@ -76,8 +76,15 @@ class PeekParser:
 
             stack = ('dict',) if payload_only else ('root',)
             self.tokens = process_tokens(self.lexer.get_tokens_unprocessed(self.text, stack=stack))
+            if last_stmt_only:
+                idx_last_stmt_token = find_last_stmt_token(self.tokens)
+                if idx_last_stmt_token == -1:
+                    return []
+                else:
+                    self.position = idx_last_stmt_token
+
             if fail_fast_on_error_token:
-                for token in self.tokens:
+                for token in self.tokens[self.position:]:
                     if token.ttype in Token.Error:
                         raise PeekSyntaxError(self.text, token, message='Found error token and fail fast is enabled')
 
@@ -406,5 +413,14 @@ def process_tokens(tokens: Iterable[PeekToken]):
     if current_token is not None:
         processed_tokens.append(current_token)
 
-    _logger.debug(f'Processed tokens: {processed_tokens}')
     return processed_tokens
+
+
+def find_last_stmt_token(tokens) -> int:
+    """
+    Find the last token that can start a statement
+    """
+    for i in range(len(tokens) - 1, -1, -1):
+        if tokens[i].ttype in (HttpMethod, FuncName, ShellOut, Let, For):
+            return i
+    return -1
