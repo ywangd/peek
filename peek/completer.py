@@ -32,12 +32,60 @@ class CompletionCategory(Enum):
 
 class CompletionDecider:
 
-    def __init__(self):
-        self.events = []
+    def __init__(self, text: str):
+        self.text = text
+        self._events = []
+        self._tokens: List[PeekToken] = []
+        self._stmt_token = None
         self.state = None
 
     def __call__(self, event: ParserEvent):
-        self.events.append(event)
+        self._events.append(event)
+        if event.type is ParserEventType.AFTER_TOKEN:
+            self._tokens.append(event.token)
+
+    @property
+    def stmt_token(self):
+        return self._stmt_token
+
+    @property
+    def tokens(self):
+        return self._tokens
+
+    @property
+    def is_completion_possible(self):
+        if self._stmt_token is None or not self._tokens:
+            return False
+        last_token = self.tokens[-1]
+        if self.text[last_token.index:].rstrip() == last_token.value:
+            return True
+        else:
+            return False
+
+    def completion_category(self):
+        """
+        * Stmt token
+        * HTTP URL path
+        * HTTP query Param Name
+        * HTTP query Param Value
+        * HTTP option name
+        * HTTP option value
+        * HTTP payload key
+        * HTTP payload value
+        * Function option name
+        * Function option value
+        * Function symbol arg
+        * Shell out path
+        * Run function path
+        """
+        cursor_on_white = self.text[-1] == ' '
+        if cursor_on_white:
+            pass
+        else:
+            if len(self._tokens) == 1 and self._tokens[0].ttype is not ShellOut:
+                pass
+
+
 
     def _handle_event(self, event: ParserEvent):
         if event is ParserEventType.BEFORE_ES_METHOD:
@@ -75,30 +123,27 @@ class PeekCompleter(Completer):
 
         text_before_cursor = document.text_before_cursor
         _logger.debug(f'Text before cursor: {text_before_cursor!r}')
-
-        # decider = CompletionDecider()
-        # try:
-        #     PeekParser((decider,)).parse(text_before_cursor,
-        #                                  fail_fast_on_error_token=False,
-        #                                  last_stmt_only=True,
-        #                                  log_level='WARNING')
-        # except Exception:
-        #     pass
-
-        # Parse tokens for only the text before cursor and merge certain consecutive tokens
-        tokens = process_tokens(self.lexer.get_tokens_unprocessed(text_before_cursor))
-        _logger.debug(f'Processed tokens: {tokens}')
-
-        # Nothing to complete if no token is found
-        if len(tokens) == 0:
+        if text_before_cursor.strip() == '':
             return []
 
-        idx_head_token, head_token = find_head_token(tokens)
-        _logger.debug(f'Found head token: {head_token} at {idx_head_token}')
-        if head_token is None:
+        decider = CompletionDecider(text_before_cursor)
+        try:
+            PeekParser((decider,)).parse(text_before_cursor,
+                                         fail_fast_on_error_token=False,
+                                         last_stmt_only=True,
+                                         log_level='WARNING')
+        except Exception:
+            pass
+
+        if not decider.is_completion_possible:
             return []
 
-        effective_text = text_before_cursor[head_token.index:]
+        cursor_on_white = text_before_cursor[-1] == ' '
+
+        if cursor_on_white:
+            pass
+        else:
+            pass
 
 
 
