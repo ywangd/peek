@@ -46,6 +46,7 @@ class ParserEventType(Enum):
     BEFORE_LET = 'BEFORE_LET'
     BEFORE_FOR = 'BEFORE_FOR'
     BEFORE_FOR_SUITE = 'BEFORE_FOR_SUITE'
+    AFTER_TOKEN = 'AFTER_TOKEN'
 
 
 # Event to be published right before the actual parsing
@@ -363,11 +364,13 @@ class PeekParser:
         if value and (token.value != value or token.value not in value):
             raise PeekSyntaxError(self.text, token,
                                   message=f'Expect token of value {value!r}, got {token.value!r}')
+        self._publish_event(ParserEventType.AFTER_TOKEN, token)
         return token
 
-    def _publish_event(self, event_type: ParserEventType):
+    def _publish_event(self, event_type: ParserEventType, token=None):
+        token = token or self._peek_token()
         for listener in self.listeners:
-            listener(ParserEvent(event_type, self._peek_token()))
+            listener(ParserEvent(event_type, token))
 
 
 def normalise_string(value):

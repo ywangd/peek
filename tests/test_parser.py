@@ -278,15 +278,15 @@ def test_payload_file(parser):
 
 def test_parser_events(parser):
     events = []
-    parser.listeners.append(lambda event: events.append(event))
+    parser.listeners = [lambda event: events.append(event)]
     text = '''GET _search conn=10'''
 
     parser.parse(text)
-    assert len(events) == 4
+    assert len(events) == 9
     assert events[0].type is ParserEventType.BEFORE_ES_METHOD
-    assert events[1].type is ParserEventType.BEFORE_ES_URL
-    assert events[2].type is ParserEventType.BEFORE_ES_OPTION_NAME
-    assert events[3].type is ParserEventType.BEFORE_ES_OPTION_VALUE
+    assert events[2].type is ParserEventType.BEFORE_ES_URL
+    assert events[4].type is ParserEventType.BEFORE_ES_OPTION_NAME
+    assert events[7].type is ParserEventType.BEFORE_ES_OPTION_VALUE
 
     events = []
     text = '''GET _search conn=10 headers={
@@ -294,9 +294,9 @@ def test_parser_events(parser):
 '''
     with pytest.raises(PeekSyntaxError):
         parser.parse(text)
-    assert len(events) == 6
-    assert events[4].type is ParserEventType.BEFORE_ES_OPTION_NAME
-    assert events[5].type is ParserEventType.BEFORE_ES_OPTION_VALUE
+    assert len(events) == 16
+    assert events[9].type is ParserEventType.BEFORE_ES_OPTION_NAME
+    assert events[12].type is ParserEventType.BEFORE_ES_OPTION_VALUE
 
     events = []
     text = '''GET _search conn=10 headers={
@@ -307,8 +307,8 @@ def test_parser_events(parser):
 '''
     with pytest.raises(PeekSyntaxError):
         parser.parse(text)
-    assert len(events) == 7
-    assert events[6].type is ParserEventType.BEFORE_ES_PAYLOAD_INLINE
+    assert len(events) == 21
+    assert events[18].type is ParserEventType.BEFORE_ES_PAYLOAD_INLINE
 
     events = []
     text = '''GET _search
@@ -316,22 +316,22 @@ def test_parser_events(parser):
 {"hello'''
     with pytest.raises(PeekSyntaxError):
         parser.parse(text)
-    assert len(events) == 4
-    assert events[3].type is ParserEventType.BEFORE_ES_PAYLOAD_INLINE
+    assert len(events) == 13
+    assert events[10].type is ParserEventType.BEFORE_ES_PAYLOAD_INLINE
 
     events = []
     text = '''GET _search
     @a'''
     parser.parse(text)
-    assert len(events) == 3
-    assert events[2].type is ParserEventType.BEFORE_ES_PAYLOAD_FILE
+    assert len(events) == 7
+    assert events[4].type is ParserEventType.BEFORE_ES_PAYLOAD_FILE
 
 
 def test_allow_error_token(parser):
     text = 'GET _ ()'
 
     events = []
-    parser.listeners.append(lambda event: events.append(event))
+    parser.listeners = [lambda event: events.append(event)]
 
     with pytest.raises(PeekSyntaxError):
         parser.parse(text)
