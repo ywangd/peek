@@ -2,7 +2,7 @@ import ast
 import json
 import logging
 from enum import Enum
-from typing import Iterable, NamedTuple
+from typing import Iterable, NamedTuple, Callable
 
 from pygments.token import Token, Whitespace, String, Comment, Literal, Number, Name, Error
 
@@ -38,6 +38,7 @@ class ParserEventType(Enum):
     BEFORE_ES_PAYLOAD_INLINE = 'BEFORE_ES_PAYLOAD_INLINE'
     BEFORE_ES_PAYLOAD_FILE = 'BEFORE_ES_PAYLOAD_FILE'
     BEFORE_FUNC_STMT = 'BEFORE_FUNC_STMT_NAME'
+    BEFORE_FUNC_ARG_REGULAR = 'BEFORE_FUNC_ARG_REGULAR'
     BEFORE_FUNC_ARG_SYMBOL = 'BEFORE_FUNC_ARG_SYMBOL'
     BEFORE_FUNC_OPTION_NAME = 'BEFORE_FUNC_OPTION_NAME'
     BEFORE_FUNC_OPTION_VALUE = 'BEFORE_FUNC_OPTION_VALUE'
@@ -61,7 +62,7 @@ class PeekParser:
         self.text = ''
         self.position = 0  # position is token position, not character
         self.tokens = []
-        self.listeners = listeners or []
+        self.listeners: Iterable[Callable] = listeners or []
 
     def parse(self, text, payload_only=False, fail_fast_on_error_token=True, log_level=None):
         saved_log_level = _logger.getEffectiveLevel()
@@ -77,7 +78,7 @@ class PeekParser:
             if fail_fast_on_error_token:
                 for token in self.tokens:
                     if token.ttype in Token.Error:
-                        raise PeekSyntaxError(self.text, token)
+                        raise PeekSyntaxError(self.text, token, message='Found error token and fail fast is enabled')
 
             return self._do_parse_payload() if payload_only else self._do_parse()
         finally:
@@ -239,7 +240,7 @@ class PeekParser:
         elif token.ttype in (String.Double, String.Single, TripleS, TripleD):
             return StringNode(self._consume_token(token.ttype))
         else:
-            raise PeekSyntaxError(self.text, token, message=f'Unexpected token: {token!r}')
+            raise PeekSyntaxError(self.text, token, message=f'Unexpected token when parsing for value: {token!r}')
 
     def _parse_func_call(self):
         self._publish_event(ParserEventType.BEFORE_FUNC_STMT)
@@ -288,6 +289,7 @@ class PeekParser:
                 self._consume_token(At)
                 symbol_nodes.append(SymbolNode(self._consume_token(Literal)))
             else:
+                self._publish_event(ParserEventType.BEFORE_FUNC_ARG_REGULAR)
                 arg_nodes.append(self._parse_expr())
         return symbol_nodes, arg_nodes, kwarg_nodes
 
@@ -401,5 +403,5 @@ def process_tokens(tokens: Iterable[PeekToken]):
     if current_token is not None:
         processed_tokens.append(current_token)
 
-    _logger.debug(f'processed tokens: {processed_tokens}')
+    _logger.debug(f'Processed tokens: {processed_tokens}')
     return processed_tokens
