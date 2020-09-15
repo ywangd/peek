@@ -1,10 +1,10 @@
 import pytest
 from pygments.token import String, Whitespace, Comment
 
-from peek.ast import EsApiCallNode, ShellOutNode
+from peek.ast import EsApiCallNode, ShellOutNode, EsApiCallInlinePayloadNode, EsApiCallFilePayloadNode
 from peek.errors import PeekSyntaxError
 from peek.lexers import CurlyLeft, CurlyRight
-from peek.parser import PeekParser, process_tokens, PeekToken
+from peek.parser import PeekParser, process_tokens, PeekToken, ParserEventType
 
 
 @pytest.fixture
@@ -53,7 +53,7 @@ def test_parser_single_es_api_call(parser):
     nodes = parser.parse(text)
     assert len(nodes) == 1
     n = nodes[0]
-    assert isinstance(n, EsApiCallNode)
+    assert isinstance(n, EsApiCallInlinePayloadNode)
     assert n.method == 'GET'
     assert n.path == '/abc'
     assert len(n.dict_nodes) == 0
@@ -121,9 +121,10 @@ def test_parser_file_payload(parser):
     nodes = parser.parse(text)
     assert len(nodes) == 1
     n = nodes[0]
-    assert isinstance(n, EsApiCallNode)
+    assert isinstance(n, EsApiCallFilePayloadNode)
     assert n.method == 'GET'
     assert n.path == '/_abc'
+    assert str(n.file_node) == 'some_file'
 
 
 def test_parser_string_escapes(parser):
@@ -273,3 +274,69 @@ def test_payload_file(parser):
 {'category':'click','tag':1}
 {'index':{'_index':'index','_id':'2'}}
 {'category':'click','tag':2}'''
+
+
+def test_parser_events(parser):
+    events = []
+    parser.listeners.append(lambda event: events.append(event))
+    text = '''GET _search conn=10'''
+
+    parser.parse(text)
+    assert len(events) == 4
+    assert events[0].type is ParserEventType.BEFORE_ES_METHOD
+    assert events[1].type is ParserEventType.BEFORE_ES_URL
+    assert events[2].type is ParserEventType.BEFORE_ES_OPTION_NAME
+    assert events[3].type is ParserEventType.BEFORE_ES_OPTION_VALUE
+
+    events = []
+    text = '''GET _search conn=10 headers={
+    "foo":
+'''
+    with pytest.raises(PeekSyntaxError):
+        parser.parse(text)
+    assert len(events) == 6
+    assert events[4].type is ParserEventType.BEFORE_ES_OPTION_NAME
+    assert events[5].type is ParserEventType.BEFORE_ES_OPTION_VALUE
+
+    events = []
+    text = '''GET _search conn=10 headers={
+    "foo": "bar"
+}
+{
+   "hello
+'''
+    with pytest.raises(PeekSyntaxError):
+        parser.parse(text)
+    assert len(events) == 7
+    assert events[6].type is ParserEventType.BEFORE_ES_PAYLOAD_INLINE
+
+    events = []
+    text = '''GET _search
+{"foo": "bar"}
+{"hello'''
+    with pytest.raises(PeekSyntaxError):
+        parser.parse(text)
+    assert len(events) == 4
+    assert events[3].type is ParserEventType.BEFORE_ES_PAYLOAD_INLINE
+
+    events = []
+    text = '''GET _search
+    @a'''
+    parser.parse(text)
+    assert len(events) == 3
+    assert events[2].type is ParserEventType.BEFORE_ES_PAYLOAD_FILE
+
+
+def test_allow_error_token(parser):
+    text = 'GET _ ()'
+
+    events = []
+    parser.listeners.append(lambda event: events.append(event))
+
+    with pytest.raises(PeekSyntaxError):
+        parser.parse(text)
+    assert len(events) == 0
+
+    with pytest.raises(PeekSyntaxError):
+        parser.parse(text, fail_fast_on_error_token=False)
+    assert len(events) > 0

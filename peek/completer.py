@@ -3,17 +3,17 @@ import logging
 import os
 from typing import Iterable, List, Tuple, Optional
 
-from peek.common import PeekToken
-from peek.completions import PayloadKeyCompletion
-from peek.es_api_spec.spec import ApiSpec
-from peek.lexers import PeekLexer, UrlPathLexer, PathPart, ParamName, Ampersand, QuestionMark, Slash, HttpMethod, \
-    FuncName, OptionName, Assign, DictKey, ShellOut, At, CurlyLeft, BracketLeft, ParenLeft, CurlyRight, BracketRight, \
-    ParenRight
-from peek.parser import process_tokens
 from prompt_toolkit.completion import Completer, CompleteEvent, Completion, WordCompleter, FuzzyCompleter, PathCompleter
 from prompt_toolkit.contrib.completers import SystemCompleter
 from prompt_toolkit.document import Document
 from pygments.token import Error, Name, Literal, String
+
+from peek.common import PeekToken
+from peek.completions import PayloadKeyCompletion
+from peek.es_api_spec.spec import ApiSpec
+from peek.lexers import PeekLexer, UrlPathLexer, PathPart, ParamName, Ampersand, QuestionMark, Slash, HttpMethod, \
+    FuncName, OptionName, Assign, DictKey, ShellOut, At, Let, For
+from peek.parser import process_tokens
 
 _logger = logging.getLogger(__name__)
 
@@ -23,12 +23,6 @@ _ES_API_CALL_OPTION_COMPLETER = WordCompleter([w + '=' for w in sorted(['conn', 
 
 _PATH_COMPLETER = PathCompleter(expanduser=True)
 _SYSTEM_COMPLETER = SystemCompleter()
-
-_CLOSING_LOOKUP = {
-    CurlyLeft: CurlyRight,
-    BracketLeft: BracketRight,
-    ParenLeft: ParenRight,
-}
 
 
 class PeekCompleter(Completer):
@@ -218,7 +212,7 @@ class PeekCompleter(Completer):
 
 def find_beginning_token(tokens) -> Tuple[Optional[int], Optional[PeekToken]]:
     for i, t in zip(reversed(range(len(tokens))), tokens[::-1]):
-        if t.ttype in (HttpMethod, FuncName, ShellOut):
+        if t.ttype in (HttpMethod, FuncName, ShellOut, Let, For):
             return i, t
     return None, None
 
