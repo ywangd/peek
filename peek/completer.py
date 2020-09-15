@@ -12,7 +12,7 @@ from peek.common import PeekToken
 from peek.completions import PayloadKeyCompletion
 from peek.es_api_spec.spec import ApiSpec
 from peek.lexers import PeekLexer, UrlPathLexer, PathPart, ParamName, Ampersand, QuestionMark, Slash, HttpMethod, \
-    FuncName, OptionName, Assign, DictKey, ShellOut, At
+    FuncName, OptionName, Assign, DictKey, ShellOut, At, Let, For
 from peek.parser import process_tokens
 
 _logger = logging.getLogger(__name__)
@@ -212,7 +212,7 @@ class PeekCompleter(Completer):
 
 def find_beginning_token(tokens) -> Tuple[Optional[int], Optional[PeekToken]]:
     for i, t in zip(reversed(range(len(tokens))), tokens[::-1]):
-        if t.ttype in (HttpMethod, FuncName, ShellOut):
+        if t.ttype in (HttpMethod, FuncName, ShellOut, Let, For):
             return i, t
     return None, None
 
