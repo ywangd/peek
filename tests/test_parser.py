@@ -319,13 +319,12 @@ def test_parser_events_000(parser):
     text = '''GET _search conn=10'''
 
     parser.parse(text)
-    assert len(events) == 11
+    assert len(events) == 10
     assert events[0].type is ParserEventType.ES_METHOD
-    assert events[2].type is ParserEventType.BEFORE_ES_URL
-    assert events[4].type is ParserEventType.AFTER_ES_URL
-    assert events[5].type is ParserEventType.ES_OPTION_NAME
-    assert events[8].type is ParserEventType.BEFORE_ES_OPTION_VALUE
-    assert events[10].type is ParserEventType.AFTER_ES_OPTION_VALUE
+    assert events[2].type is ParserEventType.ES_URL
+    assert events[4].type is ParserEventType.ES_OPTION_NAME
+    assert events[7].type is ParserEventType.BEFORE_ES_OPTION_VALUE
+    assert events[9].type is ParserEventType.AFTER_ES_OPTION_VALUE
     tokens = [event.token for event in events if event.type is ParserEventType.AFTER_TOKEN]
     assert len(tokens) == 5
 
@@ -339,9 +338,9 @@ def test_parser_events_001(parser):
 '''
     with pytest.raises(PeekSyntaxError):
         parser.parse(text)
-    assert len(events) == 18
-    assert events[11].type is ParserEventType.ES_OPTION_NAME
-    assert events[14].type is ParserEventType.BEFORE_ES_OPTION_VALUE
+    assert len(events) == 19
+    assert events[10].type is ParserEventType.ES_OPTION_NAME
+    assert events[13].type is ParserEventType.BEFORE_ES_OPTION_VALUE
     tokens = [event.token for event in events if event.type is ParserEventType.AFTER_TOKEN]
     assert len(tokens) == 10
 
@@ -358,8 +357,11 @@ def test_parser_events_002(parser):
 '''
     with pytest.raises(PeekSyntaxError):
         parser.parse(text)
-    assert len(events) == 24
-    assert events[21].type is ParserEventType.BEFORE_ES_PAYLOAD_INLINE
+    for event in events:
+        print(event)
+    assert len(events) == 28
+    assert events[23].type is ParserEventType.BEFORE_ES_PAYLOAD_INLINE
+    assert events[25].type is ParserEventType.BEFORE_DICT_KEY_EXPR
     tokens = [event.token for event in events if event.type is ParserEventType.AFTER_TOKEN]
     assert len(tokens) == 14
 
@@ -373,8 +375,9 @@ def test_parser_events_003(parser):
 {"hello'''
     with pytest.raises(PeekSyntaxError):
         parser.parse(text)
-    assert len(events) == 15
-    assert events[12].type is ParserEventType.BEFORE_ES_PAYLOAD_INLINE
+    assert len(events) == 18
+    assert events[4].type is ParserEventType.BEFORE_ES_PAYLOAD_INLINE
+    assert events[14].type is ParserEventType.BEFORE_ES_PAYLOAD_INLINE
     tokens = [event.token for event in events if event.type is ParserEventType.AFTER_TOKEN]
     assert len(tokens) == 9
 
@@ -386,8 +389,8 @@ def test_parser_events_004(parser):
     text = '''GET _search
     @a'''
     parser.parse(text)
-    assert len(events) == 8
-    assert events[5].type is ParserEventType.ES_PAYLOAD_FILE_AT
+    assert len(events) == 7
+    assert events[4].type is ParserEventType.ES_PAYLOAD_FILE_AT
     tokens = [event.token for event in events if event.type is ParserEventType.AFTER_TOKEN]
     assert len(tokens) == 4
 

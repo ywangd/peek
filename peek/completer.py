@@ -25,6 +25,12 @@ _ES_API_CALL_OPTION_NAME_COMPLETER = WordCompleter(
 _PATH_COMPLETER = PathCompleter(expanduser=True)
 _SYSTEM_COMPLETER = SystemCompleter()
 
+_DICT_EVENT_TYPES = (
+    ParserEventType.DICT_KEY,
+    ParserEventType.BEFORE_DICT_KEY_EXPR, ParserEventType.AFTER_DICT_KEY_EXPR,
+    ParserEventType.BEFORE_DICT_VALUE, ParserEventType.AFTER_DICT_VALUE,
+)
+
 
 class ParserStateTracker:
 
@@ -32,12 +38,18 @@ class ParserStateTracker:
         self.text = text
         self._events: List[ParserEvent] = []
         self._tokens: List[PeekToken] = []
+        self._payload_events: List[ParserEvent] = []
 
     def __call__(self, event: ParserEvent):
         if event.type is ParserEventType.AFTER_TOKEN:
             self._tokens.append(event.token)
+        elif event.type in _DICT_EVENT_TYPES:
+            if self._events and self._events[-1] is ParserEventType.BEFORE_ES_PAYLOAD_INLINE:
+                self._payload_events.append(event)
         else:
             self._events.append(event)
+            if event is ParserEventType.BEFORE_ES_PAYLOAD_INLINE:
+                self._payload_events = []
 
     @property
     def events(self):
@@ -46,6 +58,10 @@ class ParserStateTracker:
     @property
     def tokens(self):
         return self._tokens
+
+    @property
+    def payload_events(self):
+        return self._payload_events
 
     @property
     def stmt_token(self) -> Optional[PeekToken]:
@@ -75,6 +91,12 @@ class ParserStateTracker:
         if not self._events:
             return None
         return self._events[-1]
+
+    @property
+    def last_payload_event(self) -> Optional[ParserEvent]:
+        if not self._payload_events:
+            return None
+        return self._payload_events[-1]
 
     @property
     def has_newline_after_last_token(self):
@@ -137,12 +159,16 @@ class PeekCompleter(Completer):
 
         # Only option name/value completions are available when cursor is on whitespace char
         if stmt_token.ttype is HttpMethod and not has_newline_after_last_token:
-            if last_event.type in (ParserEventType.AFTER_ES_URL,
+            if last_event.type in (ParserEventType.ES_URL,
                                    ParserEventType.AFTER_ES_URL_EXPR,
                                    ParserEventType.AFTER_ES_OPTION_VALUE):
                 return _ES_API_CALL_OPTION_NAME_COMPLETER.get_completions(document, complete_event)
             elif last_event.type is ParserEventType.BEFORE_ES_OPTION_VALUE:
                 return []  # TODO: ES option value
+            elif last_event.type is ParserEventType.BEFORE_ES_PAYLOAD_INLINE:
+                if state_tracker.last_payload_event is ParserEventType.BEFORE_DICT_VALUE:
+                    return self._maybe_complete_payload_value(document, complete_event, state_tracker)
+
         elif stmt_token.ttype is FuncName and not has_newline_after_last_token:
             if last_event.type in (ParserEventType.FUNC_STMT, ParserEventType.AFTER_FUNC_ARGS):
                 return self._maybe_complete_func_option_name(document, complete_event, state_tracker)
@@ -170,9 +196,8 @@ class PeekCompleter(Completer):
             )
 
         elif stmt_token.ttype is HttpMethod:
-            if last_event.type is ParserEventType.AFTER_ES_URL:
-                # Must be AFTER_ES_URL because incomplete URL, e.g. single char, emits this event as well,
-                # while BEFORE_ES_URL can be generated for empty URL, which we do not want to provide completions
+            if last_event.type is ParserEventType.ES_URL:
+                # ES_URL not ES_METHOD because we do not provide completion for empty string
                 return self._maybe_complete_http_path(document, complete_event, state_tracker)
             elif last_event.type is ParserEventType.ES_OPTION_NAME:
                 return _ES_API_CALL_OPTION_NAME_COMPLETER.get_completions(document, complete_event)
@@ -184,6 +209,8 @@ class PeekCompleter(Completer):
             elif last_event.type is ParserEventType.BEFORE_ES_PAYLOAD_INLINE:
                 if last_token.ttype is DictKey:
                     return self._maybe_complete_payload(document, complete_event, state_tracker)
+                elif state_tracker.last_payload_event is ParserEventType.BEFORE_DICT_VALUE:
+                    return self._maybe_complete_payload_value(document, complete_event, state_tracker)
 
         elif stmt_token.ttype is FuncName:
             if self._function_option_name_can_appear(last_event, last_token):
@@ -271,6 +298,11 @@ class PeekCompleter(Completer):
         for c in FuzzyCompleter(constant_completer).get_completions(document, complete_event):
             yield PayloadKeyCompletion(c.text, rules[c.text],
                                        c.start_position, c.display, c.display_meta, c.style, c.selected_style)
+
+    def _maybe_complete_payload_value(self, document: Document, complete_event: CompleteEvent,
+                                      state_tracker: ParserStateTracker) -> Iterable[Completion]:
+
+        return []
 
 
 class ConstantCompleter(Completer):
