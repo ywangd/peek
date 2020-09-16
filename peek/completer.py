@@ -44,8 +44,11 @@ class ParserStateTracker:
         if event.type is ParserEventType.AFTER_TOKEN:
             self._tokens.append(event.token)
         elif event.type in _DICT_EVENT_TYPES:
-            if self._events and self._events[-1] is ParserEventType.BEFORE_ES_PAYLOAD_INLINE:
+
+            if self.last_event.type is ParserEventType.BEFORE_ES_PAYLOAD_INLINE:
                 self._payload_events.append(event)
+            else:
+                _logger.debug(f'Ignore dict parsing events for non-payload: {self.last_event}')
         else:
             self._events.append(event)
             if event is ParserEventType.BEFORE_ES_PAYLOAD_INLINE:
@@ -166,7 +169,7 @@ class PeekCompleter(Completer):
             elif last_event.type is ParserEventType.BEFORE_ES_OPTION_VALUE:
                 return []  # TODO: ES option value
             elif last_event.type is ParserEventType.BEFORE_ES_PAYLOAD_INLINE:
-                if state_tracker.last_payload_event is ParserEventType.BEFORE_DICT_VALUE:
+                if state_tracker.last_payload_event.type is ParserEventType.BEFORE_DICT_VALUE:
                     return self._maybe_complete_payload_value(document, complete_event, state_tracker)
 
         elif stmt_token.ttype is FuncName and not has_newline_after_last_token:
@@ -288,7 +291,6 @@ class PeekCompleter(Completer):
         method_token, path_token = tokens[0], tokens[1]
         path_tokens = list(self.url_path_lexer.get_tokens_unprocessed(path_token.value))
         last_event = state_tracker.last_event
-        assert last_event.type is ParserEventType.BEFORE_ES_PAYLOAD_INLINE
         payload_tokens = tokens[tokens.index(last_event.token):]
         candidates, rules = self.api_spec.complete_payload(
             document, complete_event, method_token.value.upper(), path_tokens, payload_tokens)
@@ -301,8 +303,22 @@ class PeekCompleter(Completer):
 
     def _maybe_complete_payload_value(self, document: Document, complete_event: CompleteEvent,
                                       state_tracker: ParserStateTracker) -> Iterable[Completion]:
-
-        return []
+        tokens = state_tracker.tokens
+        _logger.debug(f'Completing for payload value with tokens: {tokens}')
+        path_event = state_tracker.events[1]
+        if path_event.token.ttype is not Literal:  # No completion for non-literal URL
+            return []
+        method_token, path_token = tokens[0], tokens[1]
+        path_tokens = list(self.url_path_lexer.get_tokens_unprocessed(path_token.value))
+        last_event = state_tracker.last_event
+        candidates, rules = self.api_spec.complete_payload_value(
+            document, complete_event, method_token.value.upper(), path_tokens,
+            tokens[tokens.index(last_event.token):], state_tracker.payload_events
+        )
+        if not candidates:
+            return []
+        constant_completer = ConstantCompleter(candidates)
+        return constant_completer.get_completions(document, complete_event)
 
 
 class ConstantCompleter(Completer):

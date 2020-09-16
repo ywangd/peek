@@ -194,8 +194,13 @@ get _cluster/health c''')),
         Completion(text='conn=', start_position=-1),
     )
 
-    assert len(list(get_completions(Document('''post _security/api_key
-{"role_descriptors": }''', 44)))) == 0
+
+def test_complete_payload_value():
+    assert completions_has(
+        get_completions(Document('''post _security/api_key
+{"role_descriptors": }''', 44)),
+        Completion(text='{}', start_position=0),
+    )
 
 
 def test_not_complete_http_options():

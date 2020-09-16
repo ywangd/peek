@@ -1,13 +1,16 @@
 import ast
+import json
 import logging
 from typing import List, Dict
 
 from prompt_toolkit.completion import Completion, CompleteEvent
 from prompt_toolkit.document import Document
 
+from peek.common import PeekToken
 from peek.es_api_spec.spec_js import build_js_specs
 from peek.es_api_spec.spec_json import load_json_specs
-from peek.lexers import Slash, PathPart, Assign, CurlyLeft, CurlyRight, DictKey
+from peek.lexers import Slash, PathPart, Assign, CurlyLeft, CurlyRight, DictKey, Colon
+from peek.parser import ParserEvent, ParserEventType
 
 _logger = logging.getLogger(__name__)
 
@@ -67,19 +70,9 @@ class ApiSpec:
 
     def complete_payload(self, document: Document, complete_event: CompleteEvent, method, path_tokens, payload_tokens):
         _logger.debug(f'Completing for API payload: {method!r} {path_tokens!r} {payload_tokens!r}')
-        token_stream = [t.value for t in path_tokens if t.ttype is not Slash]
-
-        try:
-            api_spec = next(matchable_specs(method, token_stream, self.specs,
-                                            required_field='data_autocomplete_rules'))
-        except StopIteration:
-            return [], {}
-
-        rules = self._maybe_process_rules(api_spec.get('data_autocomplete_rules', None))
+        rules = self._find_rules_for_method_and_url_path(method, path_tokens)
         if rules is None:
             return [], {}
-
-        _logger.debug(f'Found rules from spec: {rules}')
 
         payload_keys = []
         curly_level = 0
@@ -109,6 +102,7 @@ class ApiSpec:
         if rules is None:
             _logger.debug(f'Rules not available for key: {payload_keys!r}')
             return [], {}
+        _logger.debug(f'Found rules for payload keys: {rules}')
 
         # TODO: __one_of, e.g. POST _render/template
         # TODO: top-level __template, e.g. POST _reindex
@@ -117,13 +111,78 @@ class ApiSpec:
                       if k not in ('__scope_link', '__template', '__one_of', '*')]
         return candidates, rules
 
-    def _resolve_rules_for_keys(self, rules, payload_keys):
+    def complete_payload_value(self, document: Document, complete_event: CompleteEvent, method: str,
+                               path_tokens: List[PeekToken],
+                               payload_tokens: List[PeekToken], payload_events: List[ParserEvent]):
+        _logger.debug(f'Completing for API payload value: {method!r} {path_tokens!r} {payload_tokens!r}')
+        rules = self._find_rules_for_method_and_url_path(method, path_tokens)
+        if rules is None:
+            return [], {}
+
+        unpaired_dict_key_tokens = []
+        for payload_event in payload_events:
+            if payload_event.type is ParserEventType.BEFORE_DICT_KEY_EXPR:
+                _logger.debug(f'No completion is possible for payload with dict key expr: {payload_event.token}')
+                return [], {}
+            elif payload_event.type is ParserEventType.DICT_KEY:
+                unpaired_dict_key_tokens.append(payload_event.token)
+            elif payload_event.type is ParserEventType.AFTER_DICT_VALUE:
+                unpaired_dict_key_tokens.pop()
+
+        if not unpaired_dict_key_tokens:  # should not happen
+            _logger.warning('No unpaired dict key tokens are found')
+            return [], {}
+
+        payload_keys = [ast.literal_eval(t.value) for t in unpaired_dict_key_tokens]
+        _logger.debug(f'Payload keys are: {payload_keys}')
+
+        rules = self._resolve_rules_for_keys(rules, payload_keys, unwrap_value_for_last_key=False)
+        if rules is None:
+            _logger.debug(f'Rules not available for keys: {payload_keys!r}')
+            return [], {}
+        _logger.debug(f'Found rules for payload keys: {rules}')
+
+        if payload_tokens[-1].ttype is Colon:
+            # The simpler case when value position has nothing yet
+            if isinstance(rules, dict):
+                if '__one_of' in rules:
+                    return [Completion(json.dumps(c)) for c in rules['__one_of']], rules
+                else:
+                    return [Completion('{}', start_position=0)], rules
+            elif isinstance(rules, list):
+                if rules and isinstance(rules[0], dict):
+                    return [Completion('[{}]', start_position=0)], rules
+                else:
+                    return [Completion('[]', start_position=0)], rules
+            else:
+                return [Completion(json.dumps(rules), start_position=0)], rules
+
+        return [], {}  # TODO
+
+    def _find_rules_for_method_and_url_path(self, method: str, path_tokens: List[PeekToken]):
+        token_stream = [t.value for t in path_tokens if t.ttype is not Slash]
+        try:
+            api_spec = next(matchable_specs(method, token_stream, self.specs,
+                                            required_field='data_autocomplete_rules'))
+            _logger.debug(f'Found API spec for {method!r} {path_tokens}')
+        except StopIteration:
+            _logger.debug(f'No matching API spec found for {method!r} {path_tokens}')
+            return None
+
+        rules = self._maybe_process_rules(api_spec.get('data_autocomplete_rules', None))
+        _logger.debug('No rules found from spec' if rules is None else f'Found rules from spec: {rules}')
+        return rules
+
+    def _resolve_rules_for_keys(self, rules, payload_keys, unwrap_value_for_last_key=True):
         for i, k in enumerate(payload_keys):
             if k not in rules and '*' in rules:
                 rules = rules['*']
             else:
                 rules = rules.get(k, None)
-            rules = self._maybe_process_rules(rules)
+            if not i == len(payload_keys) - 1 or unwrap_value_for_last_key:
+                rules = self._maybe_process_rules(rules)
+            else:
+                rules = self._maybe_process_rules(rules, unwrap_value=False)
             # Special handle for query
             if k == 'query' and rules == {}:
                 rules = self.specs['GLOBAL']['query']
@@ -131,12 +190,18 @@ class ApiSpec:
                 break
         return rules
 
-    def _maybe_process_rules(self, rules):
-        processors = [
-            self._maybe_resolve_scope_link,
-            self._maybe_unwrap_for_dict,
-            self._maybe_lift_one_of,
-        ]
+    def _maybe_process_rules(self, rules, unwrap_value=True):
+        if unwrap_value:
+            processors = [
+                self._maybe_resolve_scope_link,
+                self._maybe_unwrap_for_dict,
+                self._maybe_lift_one_of,
+            ]
+        else:
+            processors = [
+                self._maybe_resolve_scope_link,
+                self._maybe_lift_one_of,
+            ]
         while True:
             original_rules = rules
             for p in processors:
