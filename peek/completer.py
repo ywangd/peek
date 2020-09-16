@@ -1,28 +1,85 @@
 import itertools
 import logging
 import os
-from typing import Iterable, List, Tuple, Optional
+from typing import Iterable, List, Optional
 
 from prompt_toolkit.completion import Completer, CompleteEvent, Completion, WordCompleter, FuzzyCompleter, PathCompleter
 from prompt_toolkit.contrib.completers import SystemCompleter
 from prompt_toolkit.document import Document
-from pygments.token import Error, Name, Literal, String
+from pygments.token import Error, Literal, String, Name
 
 from peek.common import PeekToken
 from peek.completions import PayloadKeyCompletion
 from peek.es_api_spec.spec import ApiSpec
 from peek.lexers import PeekLexer, UrlPathLexer, PathPart, ParamName, Ampersand, QuestionMark, Slash, HttpMethod, \
-    FuncName, OptionName, Assign, DictKey, ShellOut, At, Let, For
-from peek.parser import process_tokens
+    FuncName, ShellOut, DictKey
+from peek.parser import PeekParser, ParserEvent, ParserEventType
 
 _logger = logging.getLogger(__name__)
 
 _HTTP_METHOD_COMPLETER = WordCompleter(['GET', 'POST', 'PUT', 'DELETE'], ignore_case=True)
 
-_ES_API_CALL_OPTION_COMPLETER = WordCompleter([w + '=' for w in sorted(['conn', 'runas', 'headers', 'xoid', 'quiet'])])
+_ES_API_CALL_OPTION_NAME_COMPLETER = WordCompleter(
+    [w + '=' for w in sorted(['conn', 'runas', 'headers', 'xoid', 'quiet'])])
 
 _PATH_COMPLETER = PathCompleter(expanduser=True)
 _SYSTEM_COMPLETER = SystemCompleter()
+
+
+class ParserStateTracker:
+
+    def __init__(self, text: str):
+        self.text = text
+        self._events: List[ParserEvent] = []
+        self._tokens: List[PeekToken] = []
+
+    def __call__(self, event: ParserEvent):
+        if event.type is ParserEventType.AFTER_TOKEN:
+            self._tokens.append(event.token)
+        else:
+            self._events.append(event)
+
+    @property
+    def events(self):
+        return self._events
+
+    @property
+    def tokens(self):
+        return self._tokens
+
+    @property
+    def stmt_token(self) -> Optional[PeekToken]:
+        if not self._events:
+            return None
+        return self._events[0].token
+
+    @property
+    def is_completion_possible(self):
+        if self.stmt_token is None or not self._tokens:
+            return False
+        # The last non-white char must be parsed successfully for completion to be available
+        last_token = self.tokens[-1]
+        if self.text[last_token.index:].rstrip() == last_token.value:
+            return True
+        else:
+            return False
+
+    @property
+    def last_token(self) -> Optional[PeekToken]:
+        if not self._tokens:
+            return None
+        return self._tokens[-1]
+
+    @property
+    def last_event(self) -> Optional[ParserEvent]:
+        if not self._events:
+            return None
+        return self._events[-1]
+
+    @property
+    def has_newline_after_last_token(self):
+        last_token = self.tokens[-1]
+        return '\n' in self.text[last_token.index:]
 
 
 class PeekCompleter(Completer):
@@ -37,106 +94,151 @@ class PeekCompleter(Completer):
         self.api_spec = ApiSpec(app, kibana_dir)
 
     def get_completions(self, document: Document, complete_event: CompleteEvent) -> Iterable[Completion]:
-        _logger.debug(f'doc: {document}, event: {complete_event}')
+        _logger.debug(f'Document: {document}, Event: {complete_event}')
 
         text_before_cursor = document.text_before_cursor
-        _logger.debug(f'text before cursor: {text_before_cursor!r}')
-
-        # Parse tokens for only the text before cursor and merge certain consecutive tokens
-        tokens = process_tokens(self.lexer.get_tokens_unprocessed(text_before_cursor))
-        _logger.debug(f'processed tokens: {tokens}')
-
-        # Nothing to complete if no significant tokens are found
-        if len(tokens) == 0:
+        _logger.debug(f'Text before cursor: {text_before_cursor!r}')
+        if text_before_cursor.strip() == '':
             return []
 
-        idx_head_token, head_token = find_beginning_token(tokens)
-        _logger.debug(f'head token: {head_token} at {idx_head_token}')
-        if head_token is None:
+        state_tracker = ParserStateTracker(text_before_cursor)
+        try:
+            PeekParser((state_tracker,)).parse(text_before_cursor,
+                                               fail_fast_on_error_token=True,
+                                               last_stmt_only=True,
+                                               log_level='WARNING')
+        except Exception:
+            pass
+
+        if not state_tracker.is_completion_possible:
+            _logger.debug('No completion is available according to state_tracker')
             return []
 
-        pos_head_token = document.translate_index_to_position(head_token.index)
-        last_token = tokens[-1]
-        pos_cursor = document.translate_index_to_position(document.cursor_position)
-
-        # Cursor is on a non-white token
-        is_cursor_on_non_white_token = (last_token.index < document.cursor_position
-                                        <= (last_token.index + len(last_token.value)))
-
-        if head_token.ttype is ShellOut:
+        stmt_token = state_tracker.stmt_token
+        if stmt_token.ttype is ShellOut:
             _logger.debug('Completing for shell out')
             return _SYSTEM_COMPLETER.get_completions(
-                Document(text_before_cursor[head_token.index + 1:]), complete_event)
+                Document(text_before_cursor[stmt_token.index + 1:]), complete_event)
 
-        if is_cursor_on_non_white_token:
-            _logger.debug(f'Cursor token: {last_token}')
-            if last_token.ttype in (HttpMethod, FuncName):
-                _logger.debug(f'Completing function/http method name: {last_token}')
-                return itertools.chain(
-                    _HTTP_METHOD_COMPLETER.get_completions(document, complete_event),
-                    WordCompleter(['for', 'let']).get_completions(document, complete_event),
-                    WordCompleter(self.app.vm.functions.keys()).get_completions(document, complete_event)
-                )
+        if document.char_before_cursor.isspace():
+            return self._get_completions_for_whitespace(document, complete_event, state_tracker)
 
-            # The token right before cursor is HttpMethod, go for path completion
-            if head_token.ttype is HttpMethod and idx_head_token == len(tokens) - 2 and last_token.ttype is Literal:
-                return self._complete_http_path(document, complete_event, tokens[idx_head_token:])
+        else:
+            return self._get_completions_for_non_white(document, complete_event, state_tracker)
 
-            if head_token.value == 'run' and idx_head_token == len(tokens) - 2 and last_token.ttype in String:
-                arg = text_before_cursor.split()[-1]
-                if last_token.ttype in (String.Single, String.Double):
-                    doc = Document(arg[1:])
-                else:
-                    doc = Document(arg[3:])
-                _logger.debug(f'Completing for file path for run: {doc}')
-                return _PATH_COMPLETER.get_completions(doc, complete_event)
+    def _get_completions_for_whitespace(self, document: Document, complete_event: CompleteEvent,
+                                        state_tracker: ParserStateTracker) -> Iterable[Completion]:
+        _logger.debug('Cursor is on a whitespace')
+        stmt_token = state_tracker.stmt_token
+        last_token = state_tracker.last_token
+        last_event = state_tracker.last_event
+        _logger.debug(f'Last Event: {last_event}, Last Token: {last_token}')
+        has_newline_after_last_token = state_tracker.has_newline_after_last_token
 
-            if head_token.ttype is HttpMethod:
-                if last_token.ttype is At:
-                    return _PATH_COMPLETER.get_completions(
-                        Document(text_before_cursor[last_token.index + 1:]), complete_event)
-                elif last_token.ttype is Literal and len(tokens) > 1 and tokens[-2].ttype is At:
-                    return _PATH_COMPLETER.get_completions(Document(last_token.value), complete_event)
-                elif last_token.ttype is DictKey:
-                    return self._complete_payload(document, complete_event, tokens[idx_head_token:])
-                elif last_token.ttype in (OptionName, Name) and '\n' not in text_before_cursor[head_token.index:]:
-                    return self._complete_options(document, complete_event, tokens[idx_head_token:],
-                                                  is_cursor_on_non_white_token)
-            elif head_token.ttype is FuncName:
-                if last_token.ttype in (At, Literal):
-                    return self._complete_options(document, complete_event, tokens[idx_head_token:],
-                                                  is_cursor_on_non_white_token)
-                elif last_token.ttype in (OptionName, Name):
-                    return self._complete_options(document, complete_event, tokens[idx_head_token:],
-                                                  is_cursor_on_non_white_token)
+        # Only option name/value completions are available when cursor is on whitespace char
+        if stmt_token.ttype is HttpMethod and not has_newline_after_last_token:
+            if last_event.type in (ParserEventType.AFTER_ES_URL,
+                                   ParserEventType.AFTER_ES_URL_EXPR,
+                                   ParserEventType.AFTER_ES_OPTION_VALUE):
+                return _ES_API_CALL_OPTION_NAME_COMPLETER.get_completions(document, complete_event)
+            elif last_event.type is ParserEventType.BEFORE_ES_OPTION_VALUE:
+                return []  # TODO: ES option value
+        elif stmt_token.ttype is FuncName and not has_newline_after_last_token:
+            if last_event.type in (ParserEventType.FUNC_STMT, ParserEventType.AFTER_FUNC_ARGS):
+                return self._maybe_complete_func_option_name(document, complete_event, state_tracker)
+            elif last_event.type is ParserEventType.BEFORE_FUNC_OPTION_VALUE:
+                return []  # TODO: Func option value
+        else:
+            return []  # TODO: Options of func expr
 
+        return []
+
+    def _get_completions_for_non_white(self, document: Document, complete_event: CompleteEvent,
+                                       state_tracker: ParserStateTracker) -> Iterable[Completion]:
+        _logger.debug('Cursor is on an non-white char')
+        stmt_token = state_tracker.stmt_token
+        last_token = state_tracker.last_token
+        last_event = state_tracker.last_event
+        _logger.debug(f'Last Event: {last_event}, Last Token: {last_token}')
+
+        if len(state_tracker.tokens) == 1:
+            _logger.debug(f'Completing for beginning of stmt: {stmt_token}')
+            return itertools.chain(
+                _HTTP_METHOD_COMPLETER.get_completions(document, complete_event),
+                WordCompleter(['for', 'let']).get_completions(document, complete_event),
+                WordCompleter(self.app.vm.functions.keys()).get_completions(document, complete_event)
+            )
+
+        elif stmt_token.ttype is HttpMethod:
+            if last_event.type is ParserEventType.AFTER_ES_URL:
+                # Must be AFTER_ES_URL because incomplete URL, e.g. single char, emits this event as well,
+                # while BEFORE_ES_URL can be generated for empty URL, which we do not want to provide completions
+                return self._maybe_complete_http_path(document, complete_event, state_tracker)
+            elif last_event.type is ParserEventType.ES_OPTION_NAME:
+                return _ES_API_CALL_OPTION_NAME_COMPLETER.get_completions(document, complete_event)
+            elif last_event.type is ParserEventType.BEFORE_ES_OPTION_VALUE:
+                return []  # TODO: ES option value
+            elif last_event.type is ParserEventType.ES_PAYLOAD_FILE_AT:
+                return _PATH_COMPLETER.get_completions(
+                    Document(state_tracker.text[last_event.token.index + 1:]), complete_event)
+            elif last_event.type is ParserEventType.BEFORE_ES_PAYLOAD_INLINE:
+                if last_token.ttype is DictKey:
+                    return self._maybe_complete_payload(document, complete_event, state_tracker)
+
+        elif stmt_token.ttype is FuncName:
+            if self._function_option_name_can_appear(last_event, last_token):
+                return self._maybe_complete_func_option_name(document, complete_event, state_tracker)
+            elif last_event.type is ParserEventType.BEFORE_FUNC_OPTION_VALUE:
+                return []  # TODO: Function option value
+            elif stmt_token.value == 'run':
+                return self._maybe_complete_special_for_run_func_file_path(document, complete_event, state_tracker)
+
+        else:
+            return []  # TODO: func expr
+
+        return []
+
+    def _function_option_name_can_appear(self, last_event: ParserEvent, last_token: PeekToken) -> bool:
+        return (last_event.type is ParserEventType.AFTER_FUNC_ARGS and last_token.ttype in (Literal, Name)) \
+               or last_event.type is ParserEventType.BEFORE_FUNC_SYMBOL_ARG
+
+    def _maybe_complete_func_option_name(self, document: Document, complete_event: CompleteEvent,
+                                         state_tracker: ParserStateTracker) -> Iterable[Completion]:
+        stmt_token = state_tracker.stmt_token
+        func = self.app.vm.functions.get(stmt_token.value)
+        if func is None or not getattr(func, 'options', None):
+            return []
+        options = sorted([n if n.startswith('@') else (n + '=') for n in func.options.keys()])
+        return WordCompleter(options, WORD=True).get_completions(document, complete_event)
+
+    def _maybe_complete_special_for_run_func_file_path(self, document: Document, complete_event: CompleteEvent,
+                                                       state_tracker: ParserStateTracker):
+        if len(state_tracker.tokens) == 2 and state_tracker.tokens[-1].ttype in String:
+            last_token = state_tracker.last_token
+            if last_token.ttype in (String.Single, String.Double):
+                doc = Document(last_token.value[1:])
+            else:
+                doc = Document(last_token.value[3:])
+            _logger.debug(f'Completing for file path for run: {doc}')
+            return _PATH_COMPLETER.get_completions(doc, complete_event)
+        else:
             return []
 
-        else:  # Cursor is on a whitespace
-            _logger.debug('cursor is after the last token')
-            # Cursor is on whitespace after the last non-white token
-            if pos_head_token[0] != pos_cursor[0] or last_token.ttype is HttpMethod:
-                # Cursor is on separate line or immediately after http method
-                return []
-            else:
-                # Cursor is on the same line and at the end of an ES API or func call
-                _logger.debug('cursor is at the end of a statement')
-                return self._complete_options(document, complete_event, tokens[idx_head_token:],
-                                              is_cursor_on_non_white_token)
-
-    def _complete_http_path(self, document: Document, complete_event: CompleteEvent, tokens) -> Iterable[Completion]:
+    def _maybe_complete_http_path(self, document: Document, complete_event: CompleteEvent,
+                                  state_tracker: ParserStateTracker) -> Iterable[Completion]:
+        tokens = state_tracker.tokens
         method_token, path_token = tokens[-2], tokens[-1]
         method = method_token.value.upper()
         cursor_position = document.cursor_position - path_token.index
         path = path_token.value[:cursor_position]
         _logger.debug(f'Completing HTTP API url: {path!r}')
         path_tokens = list(self.url_path_lexer.get_tokens_unprocessed(path))
-        _logger.debug(f'path_tokens: {path_tokens}')
+        _logger.debug(f'URL Path Tokens: {path_tokens}')
         if not path_tokens:  # empty, should not happen
             return []
 
         cursor_token = path_tokens[-1]
-        _logger.debug(f'cursor_token: {cursor_token}')
+        _logger.debug(f'Cursor Token: {cursor_token}')
         if cursor_token.ttype is Error:
             return []
         else:
@@ -149,57 +251,18 @@ class PeekCompleter(Completer):
             candidates = complete_func(document, complete_event, method, path_tokens)
             return FuzzyCompleter(ConstantCompleter(candidates)).get_completions(document, complete_event)
 
-    def _complete_options(self, document: Document, complete_event: CompleteEvent, tokens: List[PeekToken],
-                          is_cursor_on_non_white_token):
-        _logger.debug(f'Completing for options: {is_cursor_on_non_white_token}')
-        head_token, last_token = tokens[0], tokens[-1]
-
-        def _get_option_name_for_value_completion():
-            if not is_cursor_on_non_white_token and last_token.ttype is Assign:
-                return tokens[-2].value
-            elif is_cursor_on_non_white_token and (len(tokens) > 1 and tokens[-2].ttype is Assign):
-                return tokens[-3].value
-            else:
-                return None
-
-        # TODO: For future handle the KeyName or Name is inside a function call, e.g. f(name=..)
-        if head_token.ttype is HttpMethod:
-            option_name = _get_option_name_for_value_completion()
-            if option_name is not None:
-                return []  # TODO: complete for value
-            else:
-                return _ES_API_CALL_OPTION_COMPLETER.get_completions(document, complete_event)
-        elif head_token.ttype is FuncName:
-            func = self.app.vm.functions.get(head_token.value)
-            if func is None or not getattr(func, 'options', None):
-                return []
-            option_name = _get_option_name_for_value_completion()
-            if option_name is not None:
-                return []  # TODO: complete for value
-            else:
-                options = sorted([n if n.startswith('@') else (n + '=') for n in func.options.keys()])
-                return WordCompleter(options, WORD=True).get_completions(
-                    document, complete_event)
-        else:
-            return []
-
-    def _complete_payload(self, document: Document, complete_event: CompleteEvent,
-                          tokens: List[PeekToken]) -> Iterable[Completion]:
+    def _maybe_complete_payload(self, document: Document, complete_event: CompleteEvent,
+                                state_tracker: ParserStateTracker) -> Iterable[Completion]:
+        tokens = state_tracker.tokens
         _logger.debug(f'Completing for payload with tokens: {tokens}')
+        path_event = state_tracker.events[1]
+        if path_event.token.ttype is not Literal:  # No completion for non-literal URL
+            return []
         method_token, path_token = tokens[0], tokens[1]
         path_tokens = list(self.url_path_lexer.get_tokens_unprocessed(path_token.value))
-        effective_text = document.text_before_cursor[method_token.index:]
-        idx_nl = effective_text.find('\n')
-        # If there is no newline, it is definitely an option value
-        if idx_nl == -1:
-            return []
-        # TODO: it is still possible that an option value is multi-line, e.g. headers.
-        #       Theoretically, it also be function call
-
-        # TODO: this is not correct since there maybe options after the first 2 tokens
-        #       In fact, there is no way to tell for sure where the payload begins without
-        #       parse the token stream
-        payload_tokens = tokens[2:]
+        last_event = state_tracker.last_event
+        assert last_event.type is ParserEventType.BEFORE_ES_PAYLOAD_INLINE
+        payload_tokens = tokens[tokens.index(last_event.token):]
         candidates, rules = self.api_spec.complete_payload(
             document, complete_event, method_token.value.upper(), path_tokens, payload_tokens)
         if not candidates:
@@ -208,13 +271,6 @@ class PeekCompleter(Completer):
         for c in FuzzyCompleter(constant_completer).get_completions(document, complete_event):
             yield PayloadKeyCompletion(c.text, rules[c.text],
                                        c.start_position, c.display, c.display_meta, c.style, c.selected_style)
-
-
-def find_beginning_token(tokens) -> Tuple[Optional[int], Optional[PeekToken]]:
-    for i, t in zip(reversed(range(len(tokens))), tokens[::-1]):
-        if t.ttype in (HttpMethod, FuncName, ShellOut, Let, For):
-            return i, t
-    return None, None
 
 
 class ConstantCompleter(Completer):

@@ -2,15 +2,11 @@ import os
 from typing import Iterable
 from unittest.mock import MagicMock
 
-import pytest
 from prompt_toolkit.completion import CompleteEvent, Completion
 from prompt_toolkit.document import Document
-from pygments.token import Literal, Name
 
 from peek import __file__ as package_root
-from peek.common import PeekToken
-from peek.completer import PeekCompleter, find_beginning_token
-from peek.lexers import HttpMethod, FuncName, BlankLine, Let
+from peek.completer import PeekCompleter
 from peek.natives import EXPORTS
 
 package_root = os.path.dirname(package_root)
@@ -55,33 +51,6 @@ def no_completion(cs: Iterable[Completion]):
 
 def get_completions(document: Document):
     return completer.get_completions(document, CompleteEvent(True))
-
-
-def test_find_beginning_token():
-    tokens = [
-        PeekToken(index=0, ttype=HttpMethod, value='get'),
-        PeekToken(index=4, ttype=Literal, value='abc'),
-        PeekToken(index=8, ttype=FuncName, value='ge')
-    ]
-    i, t = find_beginning_token(tokens)
-    assert i == 2
-
-    tokens = [
-        PeekToken(index=0, ttype=FuncName, value='connect'),
-        PeekToken(index=7, ttype=BlankLine, value='\n'),
-        PeekToken(index=8, ttype=FuncName, value='session')
-    ]
-    i, t = find_beginning_token(tokens)
-    assert i == 2
-
-    tokens = [
-        PeekToken(index=0, ttype=HttpMethod, value='get'),
-        PeekToken(index=4, ttype=Literal, value='abc'),
-        PeekToken(index=8, ttype=Let, value='let'),
-        PeekToken(index=8, ttype=Name, value='foo'),
-    ]
-    i, t = find_beginning_token(tokens)
-    assert i == 2
 
 
 def test_complete_http_method_and_func_name():
@@ -326,7 +295,6 @@ def test_payload_completion_will_not_appear_inside_option_value():
     )
 
 
-@pytest.mark.skip('Complex option values still affect payload autocompletion')
 def test_payload_completion_will_not_appear_inside_multi_line_option_value():
     assert no_completion(
         get_completions(Document('''GET _search headers={
@@ -335,4 +303,23 @@ def test_payload_completion_will_not_appear_inside_multi_line_option_value():
 {
 ""
 }''', 23))
+    )
+
+
+def test_payload_key_completion_will_not_appear_in_value_position():
+    assert no_completion(
+        get_completions(Document('''PUT _security/api_key
+{
+  "name":
+}''', 33))
+    )
+
+
+def test_payload_key_completion_works_within_array():
+    assert completions_has(
+        get_completions(Document('''PUT _security/api_key
+{"role_descriptors":{"role_name":{"indices":[{""}]}}}
+''', 69)),
+        Completion(text='names', start_position=0),
+        Completion(text='field_security', start_position=0),
     )
