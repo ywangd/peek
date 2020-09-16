@@ -16,7 +16,12 @@ mock_app = MagicMock(name='PeekApp')
 mock_app.vm.functions = {k: v for k, v in EXPORTS.items() if callable(v)}
 mock_app.config.as_bool.return_value = True
 mock_app.batch_mode = False
-config = {'kibana_dir': None}
+config = {
+    'kibana_dir': None,
+    'load_api_specs': True,
+    'build_extended_api_specs': True,
+    'cache_extended_api_specs': False,
+}
 mock_app.config.__getitem__ = MagicMock(side_effect=lambda x: config.get(x))
 
 completer = PeekCompleter(mock_app)
