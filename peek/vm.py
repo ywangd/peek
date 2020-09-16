@@ -99,10 +99,10 @@ class PeekVM(Visitor):
             lines = [json.dumps(d) for d in dicts]
             payload = ('\n'.join(lines) + '\n') if lines else None
         elif isinstance(node, EsApiCallFilePayloadNode):
-            f = Ref()
-            with self.consumer(lambda v: f.set(v)):
+            f_ref = Ref()
+            with self.consumer(lambda v: f_ref.set(v)):
                 node.file_node.accept(self)
-            with open(os.path.expanduser(f.get())) as ins:
+            with open(os.path.expanduser(f_ref.get().strip())) as ins:
                 payload = ins.read()
                 if self.app.config.as_bool('parse_payload_file'):
                     dicts = []

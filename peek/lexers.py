@@ -144,7 +144,7 @@ class PeekLexer(RegexLexer):
             default('#pop'),  # payload has default pop because it is optional and next statement may begin here
         ],
         'payload_file': [
-            (r'\S+', Literal, '#pop'),
+            (r'[^\n]+', Literal, '#pop'),
         ],
         'payload_cont': [
             (r'(\n' + W + r'*)(//.*)', bygroups(Whitespace, Comment.Single)),

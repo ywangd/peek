@@ -290,6 +290,15 @@ def test_func_expr_chain(parser):
     assert str(nodes[0]) == 'f [] [a . b [] [1] {}] {}\n'
 
 
+def test_payload_filename_with_whitespaces(parser):
+    text = '''PUT _bulk
+@file name with whitespaces.json'''
+    nodes = parser.parse(text)
+    assert len(nodes) == 1
+    assert isinstance(nodes[0], EsApiCallFilePayloadNode)
+    assert nodes[0].file_node.token.value == 'file name with whitespaces.json'
+
+
 def test_payload_file(parser):
     text = '''{'index': {'_index': 'index', '_id': '1'}}
 {'category': 'click', 'tag': 1}
