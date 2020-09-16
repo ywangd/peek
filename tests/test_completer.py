@@ -304,3 +304,22 @@ def test_payload_completion_will_not_appear_inside_multi_line_option_value():
 ""
 }''', 23))
     )
+
+
+def test_payload_key_completion_will_not_appear_in_value_position():
+    assert no_completion(
+        get_completions(Document('''PUT _security/api_key
+{
+  "name":
+}''', 33))
+    )
+
+
+def test_payload_key_completion_works_within_array():
+    assert completions_has(
+        get_completions(Document('''PUT _security/api_key
+{"role_descriptors":{"role_name":{"indices":[{""}]}}}
+''', 69)),
+        Completion(text='names', start_position=0),
+        Completion(text='field_security', start_position=0),
+    )

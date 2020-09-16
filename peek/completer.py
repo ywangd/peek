@@ -12,7 +12,7 @@ from peek.common import PeekToken
 from peek.completions import PayloadKeyCompletion
 from peek.es_api_spec.spec import ApiSpec
 from peek.lexers import PeekLexer, UrlPathLexer, PathPart, ParamName, Ampersand, QuestionMark, Slash, HttpMethod, \
-    FuncName, ShellOut
+    FuncName, ShellOut, DictKey
 from peek.parser import PeekParser, ParserEvent, ParserEventType
 
 _logger = logging.getLogger(__name__)
@@ -182,7 +182,8 @@ class PeekCompleter(Completer):
                 return _PATH_COMPLETER.get_completions(
                     Document(state_tracker.text[last_event.token.index + 1:]), complete_event)
             elif last_event.type is ParserEventType.BEFORE_ES_PAYLOAD_INLINE:
-                return self._maybe_complete_payload(document, complete_event, state_tracker)
+                if last_token.ttype is DictKey:
+                    return self._maybe_complete_payload(document, complete_event, state_tracker)
 
         elif stmt_token.ttype is FuncName:
             if self._function_option_name_can_appear(last_event, last_token):
