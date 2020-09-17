@@ -2,6 +2,7 @@ import os
 from typing import Iterable
 from unittest.mock import MagicMock
 
+from configobj import ConfigObj
 from prompt_toolkit.completion import CompleteEvent, Completion
 from prompt_toolkit.document import Document
 
@@ -17,12 +18,12 @@ mock_app.vm.functions = {k: v for k, v in EXPORTS.items() if callable(v)}
 mock_app.config.as_bool.return_value = True
 mock_app.batch_mode = False
 config = {
-    'kibana_dir': None,
+    'kibana_dir': kibana_dir,
     'load_api_specs': True,
     'build_extended_api_specs': True,
     'cache_extended_api_specs': False,
 }
-mock_app.config.__getitem__ = MagicMock(side_effect=lambda x: config.get(x))
+mock_app.config = ConfigObj(config)
 
 completer = PeekCompleter(mock_app)
 

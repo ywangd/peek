@@ -70,13 +70,16 @@ class JsSpecParser:
     def _extract_all(self):
         spec_file_contents = self.load_ts_specs(self.kibana_dir)
         sources = []
+        # TODO: this file is imported by oss/query/dsl, we manually prioritize it but automation would be good
+        dependency_file = '/oss/query/templates'
+        sources.extend(self._extract_from_one_file(dependency_file, spec_file_contents.pop(dependency_file)))
         for file_name, file_content in spec_file_contents.items():
             sources.extend(self._extract_from_one_file(file_name, file_content))
         text = '\n'.join(sources)
         return text.replace("rules['*']", "rules.'*'")
 
     def _extract_from_one_file(self, file_name, file_content):
-        sources = [f'// {file_name!r}']
+        sources = [f'// {file_name}']
         state = ''
         for line in file_content.splitlines():
             stripped = line.strip().replace('...', '"...": @')
@@ -222,10 +225,11 @@ class JsSpecParser:
             for f in files:
                 if not f.endswith('.ts'):
                     continue
-                if f == 'shared.ts':  # TODO: skip
+                if f in ('shared.ts', 'index.ts'):  # TODO: skip
                     continue
                 with open(os.path.join(root, f)) as ins:
-                    spec_file_contents[f'{prefix}/{f[:-3]}'] = ins.read()
+                    file_key = os.path.join('/', prefix, root[len(base_dir) + 1:], f[:-3])
+                    spec_file_contents[f'{file_key}'] = ins.read()
 
         return spec_file_contents
 
