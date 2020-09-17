@@ -57,6 +57,8 @@ def key_bindings(app):
     @kb.add('escape', 'enter', filter=~(completion_is_selected | is_searching))
     def _(event):
         event.current_buffer.validate_and_handle()
+        if app.capture.file() is not None:
+            print(event.current_buffer.text, file=app.capture.file())
 
     @kb.add('escape', 'c')
     def _(event: KeyPressEvent):
