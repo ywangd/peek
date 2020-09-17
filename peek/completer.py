@@ -77,7 +77,9 @@ class ParserStateTracker:
         if self.stmt_token is None or not self._tokens:
             return False
         # The last non-white char must be parsed successfully for completion to be available
-        last_token = self.tokens[-1]
+        last_token = self.last_token
+        if last_token is None:
+            return False
         if self.text[last_token.index:].rstrip() == last_token.value:
             return True
         else:
@@ -100,6 +102,13 @@ class ParserStateTracker:
         if not self._payload_events:
             return None
         return self._payload_events[-1]
+
+    @property
+    def is_cursor_on_whitespace(self):
+        last_token = self.last_token
+        if last_token is None:
+            return True
+        return len(self.text) > (last_token.index + len(last_token.value))
 
     @property
     def is_within_payload_value(self):
@@ -153,7 +162,7 @@ class PeekCompleter(Completer):
             return _SYSTEM_COMPLETER.get_completions(
                 Document(text_before_cursor[stmt_token.index + 1:]), complete_event)
 
-        if document.char_before_cursor.isspace():
+        if state_tracker.is_cursor_on_whitespace:
             return self._get_completions_for_whitespace(document, complete_event, state_tracker)
 
         else:
