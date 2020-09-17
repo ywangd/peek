@@ -56,6 +56,7 @@ class JsSpecParser:
     def parse(self):
         if self.source is None:
             self.source = self._extract_all()
+            print(self.source)
         parser = PeekParser()
         self.nodes = parser.parse(self.source, log_level='WARNING')
         return self.nodes
