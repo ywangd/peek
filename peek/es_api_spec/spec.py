@@ -5,11 +5,12 @@ from typing import List, Dict
 
 from prompt_toolkit.completion import Completion, CompleteEvent
 from prompt_toolkit.document import Document
+from pygments.token import String, Name
 
 from peek.common import PeekToken
 from peek.es_api_spec.spec_js import build_js_specs
 from peek.es_api_spec.spec_json import load_json_specs
-from peek.lexers import Slash, PathPart, Assign, CurlyLeft, CurlyRight, DictKey, Colon
+from peek.lexers import Slash, PathPart, Assign, CurlyLeft, CurlyRight, DictKey, Colon, BracketLeft, EOF, Comma
 from peek.parser import ParserEvent, ParserEventType
 
 _logger = logging.getLogger(__name__)
@@ -42,7 +43,7 @@ class ApiSpec:
                 if not can_match(token_stream, ps):
                     continue
                 candidate = '/'.join(ps[len(token_stream):])
-                candidates.append(Completion(candidate, start_position=0))
+                candidates.append(Completion(candidate))
         return candidates
 
     def complete_query_param_name(self, document: Document, complete_event: CompleteEvent, method, path_tokens):
@@ -51,7 +52,7 @@ class ApiSpec:
         candidates = set()
         for api_spec in matchable_specs(method, token_stream, self.specs):
             candidates.update(api_spec['url_params'].keys())
-        return [Completion(c, start_position=0) for c in candidates]
+        return [Completion(c) for c in candidates]
 
     def complete_query_param_value(self, document: Document, complete_event: CompleteEvent, method, path_tokens):
         _logger.debug(f'Completing URL query param value: {path_tokens[-1]}')
@@ -66,8 +67,9 @@ class ApiSpec:
                 candidates.update(('true', 'false'))
             elif isinstance(v, list) and len(v) > 0:
                 candidates.update(v)
-        return [Completion(c, start_position=0) for c in candidates]
+        return [Completion(c) for c in candidates]
 
+    # TODO: refactor with parser state tracker
     def complete_payload(self, document: Document, complete_event: CompleteEvent, method, path_tokens, payload_tokens):
         _logger.debug(f'Completing for API payload: {method!r} {path_tokens!r} {payload_tokens!r}')
         rules = self._find_rules_for_method_and_url_path(method, path_tokens)
@@ -102,12 +104,12 @@ class ApiSpec:
         if rules is None:
             _logger.debug(f'Rules not available for key: {payload_keys!r}')
             return [], {}
-        _logger.debug(f'Found rules for payload keys: {rules}')
+        _logger.debug(f'Found rules for payload keys: {rules!r}')
 
         # TODO: __one_of, e.g. POST _render/template
         # TODO: top-level __template, e.g. POST _reindex
         # TODO: filters how does it work
-        candidates = [Completion(k, start_position=0) for k in rules.keys()
+        candidates = [Completion(k) for k in rules.keys()
                       if k not in ('__scope_link', '__template', '__one_of', '*')]
         return candidates, rules
 
@@ -126,7 +128,7 @@ class ApiSpec:
                 return [], {}
             elif payload_event.type is ParserEventType.DICT_KEY:
                 unpaired_dict_key_tokens.append(payload_event.token)
-            elif payload_event.type is ParserEventType.AFTER_DICT_VALUE:
+            elif payload_event.type is ParserEventType.AFTER_DICT_VALUE and payload_event.token.ttype is not EOF:
                 unpaired_dict_key_tokens.pop()
 
         if not unpaired_dict_key_tokens:  # should not happen
@@ -140,24 +142,54 @@ class ApiSpec:
         if rules is None:
             _logger.debug(f'Rules not available for keys: {payload_keys!r}')
             return [], {}
-        _logger.debug(f'Found rules for payload keys: {rules}')
+        _logger.debug(f'Found rules for payload keys: {rules!r}')
 
-        if payload_tokens[-1].ttype is Colon:
+        # Find last Colon position
+        for index_colon in range(len(payload_tokens) - 1, -1, -1):
+            if payload_tokens[index_colon].ttype is Colon:
+                break
+        else:
+            _logger.warning(f'Should not happen - Colon not found in payload: {payload_tokens}')
+            return [], {}
+
+        if index_colon == len(payload_tokens) - 1:  # Colon is the last token
+            _logger.debug('Colon is the last token')
             # The simpler case when value position has nothing yet
             if isinstance(rules, dict):
                 if '__one_of' in rules:
-                    return [Completion(json.dumps(c)) for c in rules['__one_of']], rules
+                    return [Completion('""' if isinstance(c, str) else json.dumps(c))
+                            for c in rules['__one_of']], rules
                 else:
-                    return [Completion('{}', start_position=0)], rules
+                    return [Completion('{}')], rules
             elif isinstance(rules, list):
                 if rules and isinstance(rules[0], dict):
-                    return [Completion('[{}]', start_position=0)], rules
+                    return [Completion('[{}]')], rules
                 else:
-                    return [Completion('[]', start_position=0)], rules
+                    return [Completion('[]')], rules
             else:
-                return [Completion(json.dumps(rules), start_position=0)], rules
+                return [Completion(json.dumps(rules))], rules
+        else:
+            token_after_colon = payload_tokens[index_colon + 1]
+            last_payload_token = payload_tokens[-1]
+            _logger.debug(f'The token after colon is: {token_after_colon}, last payload_token is: {last_payload_token}')
+            if token_after_colon.ttype is BracketLeft:
+                if token_after_colon is last_payload_token or (last_payload_token.ttype is Comma):
+                    if isinstance(rules, list) and rules and isinstance(rules[0], dict):
+                        return [Completion('{}')], rules
+            elif token_after_colon.ttype in String and token_after_colon is last_payload_token:
+                if isinstance(rules, dict) and '__one_of' in rules:
+                    return [Completion(c) for c in rules['__one_of'] if isinstance(c, str)], rules
+                elif isinstance(rules, list):
+                    return [Completion(c) for c in rules if isinstance(c, str)], rules
+                elif isinstance(rules, str):
+                    return [Completion(rules)], rules
+            elif token_after_colon.ttype is Name and token_after_colon is last_payload_token:
+                if isinstance(rules, dict) and '__one_of' in rules:
+                    return [Completion(json.dumps(c)) for c in rules['__one_of'] if c in (True, False, None)], rules
+                elif isinstance(rules, list):
+                    return [Completion(json.dumps(c)) for c in rules if c in (True, False, None)], rules
 
-        return [], {}  # TODO
+        return [], {}  # catch all
 
     def _find_rules_for_method_and_url_path(self, method: str, path_tokens: List[PeekToken]):
         token_stream = [t.value for t in path_tokens if t.ttype is not Slash]

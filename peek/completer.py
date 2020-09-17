@@ -12,7 +12,7 @@ from peek.common import PeekToken
 from peek.completions import PayloadKeyCompletion
 from peek.es_api_spec.spec import ApiSpec
 from peek.lexers import PeekLexer, UrlPathLexer, PathPart, ParamName, Ampersand, QuestionMark, Slash, HttpMethod, \
-    FuncName, ShellOut, DictKey
+    FuncName, ShellOut, DictKey, EOF
 from peek.parser import PeekParser, ParserEvent, ParserEventType
 
 _logger = logging.getLogger(__name__)
@@ -100,6 +100,14 @@ class ParserStateTracker:
         if not self._payload_events:
             return None
         return self._payload_events[-1]
+
+    @property
+    def is_within_payload_value(self):
+        last_payload_event = self.last_payload_event
+        if last_payload_event is None:
+            return False
+        return last_payload_event.type is ParserEventType.BEFORE_DICT_VALUE or (
+            last_payload_event.type is ParserEventType.AFTER_DICT_VALUE and last_payload_event.token.ttype is EOF)
 
     @property
     def has_newline_after_last_token(self):
@@ -210,9 +218,10 @@ class PeekCompleter(Completer):
                 return _PATH_COMPLETER.get_completions(
                     Document(state_tracker.text[last_event.token.index + 1:]), complete_event)
             elif last_event.type is ParserEventType.BEFORE_ES_PAYLOAD_INLINE:
+                _logger.debug(f'Last payload event: {state_tracker.last_payload_event}')
                 if last_token.ttype is DictKey:
                     return self._maybe_complete_payload(document, complete_event, state_tracker)
-                elif state_tracker.last_payload_event is ParserEventType.BEFORE_DICT_VALUE:
+                elif state_tracker.is_within_payload_value:
                     return self._maybe_complete_payload_value(document, complete_event, state_tracker)
 
         elif stmt_token.ttype is FuncName:
@@ -318,7 +327,7 @@ class PeekCompleter(Completer):
         if not candidates:
             return []
         constant_completer = ConstantCompleter(candidates)
-        return constant_completer.get_completions(document, complete_event)
+        return FuzzyCompleter(constant_completer).get_completions(document, complete_event)
 
 
 class ConstantCompleter(Completer):
