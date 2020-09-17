@@ -49,7 +49,6 @@ def build_js_specs(kibana_dir, use_cache_file):
 class JsSpecParser:
 
     def __init__(self, kibana_dir, source=None):
-        print('kibana_dir', kibana_dir, source)
         self.kibana_dir = kibana_dir
         self.source = source
         self.nodes = []
@@ -229,7 +228,6 @@ class JsSpecParser:
                 if f in ('shared.ts', 'index.ts'):  # TODO: skip
                     continue
                 with open(os.path.join(root, f)) as ins:
-                    print('openning', root, f)
                     file_key = os.path.join('/', prefix, root[len(base_dir) + 1:], f[:-3])
                     spec_file_contents[f'{file_key}'] = ins.read()
 

@@ -1,4 +1,3 @@
-import json
 import os
 from typing import Iterable
 from unittest.mock import MagicMock
