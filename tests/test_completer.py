@@ -3,6 +3,7 @@ import os
 from typing import Iterable
 from unittest.mock import MagicMock
 
+from configobj import ConfigObj
 from prompt_toolkit.completion import CompleteEvent, Completion
 from prompt_toolkit.document import Document
 
@@ -23,7 +24,7 @@ config = {
     'build_extended_api_specs': True,
     'cache_extended_api_specs': False,
 }
-mock_app.config.__getitem__ = MagicMock(side_effect=lambda x: config.get(x))
+mock_app.config = ConfigObj(config)
 
 completer = PeekCompleter(mock_app)
 
