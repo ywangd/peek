@@ -17,7 +17,7 @@ mock_app.vm.functions = {k: v for k, v in EXPORTS.items() if callable(v)}
 mock_app.config.as_bool.return_value = True
 mock_app.batch_mode = False
 config = {
-    'kibana_dir': None,
+    'kibana_dir': kibana_dir,
     'load_api_specs': True,
     'build_extended_api_specs': True,
     'cache_extended_api_specs': False,
