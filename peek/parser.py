@@ -32,8 +32,8 @@ _BIN_OP_ORDERS = {
 
 class ParserEventType(Enum):
     ES_METHOD = 'ES_METHOD'
-    BEFORE_ES_URL = 'BEFORE_ES_URL'
-    AFTER_ES_URL = 'AFTER_ES_URL'
+    ES_URL = 'ES_URL'
+    BEFORE_ES_URL_EXPR = 'BEFORE_ES_URL_EXPR'
     AFTER_ES_URL_EXPR = 'AFTER_ES_URL_EXPR'
     ES_OPTION_NAME = 'ES_OPTION_NAME'
     BEFORE_ES_OPTION_VALUE = 'BEFORE_ES_OPTION_VALUE'
@@ -56,6 +56,11 @@ class ParserEventType(Enum):
     FOR = 'FOR'
     BEFORE_FOR_SUITE = 'BEFORE_FOR_SUITE'
     AFTER_FOR_SUITE = 'AFTER_FOR_SUITE'
+    DICT_KEY = 'DICT_KEY'
+    BEFORE_DICT_KEY_EXPR = 'BEFORE_DICT_KEY_EXPR'
+    AFTER_DICT_KEY_EXPR = 'AFTER_DICT_KEY_EXPR'
+    BEFORE_DICT_VALUE = 'BEFORE_DICT_VALUE'
+    AFTER_DICT_VALUE = 'AFTER_DICT_VALUE'
     AFTER_TOKEN = 'AFTER_TOKEN'
 
 
@@ -147,11 +152,11 @@ class PeekParser:
                 title='Invalid HTTP method',
                 message=f'Expect HTTP method of value in {HTTP_METHODS!r}, got {method_token.value!r}')
 
-        self._publish_event(ParserEventType.BEFORE_ES_URL)
         if self._peek_token().ttype is Literal:
+            self._publish_event(ParserEventType.ES_URL)
             path_node = TextNode(self._consume_token(Literal))
-            self._publish_event(ParserEventType.AFTER_ES_URL)
         elif self._peek_token().ttype is ParenLeft:
+            self._publish_event(ParserEventType.BEFORE_ES_URL_EXPR)
             path_node = self._parse_expr()
             self._publish_event(ParserEventType.AFTER_ES_URL_EXPR)
         else:
@@ -231,11 +236,16 @@ class PeekParser:
 
     def _parse_dict_kv(self):
         if self._peek_token().ttype is DictKey:
+            self._publish_event(ParserEventType.DICT_KEY)
             key_node = StringNode(self._consume_token(DictKey))
         else:
+            self._publish_event(ParserEventType.BEFORE_DICT_KEY_EXPR)
             key_node = self._parse_expr()
+            self._publish_event(ParserEventType.AFTER_DICT_KEY_EXPR)
         self._consume_token(Colon)
+        self._publish_event(ParserEventType.BEFORE_DICT_VALUE)
         value_node = self._parse_expr()
+        self._publish_event(ParserEventType.AFTER_DICT_VALUE)
         return KeyValueNode(key_node, value_node)
 
     def _parse_array(self):

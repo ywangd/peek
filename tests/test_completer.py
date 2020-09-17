@@ -43,6 +43,17 @@ def completions_has(cs: Iterable[Completion], *cc: Completion):
     return ret
 
 
+def completions_has_no(cs: Iterable[Completion], *cc: Completion):
+    if not os.path.exists(kibana_dir):
+        return True
+    actual = set((x.text, x.start_position) for x in cs)
+    exclude = set((c.text, c.start_position) for c in cc)
+    ret = actual.isdisjoint(exclude)
+    if ret is False:
+        print(f'actual: {actual!r} has overlap with {exclude!r}')
+    return ret
+
+
 def no_completion(cs: Iterable[Completion]):
     if not os.path.exists(kibana_dir):
         return True
@@ -86,17 +97,17 @@ sa''')),
 def test_complete_func_option_name():
     assert completions_has(
         get_completions(Document('connect ')),
-        Completion(text='hosts=', start_position=0),
-        Completion(text='api_key=', start_position=0),
+        Completion(text='hosts='),
+        Completion(text='api_key='),
     )
 
     assert completions_has(
         get_completions(Document('''connect
 session ''')),
-        Completion(text='save=', start_position=0),
-        Completion(text='load=', start_position=0),
-        Completion(text='remove=', start_position=0),
-        Completion(text='@clear', start_position=0),
+        Completion(text='save='),
+        Completion(text='load='),
+        Completion(text='remove='),
+        Completion(text='@clear'),
     )
 
 
@@ -150,8 +161,8 @@ def test_complete_http_path():
 
     assert completions_has(
         get_completions(Document('get _security/api_key?')),
-        Completion(text='name', start_position=0),
-        Completion(text='realm_name', start_position=0),
+        Completion(text='name'),
+        Completion(text='realm_name'),
     )
 
     assert completions_has(
@@ -161,12 +172,12 @@ def test_complete_http_path():
 
     assert completions_has(
         get_completions(Document('get _security/api_key?owner=')),
-        Completion(text='true', start_position=0),
+        Completion(text='true'),
     )
 
     assert completions_has(
         get_completions(Document('post _security/api_key?refresh=')),
-        Completion(text='wait_for', start_position=0),
+        Completion(text='wait_for'),
     )
 
     assert completions_has(
@@ -179,8 +190,8 @@ post token''')),
 def test_complete_http_options():
     assert completions_has(
         get_completions(Document('get _search ')),
-        Completion(text='conn=', start_position=0),
-        Completion(text='runas=', start_position=0),
+        Completion(text='conn='),
+        Completion(text='runas='),
     )
 
     assert completions_has(
@@ -194,8 +205,13 @@ get _cluster/health c''')),
         Completion(text='conn=', start_position=-1),
     )
 
-    assert len(list(get_completions(Document('''post _security/api_key
-{"role_descriptors": }''', 44)))) == 0
+
+def test_complete_payload_value():
+    assert completions_has(
+        get_completions(Document('''post _security/api_key
+{"role_descriptors": }''', 44)),
+        Completion(text='{}'),
+    )
 
 
 def test_not_complete_http_options():
@@ -213,7 +229,7 @@ def test_payload_completion_000():
     assert completions_has(
         get_completions(Document('''POST _security/api_key
 {""}''', 25)),
-        Completion(text="role_descriptors", start_position=0),
+        Completion(text="role_descriptors"),
     )
 
 
@@ -229,7 +245,7 @@ def test_payload_completion_001():
     }
   }
 }''', 97)),
-        Completion(text="field_security", start_position=0),
+        Completion(text="field_security"),
     )
 
 
@@ -269,7 +285,7 @@ def test_payload_completion_004():
     assert completions_has(
         get_completions(Document('''POST _security/oauth2/token
 {""}''', 30)),
-        Completion(text="scope", start_position=0),
+        Completion(text="scope"),
     )
 
 
@@ -278,7 +294,7 @@ def test_file_payload_completion():
     assert completions_has(
         get_completions(Document('''get /
 @''')),
-        Completion(text=f, start_position=0)
+        Completion(text=f)
     )
 
 
@@ -312,12 +328,15 @@ def test_payload_completion_will_not_appear_inside_multi_line_option_value():
 
 
 def test_payload_key_completion_will_not_appear_in_value_position():
-    assert no_completion(
-        get_completions(Document('''PUT _security/api_key
+    completions = list(get_completions(Document('''PUT _security/api_key
 {
   "name":
-}''', 33))
+}''', 33)))
+    assert completions_has(
+        completions,
+        Completion('""')
     )
+    assert completions_has_no(completions, Completion('name'))
 
 
 def test_payload_key_completion_works_within_array():
@@ -325,6 +344,209 @@ def test_payload_key_completion_works_within_array():
         get_completions(Document('''PUT _security/api_key
 {"role_descriptors":{"role_name":{"indices":[{""}]}}}
 ''', 69)),
-        Completion(text='names', start_position=0),
-        Completion(text='field_security', start_position=0),
+        Completion(text='names'),
+        Completion(text='field_security'),
+    )
+
+
+def test_payload_value_completion_010():
+    assert completions_has(
+        get_completions(Document('''PUT _security/api_key
+{
+  "role_descriptors": {
+    "role_name": \n},
+}''', 64)),
+        Completion(text='{}')
+    )
+
+    assert completions_has(
+        get_completions(Document('''PUT _security/api_key
+{
+  "role_descriptors": {
+    "role_name": \n},
+}''', 65)),
+        Completion(text='{}')
+    )
+
+
+def test_payload_value_completion_050():
+    assert completions_has(
+        get_completions(Document('''PUT _security/api_key
+{
+  "role_descriptors": {
+    "role_name": {
+      "indices":
+    },
+  },
+}''', 83)),
+        Completion(text='[{}]')
+    )
+
+    assert completions_has(
+        get_completions(Document('''PUT _security/api_key
+{
+  "role_descriptors": {
+    "role_name": {
+      "indices": \n},
+  },
+}''', 84)),
+        Completion(text='[{}]')
+    )
+
+
+def test_payload_value_completion_100():
+    completions = list(get_completions(Document('''PUT my-index
+{
+  "mappings": {
+    "properties": {
+      "abc": {
+        "type": "t",
+        "doc_values": true,
+        "similarity": "BM25",
+        "term_vector": "",
+        "copy_to": ["{field}"],
+        "analyzer":
+      }
+    },
+  },
+}''', 84)))
+    assert completions_has(
+        completions,
+        Completion(text='text', start_position=-1),
+        Completion(text='byte', start_position=-1),
+        Completion(text='integer', start_position=-1),
+        Completion(text='float', start_position=-1),
+    )
+    assert completions_has_no(completions, Completion(text='keyword', start_position=-1))
+
+
+def test_payload_value_completion_110():
+    completions = list(get_completions(Document('''PUT my-index
+{
+  "mappings": {
+    "properties": {
+      "abc": {
+        "type": "text",
+        "doc_values": ,
+        "similarity": "BM25",
+        "term_vector": "",
+        "copy_to": ["{field}"],
+        "analyzer":
+      }
+    },
+  },
+}''', 112)))
+    assert completions_has(
+        completions,
+        Completion(text='true'),
+        Completion(text='false'),
+    )
+
+    completions = list(get_completions(Document('''PUT my-index
+{
+  "mappings": {
+    "properties": {
+      "abc": {
+        "type": "text",
+        "doc_values": t,
+        "similarity": "BM25",
+        "term_vector": "",
+        "copy_to": ["{field}"],
+        "analyzer":
+      }
+    },
+  },
+}''', 113)))
+    assert completions_has(
+        completions,
+        Completion(text='true', start_position=-1),
+    )
+    assert completions_has_no(
+        completions,
+        Completion(text='false', start_position=-1),
+    )
+
+
+def test_payload_value_completion_120():
+    completions = list(get_completions(Document('''PUT my-index
+{
+  "mappings": {
+    "properties": {
+      "abc": {
+        "type": "text",
+        "doc_values": false,
+        "similarity": "BM25",
+        "term_vector": "",
+        "copy_to": ,
+        "analyzer":
+      }
+    },
+  },
+}''', 195)))
+    assert completions_has(
+        completions,
+        Completion(text='""'),
+        Completion(text='["{field}"]'),
+    )
+
+    completions = list(get_completions(Document('''PUT my-index
+{
+  "mappings": {
+    "properties": {
+      "abc": {
+        "type": "text",
+        "doc_values": false,
+        "similarity": "BM25",
+        "term_vector": "",
+        "copy_to": "",
+        "analyzer":
+      }
+    },
+  },
+}''', 196)))
+    assert completions_has(
+        completions,
+        Completion(text='{field}'),
+    )
+
+
+def test_payload_value_completion_130():
+    completions = list(get_completions(Document('''PUT my-index
+{
+  "mappings": {
+    "properties": {
+      "abc": {
+        "type": "text",
+        "doc_values": false,
+        "similarity": "BM25",
+        "term_vector": "",
+        "copy_to": "",
+        "analyzer": ,
+      }
+    },
+  },
+}''', 219)))
+    assert completions_has(
+        completions,
+        Completion(text='"standard"'),
+    )
+
+    completions = list(get_completions(Document('''PUT my-index
+{
+  "mappings": {
+    "properties": {
+      "abc": {
+        "type": "text",
+        "doc_values": false,
+        "similarity": "BM25",
+        "term_vector": "",
+        "copy_to": "",
+        "analyzer": "",
+      }
+    },
+  },
+}''', 220)))
+    assert completions_has(
+        completions,
+        Completion(text='standard'),
     )
