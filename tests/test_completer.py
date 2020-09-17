@@ -1,3 +1,4 @@
+import json
 import os
 from typing import Iterable
 from unittest.mock import MagicMock
@@ -40,6 +41,7 @@ def completions_has(cs: Iterable[Completion], *cc: Completion):
     ret = actual.issuperset(expected)
     if ret is False:
         print(f'actual: {actual!r} is not superset of {expected!r}')
+        print(json.dumps(completer.api_spec.specs))
     return ret
 
 
