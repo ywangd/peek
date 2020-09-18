@@ -107,9 +107,6 @@ class ApiSpec:
         _logger.debug(f'Found rules for payload keys: {rules!r}')
         rules = dict(rules)  # avoid mutating original rules
 
-        # TODO: __one_of, e.g. POST _render/template
-        # TODO: top-level __template, e.g. POST _reindex
-        # TODO: filters how does it work
         candidates = []
         for rule_key in list(rules.keys()):
             if rule_key == '__scope_link':
@@ -219,7 +216,7 @@ class ApiSpec:
             _logger.debug(f'No matching API spec found for {method!r} {path_tokens}')
             return None
 
-        rules = self._maybe_process_rules(api_spec.get('data_autocomplete_rules', None))
+        rules = self._maybe_process_rules([], api_spec.get('data_autocomplete_rules', None))
         _logger.debug('No rules found from spec' if rules is None else f'Found rules from spec: {rules}')
         return rules
 
@@ -235,6 +232,7 @@ class ApiSpec:
         return rules
 
     def _do_resolve_rules_for_keys(self, rules, payload_keys, unwrap_value_for_last_key=True):
+        history = [rules]
         for i, k in enumerate(payload_keys):
             if k not in rules and '*' in rules:
                 _logger.debug(f'Matching * for key: {k!r}')
@@ -243,9 +241,9 @@ class ApiSpec:
                 rules = rules.get(k, None)
 
             if not i == len(payload_keys) - 1 or unwrap_value_for_last_key:
-                rules = self._maybe_process_rules(rules)
+                rules = self._maybe_process_rules(history, rules)
             else:
-                rules = self._maybe_process_rules(rules, unwrap_value=False)
+                rules = self._maybe_process_rules(history, rules, unwrap_value=False)
             if k == 'query' and rules == {}:
                 _logger.debug('Special handling for empty "query" field')
                 rules = self.specs['GLOBAL']['query']
@@ -254,11 +252,12 @@ class ApiSpec:
                 rules = self.specs['GLOBAL']['script']
 
             _logger.debug(f'Rules for key {k!r} is: {rules}')
+            history.append(rules)
             if rules is None:
                 break
         return rules
 
-    def _maybe_process_rules(self, rules, unwrap_value=True):
+    def _maybe_process_rules(self, history, rules, unwrap_value=True):
         if unwrap_value:
             processors = [
                 self._maybe_resolve_scope_link,
@@ -273,18 +272,26 @@ class ApiSpec:
         while True:
             original_rules = rules
             for p in processors:
-                rules = p(rules)
+                rules = p(history, rules)
             if rules == original_rules:
                 break
         return rules
 
-    def _maybe_resolve_scope_link(self, rules):
+    def _maybe_resolve_scope_link(self, history, rules):
         if isinstance(rules, dict) and '__scope_link' in rules:
             rules = dict(rules)  # avoid mutating original value
             _logger.debug(f'Found scope link: {rules!r}')
             scope_link = rules.pop('__scope_link')
-            if scope_link.startswith('.'):  # TODO: relative scope link
-                _logger.debug('Relative scope link not implemented')
+            if scope_link.startswith('.'):
+                _logger.debug(f'Found relative scope link: {scope_link}')
+                if len(history) >= 2:
+                    rules = history[-2]
+                    if scope_link[1:] != '':
+                        for scope_link_key in scope_link[1:].split('.'):
+                            rules = rules[scope_link_key]
+                else:
+                    _logger.warning(f'History is not long enough to support relative scope link: {len(history)}')
+
             elif '.' in scope_link:
                 scope = self.specs
                 for scope_link_key in scope_link.split('.'):
@@ -298,7 +305,7 @@ class ApiSpec:
                     rules.update(scope['data_autocomplete_rules'] if 'data_autocomplete_rules' in scope else scope)
         return rules
 
-    def _maybe_lift_one_of(self, rules):
+    def _maybe_lift_one_of(self, history, rules):
         if isinstance(rules, dict) and '__one_of' in rules:
             rules = dict(rules)
             one_of = rules.pop('__one_of')
@@ -309,7 +316,7 @@ class ApiSpec:
                 rules['__one_of'] = one_of
         return rules
 
-    def _maybe_unwrap_for_dict(self, rules):
+    def _maybe_unwrap_for_dict(self, history, rules):
         """
         If the rules is an list of dict, return the first dict
         """

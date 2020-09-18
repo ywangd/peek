@@ -421,6 +421,33 @@ def test_payload_key_completion_has_special_handling_for_empty_script_key():
     )
 
 
+def test_payload_key_completion_will_work_with_relative_scope_link():
+    assert completions_has(
+        get_completions(Document('''GET _search
+{"query":{"bool":{"filter":[{"and":{"filters":[{
+  ""
+}]}}]}}}''', 64)),
+        Completion(text='and'),
+        Completion(text='bool'),
+        Completion(text='exists'),
+        Completion(text='ids'),
+        Completion(text='limit'),
+        Completion(text='geo_bounding_box'),
+    )
+
+    assert completions_has(
+        get_completions(Document('''GET _search
+{"query":{"span_near":{"clauses":[{
+  ""
+}],"slop":12,"in_order":false}}}
+''', 51)),
+        Completion(text='span_near'),
+        Completion(text='span_first'),
+        Completion(text='span_or'),
+        Completion(text='span_containing'),
+    )
+
+
 def test_payload_value_completion_010():
     assert completions_has(
         get_completions(Document('''PUT _security/api_key
