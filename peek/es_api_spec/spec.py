@@ -105,12 +105,30 @@ class ApiSpec:
             _logger.debug(f'Rules not available for key: {payload_keys!r}')
             return [], {}
         _logger.debug(f'Found rules for payload keys: {rules!r}')
+        rules = dict(rules)  # avoid mutating original rules
 
         # TODO: __one_of, e.g. POST _render/template
         # TODO: top-level __template, e.g. POST _reindex
         # TODO: filters how does it work
-        candidates = [Completion(k) for k in rules.keys()
-                      if k not in ('__scope_link', '__template', '__one_of', '*')]
+        candidates = []
+        for rule_key in list(rules.keys()):
+            if rule_key == '__scope_link':
+                _logger.debug(f'__scope_link not processed for rules: {rules}')
+            elif rule_key == '__one_of':
+                _logger.debug(f'__one_of not processed for rules: {rules}')
+            elif rule_key == '*':
+                _logger.debug(f'Wildcard * not processed for rules: {rules}')
+            elif rule_key == '__template':
+                __template = rules.get('__template', None)
+                rules.pop('__template')
+                if isinstance(__template, dict):
+                    for k, v in __template.items():
+                        if k not in rules:
+                            rules[k] = v
+                            candidates.append(Completion(k))
+            else:
+                candidates.append(Completion(rule_key))
+
         return candidates, rules
 
     def complete_payload_value(self, document: Document, complete_event: CompleteEvent, method: str,
@@ -219,6 +237,7 @@ class ApiSpec:
     def _do_resolve_rules_for_keys(self, rules, payload_keys, unwrap_value_for_last_key=True):
         for i, k in enumerate(payload_keys):
             if k not in rules and '*' in rules:
+                _logger.debug(f'Matching * for key: {k!r}')
                 rules = rules['*']
             else:
                 rules = rules.get(k, None)
@@ -227,9 +246,12 @@ class ApiSpec:
                 rules = self._maybe_process_rules(rules)
             else:
                 rules = self._maybe_process_rules(rules, unwrap_value=False)
-            # Special handle for query
             if k == 'query' and rules == {}:
+                _logger.debug('Special handling for empty "query" field')
                 rules = self.specs['GLOBAL']['query']
+            elif k == 'script' and (rules == {} or rules is None):
+                _logger.debug(f'Special handling for script field: {rules!r}')
+                rules = self.specs['GLOBAL']['script']
 
             _logger.debug(f'Rules for key {k!r} is: {rules}')
             if rules is None:

@@ -55,6 +55,18 @@ def completions_has_no(cs: Iterable[Completion], *cc: Completion):
     return ret
 
 
+def completions_equal(cs: Iterable[Completion], *cc: Completion):
+    if not os.path.exists(kibana_dir):
+        return True
+
+    actual = set((x.text, x.start_position) for x in cs)
+    expected = set((x.text, x.start_position) for x in cc)
+    ret = len(actual.difference(expected)) == 0
+    if ret is False:
+        print(f'actual: {actual!r} is not equal to {expected!r}')
+    return ret
+
+
 def no_completion(cs: Iterable[Completion]):
     if not os.path.exists(kibana_dir):
         return True
@@ -362,6 +374,50 @@ def test_payload_key_completion_will_retry_with_global():
 }''', 47)),
         Completion(text='adjacency_matrix'),
         Completion(text='diversified_sampler'),
+    )
+
+
+def test_payload_key_completion_will_work_inside_template():
+    assert completions_has(
+        get_completions(Document('''GET _search
+{
+  "script_fields": {
+    ""
+  }
+}''', 40)),
+        Completion(text='FIELD')
+    )
+
+
+def test_payload_key_completion_will_work_inside_template_but_not_override_existing_candidates():
+    assert completions_equal(
+        get_completions(Document('''GET _security/user/_has_privileges
+{
+  "application": {
+    "app"
+  },
+}''', 64)),
+        Completion(text='application', start_position=-3)
+    )
+
+
+def test_payload_key_completion_has_special_handling_for_empty_script_key():
+    assert completions_has(
+        get_completions(Document('''GET _search
+{
+  "script_fields": {
+    "FIELD": {
+      "script": {
+        ""
+      }
+    }
+  },
+}
+''', 77)),
+        Completion('source'),
+        Completion('id'),
+        Completion('lang'),
+        Completion('params'),
     )
 
 
