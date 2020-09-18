@@ -350,6 +350,21 @@ def test_payload_key_completion_works_within_array():
     )
 
 
+def test_payload_key_completion_will_retry_with_global():
+    assert completions_has(
+        get_completions(Document('''GET _search
+{
+  "aggs": {
+    "NAME": {
+      ""
+    }
+  },
+}''', 47)),
+        Completion(text='adjacency_matrix'),
+        Completion(text='diversified_sampler'),
+    )
+
+
 def test_payload_value_completion_010():
     assert completions_has(
         get_completions(Document('''PUT _security/api_key

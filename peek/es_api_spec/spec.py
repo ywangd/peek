@@ -206,11 +206,23 @@ class ApiSpec:
         return rules
 
     def _resolve_rules_for_keys(self, rules, payload_keys, unwrap_value_for_last_key=True):
+        rules = self._do_resolve_rules_for_keys(rules, payload_keys,
+                                                unwrap_value_for_last_key=unwrap_value_for_last_key)
+
+        # If the first key lookup did not get anything, try with the GLOBAL space
+        if rules is None and payload_keys[0] in self.specs['GLOBAL']:
+            _logger.debug('Retry key with GLOBAL')
+            rules = self._do_resolve_rules_for_keys(self.specs['GLOBAL'], payload_keys,
+                                                    unwrap_value_for_last_key=unwrap_value_for_last_key)
+        return rules
+
+    def _do_resolve_rules_for_keys(self, rules, payload_keys, unwrap_value_for_last_key=True):
         for i, k in enumerate(payload_keys):
             if k not in rules and '*' in rules:
                 rules = rules['*']
             else:
                 rules = rules.get(k, None)
+
             if not i == len(payload_keys) - 1 or unwrap_value_for_last_key:
                 rules = self._maybe_process_rules(rules)
             else:
@@ -218,6 +230,8 @@ class ApiSpec:
             # Special handle for query
             if k == 'query' and rules == {}:
                 rules = self.specs['GLOBAL']['query']
+
+            _logger.debug(f'Rules for key {k!r} is: {rules}')
             if rules is None:
                 break
         return rules
