@@ -8,6 +8,7 @@ from typing import Iterable
 
 from prompt_toolkit import PromptSession, prompt
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
+from prompt_toolkit.filters import Condition
 from prompt_toolkit.formatted_text import FormattedText
 from prompt_toolkit.layout.processors import HighlightMatchingBracketProcessor
 from prompt_toolkit.lexers import PygmentsLexer
@@ -199,7 +200,7 @@ class PeekApp:
                 enable_suspend=True,
                 search_ignore_case=True,
                 clipboard=clipboard,
-                mouse_support=False,
+                mouse_support=Condition(self._should_support_mouse),
                 swap_light_and_dark_colors=self.config.as_bool('swap_colour'),
                 input_processors=[
                     HighlightMatchingBracketProcessor(chars="[](){}"),
@@ -260,3 +261,6 @@ class PeekApp:
                 not self.batch_mode and
                 not options and
                 self.config.get('connection') is None)
+
+    def _should_support_mouse(self) -> bool:
+        return self.config.as_bool('mouse_support')

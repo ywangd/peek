@@ -42,3 +42,6 @@ extension_path =
 
 # Swap dark and light colours
 swap_colour = False
+
+# Support mouse (default to False since it does not work well with scroll)
+mouse_support = False

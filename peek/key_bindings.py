@@ -95,6 +95,11 @@ def key_bindings(app):
         except PeekSyntaxError as e:
             _logger.debug(f'Cannot reformat for invalid/incomplete input: {e}')
 
+    @kb.add('f12')
+    def _(event):
+        _logger.debug('Toggle mouse support')
+        app.config['mouse_support'] = not app.config.as_bool('mouse_support')
+
     def switch_connection(event):
         _logger.debug(f'switching to connection: {event.key_sequence[1].key}')
         try:
