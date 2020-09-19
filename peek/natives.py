@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import random
 
 from configobj import ConfigObj
@@ -311,6 +312,41 @@ class HelpFunc:
         return 'List available functions and show help message of a function'
 
 
+class DownloadApiSpecsFunc:
+
+    def __call__(self, app, **options):
+        config_dir = config_location()
+        existing_kibana_dirs = [os.path.join(config_dir, d) for d in os.listdir(config_dir) if d.startswith('kibana-')]
+        if existing_kibana_dirs:
+            raise RuntimeError(f'Existing {"directory" if len(existing_kibana_dirs) == 1 else "directories"} '
+                               f'found for API specs: {existing_kibana_dirs}. '
+                               f'Please remove {"it" if len(existing_kibana_dirs) == 1 else "them"} '
+                               f'before download new spec files.')
+
+        import urllib.request
+        import zipfile
+        import io
+        kibana_version = options.get('version', '7.9.1')
+        kibana_release_url = f'https://github.com/elastic/kibana/archive/v{kibana_version}.zip'
+        app.display.info(f'Downloading from {kibana_release_url} ... This may take a few minutes ...')
+        data = urllib.request.urlopen(kibana_release_url).read()
+        zf = zipfile.ZipFile(io.BytesIO(data))
+        for info in zf.infolist():
+            if 'spec_definitions' in info.filename:
+                zf.extract(info, path=config_dir)
+        app.completer.init_api_specs()
+        return f'Version {kibana_version} API spec files are ready'
+
+    @property
+    def options(self):
+        return {'version': '7.9.1'}
+
+    @property
+    def description(self):
+        return 'Download and reload Elasticsearch API spec files from the Kibana project. ' \
+               'It may takes a few minutes depending on the network speed.'
+
+
 def consolidate_options(options, defaults):
     """
     Merge shorthanded @symbol into normal options kv pair with provided defaults
@@ -337,6 +373,7 @@ EXPORTS = {
     'reset': ResetFunc(),
     'exit': ExitFunc(),
     'help': HelpFunc(),
+    '_download_api_specs': DownloadApiSpecsFunc(),
     'saml_authenticate': SamlAuthenticateFunc(),
     'oidc_authenticate': OidcAuthenticateFunc(),
     'krb_authenticate': KrbAuthenticateFunc(),

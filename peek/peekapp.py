@@ -48,6 +48,7 @@ class PeekApp:
         self.history = SqLiteHistory(self.config.as_int('history_max'))
         self.es_client_manager = self._init_es_client_manager()
         self.ecm_backup_data = self.es_client_manager.to_dict()
+        self.completer = PeekCompleter(self)
         self.prompt = self._init_prompt()
         monkey_patch_completion_state()
         self.display = Display(self)
@@ -191,7 +192,7 @@ class PeekApp:
                 style=style_from_pygments_cls(PeekStyle),
                 lexer=PygmentsLexer(PeekLexer),
                 auto_suggest=AutoSuggestFromHistory(),
-                completer=PeekCompleter(self),
+                completer=self.completer,
                 history=self.history,
                 multiline=True,
                 key_bindings=key_bindings(self),

@@ -357,7 +357,7 @@ class PeekVM(Visitor):
             sys.path = sys_path
 
     def _load_one_extension(self, p):
-        _logger.debug(f'Loading extension: {p!r}')
+        _logger.info(f'Loading extension: {p!r}')
         import importlib
         fields = os.path.splitext(p)
         if len(fields) != 2 or fields[1] != '.py':
@@ -369,7 +369,7 @@ class PeekVM(Visitor):
             exports = getattr(m, 'EXPORTS', None)
             if isinstance(exports, dict):
                 self.context.update(exports)
-                _logger.info(f'Loaded extension: {p!r}')
+                _logger.info(f'Extension loaded: {p!r}')
             else:
                 _logger.warning(f'Ignore extension {p!r} since EXPORTS is not a dict, but: {exports!r}')
         except Exception as e:

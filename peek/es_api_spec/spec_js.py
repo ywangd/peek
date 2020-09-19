@@ -72,7 +72,8 @@ class JsSpecParser:
         sources = []
         # TODO: this file is imported by oss/query/dsl, we manually prioritize it but automation would be good
         dependency_file = '/oss/query/templates'
-        sources.extend(self._extract_from_one_file(dependency_file, spec_file_contents.pop(dependency_file)))
+        if dependency_file in spec_file_contents:
+            sources.extend(self._extract_from_one_file(dependency_file, spec_file_contents.pop(dependency_file)))
         for file_name, file_content in spec_file_contents.items():
             sources.extend(self._extract_from_one_file(file_name, file_content))
         text = '\n'.join(sources)

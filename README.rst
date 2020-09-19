@@ -26,7 +26,7 @@ to get a list of builtin functions. Peek will ask permission to access system ke
 It can be disabled permanently by setting ``use_keyring = False`` in ``peekrc`` file or
 temporarily by invoking the program with ``peek -e use_keyring=False``.
 
-* To enable auto-completions for APIs (WIP), run ``make get-specs`` to pull API specs from the
+* To enable auto-completions for APIs, run ``make get-specs`` to pull API specs from the
   `Kibana project <https://github.com/elastic/kibana>`_.
 * Run tests with ``tox -s true``
 
@@ -36,7 +36,7 @@ Features
 Peek supports most editing features offered by
 `Kibana Console <https://www.elastic.co/guide/en/kibana/current/console-kibana.html>`_,
 e.g. syntax highlighting, auto-formatting, auto-indent,
-auto-completion (WIP), par-editing, triple-quotes, etc. It also offers following additional features:
+auto-completion, par-editing, triple-quotes, etc. It also offers following additional features:
 
 * Lightweight CLI tool
 * Multiplex a single terminal session to multiple Elasticsearch clusters or multiple credentials to a single cluster
@@ -72,7 +72,9 @@ a Peek session:
   // Press <F3> to switch between pretty and compact formatting for the JSON payload
   PUT _bulk
   {"index":{"_index":"test","_id":"1"}}
-  {"field1":"value1"}
+  {"value":"1","category":"click"}
+  {"index":{"_index":"test","_id":"2"}}
+  {"value":"2","category":"click"}
 
   // Shell out to download the EQL threat hunting demo file
   !curl -o normalized-T1117-AtomicRed-regsvr32.json https://raw.githubusercontent.com/elastic/elasticsearch/master/docs/src/test/resources/normalized-T1117-AtomicRed-regsvr32.json
