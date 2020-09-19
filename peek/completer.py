@@ -139,9 +139,10 @@ class PeekCompleter(Completer):
         kibana_dir = self.app.config['kibana_dir']
         if not kibana_dir:
             config_dir = config_location()
-            kibana_dirs = [os.path.join(config_dir, d) for d in os.listdir(config_dir) if d.startswith('kibana-')]
-            if kibana_dirs:
-                kibana_dir = kibana_dirs[0]
+            if os.path.exists(config_dir):
+                kibana_dirs = [os.path.join(config_dir, d) for d in os.listdir(config_dir) if d.startswith('kibana-')]
+                if kibana_dirs:
+                    kibana_dir = kibana_dirs[0]
         if not kibana_dir:
             kibana_dir = os.path.join(package_root, 'specs', 'kibana-7.8.1')
         _logger.info(f'Attempt to build Elasticsearch API specs from: {kibana_dir}')

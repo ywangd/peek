@@ -316,6 +316,9 @@ class DownloadApiSpecsFunc:
 
     def __call__(self, app, **options):
         config_dir = config_location()
+        if not os.path.exists(config_dir):
+            raise FileNotFoundError(f'Config directory does not exist: {config_dir!r}. '
+                                    f'Please create it before downloading API spec files')
         existing_kibana_dirs = [os.path.join(config_dir, d) for d in os.listdir(config_dir) if d.startswith('kibana-')]
         if existing_kibana_dirs:
             raise RuntimeError(f'Existing {"directory" if len(existing_kibana_dirs) == 1 else "directories"} '
