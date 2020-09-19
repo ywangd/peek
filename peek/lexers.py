@@ -183,6 +183,7 @@ class PeekLexer(RegexLexer):
             include('value'),
         ],
         'colon': [
+            (r'(\s*)(//.*)(\s*)', bygroups(Whitespace, Comment.Single, Whitespace)),
             (r'(\s*)(:)(\s*)', bygroups(Whitespace, Colon, Whitespace), ('#pop', 'dict_value')),
         ],
         'dict_value': [

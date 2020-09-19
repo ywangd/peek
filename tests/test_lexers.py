@@ -213,6 +213,19 @@ def test_dict_keys(peek_lexer):
     print(tokens)
 
 
+def test_comment_inside_dict(peek_lexer):
+    do_test(peek_lexer, text='''GET _search
+{
+  // comment
+  "foo"  // comment
+  // comment
+  : // comment
+  // comment
+  "bar" // comment
+  // comment
+}''')
+
+
 def test_operator_cannot_on_separate_line(peek_lexer):
     with pytest.raises(AssertionError) as e:
         do_test(peek_lexer, text='''f 1
