@@ -81,7 +81,7 @@ Ready to contribute? Here's how to set up `peek` for local development.
 
     $ flake8 peek tests
     $ python setup.py test or pytest
-    $ tox
+    $ tox -s true
 
    To get flake8 and tox, just pip install them into your virtualenv.
 

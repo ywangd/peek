@@ -20,22 +20,14 @@ Please note the project requires Python 3.6+. It can be installed from PyPI with
   pip install es-peek
 
 The tool is now available as the ``peek`` command. Peek will ask permission to access system keyring
-to store credentials.
-It can be disabled permanently by setting ``use_keyring = False`` in ``peekrc`` file or
-temporarily by invoking the program with ``peek -e use_keyring=False``.
+for storing credentials.
+It can be disabled permanently by setting ``use_keyring = False`` in `peekrc <peek/peekrc>`_
+file or temporarily by invoking it as ``peek -e use_keyring=False``.
 
 Besides HTTP calls to Elasticsearch clusters, type ``help`` to get a list of builtin functions.
-Specifically, to enable auto-completions for APIs, run the ``_download_api_specs`` builtin function to
-download the API spec files from the `Kibana project <https://github.com/elastic/kibana>`_.
-
-
-It is currently under development and is recommended to install
-it in development mode from the source repository for easier update.
-
-1. Clone the `repository <https://github.com/ywangd/peek>`_
-2. Inside the project root directory, run ``pip install -e .``
-
-* Run tests with ``tox -s true``
+Specifically, to enable **auto-completions** for APIs, run the ``_download_api_specs`` builtin function
+(note the leading underscore) to download API spec files from the
+`Kibana project <https://github.com/elastic/kibana>`_.
 
 Features
 --------
@@ -67,7 +59,7 @@ a Peek session:
 
 .. code-block:: javascript
 
-  // NOTE a blank line is necessary to trigger API execution, or type "ESC + Enter" to execute regardlessly
+  // NOTE a blank line is needed to trigger API execution, or type "ESC + Enter" to execute regardlessly
   // Exit the interactive session any time by pressing Ctrl-D or type exit
   GET /_cluster/health  // comment is allowed almost anywhere
 
@@ -102,12 +94,12 @@ a Peek session:
   // Create an API key
   PUT _security/api_key
   {
-    "name": "key-1",  // extra comma is OK, in fact, this comment is ok as well
+    "name": "key-1",  // extra comma is OK, and this comment is ok as well
   }
 
   // Connect using the above generated API key
   // The dot notation is used to index into JSON object and array
-  connect api_key=_.@id + ":" + _.@api_key  // default host is localhost:9200
+  connect api_key=_.'id' + ":" + _.'api_key'  // default host is localhost:9200
 
   // Connect to Elastic Cloud with Cloud ID
   connect cloud_id='YOUR_CLOUD_ID' username='elastic'
@@ -141,10 +133,10 @@ a Peek session:
   capture @start
   capture  // show capture status
 
-  // Run-AS etc
+  // Run-AS and other headers
   GET _security/_authenticate runas='foo' xoid='my-x-opaque-id' headers={'some-other-header': 'blah'}
 
-  // Show only the first role
+  // Show only the first role from previous response
   echo _."roles".0
 
   // If the cluster has SAML integration configured, authenticate with saml
