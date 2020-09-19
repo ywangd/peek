@@ -13,21 +13,28 @@ running in terminal with additional features for tinkers.
 Installation
 ------------
 
-Please note the project requires Python 3.6+. It is currently under development and is recommended to install
+Please note the project requires Python 3.6+. It can be installed from PyPI with:
+
+.. code-block:: console
+
+  pip install es-peek
+
+The tool is now available as the ``peek`` command. Peek will ask permission to access system keyring
+to store credentials.
+It can be disabled permanently by setting ``use_keyring = False`` in ``peekrc`` file or
+temporarily by invoking the program with ``peek -e use_keyring=False``.
+
+Besides HTTP calls to Elasticsearch clusters, type ``help`` to get a list of builtin functions.
+Specifically, to enable auto-completions for APIs, run the ``_download_api_specs`` builtin function to
+download the API spec files from the `Kibana project <https://github.com/elastic/kibana>`_.
+
+
+It is currently under development and is recommended to install
 it in development mode from the source repository for easier update.
 
 1. Clone the `repository <https://github.com/ywangd/peek>`_
 2. Inside the project root directory, run ``pip install -e .``
 
-Alternatively, it can be installed from PyPI with ``pip install es-peek``.
-
-The tool is now available as the ``peek`` command. Other than HTTP calls to Elasticsearch clusters, type ``help``
-to get a list of builtin functions. Peek will ask permission to access system keyring to store credentials.
-It can be disabled permanently by setting ``use_keyring = False`` in ``peekrc`` file or
-temporarily by invoking the program with ``peek -e use_keyring=False``.
-
-* To enable auto-completions for APIs, run ``make get-specs`` to pull API specs from the
-  `Kibana project <https://github.com/elastic/kibana>`_.
 * Run tests with ``tox -s true``
 
 Features
@@ -35,20 +42,20 @@ Features
 
 Peek supports most editing features offered by
 `Kibana Console <https://www.elastic.co/guide/en/kibana/current/console-kibana.html>`_,
-e.g. syntax highlighting, auto-formatting, auto-indent,
-auto-completion, par-editing, triple-quotes, etc. It also offers following additional features:
+e.g. auto-completion, syntax highlighting, auto-formatting, auto-indent,
+par-editing, triple-quotes, etc. It also offers following additional features:
 
 * Lightweight CLI tool
 * Multiplex a single terminal session to multiple Elasticsearch clusters or multiple credentials to a single cluster
-* Connect to `Elastic Cloud <https://cloud.elastic.co/>`_ with Cloud ID
-* Multiple authentication schemes in a single terminal, including UserPass, API key, Token, SAML, OIDC, Kerberos, PKI
-* Support run-as, x-opaque-id, and arbitrary request headers
-* More flexible quotes and comma for the JSON payload and case-insensitive http methods
-* Load JSON payload from external file
+* More flexible usages of quotes, comma, comments for the JSON payload, case-insensitive http method names
+* Multiple authentication schemes, including UserPass, API key, Token, SAML, OIDC, Kerberos, PKI
+* Support run-as, x-opaque-id and arbitrary request headers
+* Load JSON payload from external files
 * Run file input in batch mode
 * History management
 * Capture terminal input and output into file
-* Shell out
+* Connect to `Elastic Cloud <https://cloud.elastic.co/>`_ with Cloud ID
+* Shell out for system commands
 * Minimal scripting support
 * Extensible via external scripts
 
@@ -60,9 +67,9 @@ a Peek session:
 
 .. code-block:: javascript
 
-  // Basic API call (note a blank line is necessary to trigger the execution)
+  // NOTE a blank line is necessary to trigger API execution, or type "ESC + Enter" to execute regardlessly
   // Exit the interactive session any time by pressing Ctrl-D or type exit
-  GET /_cluster/health
+  GET /_cluster/health  // comment is allowed almost anywhere
 
   // Index a single document
   POST /my-index/_doc
@@ -83,7 +90,7 @@ a Peek session:
   POST my-index-000001/_bulk
   @normalized-T1117-AtomicRed-regsvr32.json
 
-  // Execute an EQL query
+  // Execute an EQL query (triple quotes can be either ''' or """)
   GET /my-index-000001/_eql/search?filter_path=-hits.events
   {
     "query": """
@@ -95,7 +102,7 @@ a Peek session:
   // Create an API key
   PUT _security/api_key
   {
-    "name": "key-1",  // extra comma is OK
+    "name": "key-1",  // extra comma is OK, in fact, this comment is ok as well
   }
 
   // Connect using the above generated API key
@@ -157,10 +164,19 @@ a Peek session:
     { 'tag': i, "value": i * i }
   }
 
+  // Or with bulk index
+  for i in range(1, 100) {  // first prepare the payload file
+    echo {"index":{"_index":"test","_id":"" + i}} file='payload.json'
+    echo {"value":i,"category":"click"} file='payload.json'
+  }
+  // Now bulk indexing with the above generated file
+  PUT _bulk
+  @payload.json
+
 The tool can also run in batch mode. Assuming above commands are saved in a file called ``script.es``,
 it can be executed as:
 
-.. code-block:: bash
+.. code-block:: console
 
   # Positional argument
   peek script.es
