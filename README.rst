@@ -15,7 +15,7 @@ Installation
 
 Please note the project requires Python 3.6+. It can be installed from PyPI with:
 
-.. code-block:: console
+.. code-block:: bash
 
   pip install es-peek
 
@@ -176,7 +176,7 @@ a Peek session:
 The tool can also run in batch mode. Assuming above commands are saved in a file called ``script.es``,
 it can be executed as:
 
-.. code-block:: console
+.. code-block:: bash
 
   # Positional argument
   peek script.es
