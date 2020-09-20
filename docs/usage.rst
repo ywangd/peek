@@ -45,7 +45,8 @@ However, you can opt-out this behaviour by setting ``use_keyring = False`` in ``
 file. Peek also looks for the ``PEEK_PASSWORD`` environmental variable for password
 and this is another way to avoid having to enter password many times. If both fails,
 Peek will prompt for password.
-Please note, API keys and tokens are treated differently. They are considered to be
+
+Note that API keys and tokens are treated differently. They are considered to be
 more ephemeral and are stored in Peek's ``history`` sqlite file.
 
 

@@ -44,8 +44,8 @@ e.g. auto-completion, syntax highlighting, auto-formatting, auto-indent,
 par-editing, triple-quotes, etc. It also offers following additional features:
 
 * Lightweight CLI tool
-* Multiplex a single terminal session to multiple Elasticsearch clusters or multiple credentials to a single cluster
-* More flexible usages of quotes, comma, comments for the JSON payload, case-insensitive http method names
+* Multiplex a single terminal session to multiple Elasticsearch clusters or multiple connections to a single cluster
+* Flexible usages of quotes, comma, comments for the JSON payload, case-insensitive http method names
 * Multiple authentication schemes, including UserPass, API key, Token, SAML, OIDC, Kerberos, PKI
 * Support run-as, x-opaque-id and arbitrary request headers
 * Load JSON payload from external files
