@@ -103,8 +103,7 @@ Before you submit a pull request, check that it meets these guidelines:
    your new functionality into a function with a docstring, and add the
    feature to the list in README.rst.
 3. The pull request should work for Python 3.6, 3.7 and 3.8. Check
-   https://github.com/ywangd/peek/actions
-   and make sure that the tests pass.
+   https://github.com/ywangd/peek/actions and make sure that the tests pass.
 
 Tips
 ----
@@ -112,17 +111,3 @@ Tips
 To run a subset of tests::
 
 $ pytest tests/test_peekapp.py
-
-
-Deploying
----------
-
-A reminder for the maintainers on how to deploy.
-Make sure all your changes are committed (including an entry in HISTORY.rst).
-Then run::
-
-$ bump2version patch # possible: major / minor / patch
-$ git push
-$ git push --tags
-
-Travis will then deploy to PyPI if tests pass.
