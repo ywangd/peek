@@ -144,7 +144,7 @@ class SessionFunc:
 
     @property
     def description(self):
-        return 'Manage persisted sessions'
+        return 'Session management - save and load sessions to quickly get back to an known state'
 
 
 class RunFunc:
