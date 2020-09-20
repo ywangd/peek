@@ -2,6 +2,4 @@
 Usage
 =====
 
-To use peek in a project::
-
-    import peek
+Please refer to the `Sample Usages <../README.rst#Sample Usages>`_ for a quick guide.

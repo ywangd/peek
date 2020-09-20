@@ -15,6 +15,12 @@ To install peek, run this command in your terminal:
     $ pip install es-peek
 
 This is the preferred method to install peek, as it will always install the most recent stable release.
+The above installation does not include support of Kerberos and system clipboard. To get these two
+features, please install the full package:
+
+.. code-block:: console
+
+    $ pip install es-peek[full]
 
 If you don't have `pip`_ installed, this `Python installation guide`_ can guide
 you through the process.

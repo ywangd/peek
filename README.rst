@@ -13,7 +13,7 @@ running in terminal with additional features for tinkers.
 Installation
 ------------
 
-Please note the project requires Python 3.6+. It can be installed from PyPI with:
+Please note the project requires Python 3.6+. It is recommended to install from PyPI with:
 
 .. code-block:: bash
 
@@ -21,13 +21,19 @@ Please note the project requires Python 3.6+. It can be installed from PyPI with
 
 The tool is now available as the ``peek`` command. Peek will ask permission to access system keyring
 for storing credentials.
-It can be disabled permanently by setting ``use_keyring = False`` in `peekrc <peek/peekrc>`_
-file or temporarily by invoking it as ``peek -e use_keyring=False``.
+This can be disabled  temporarily by invoking the command as ``peek -e use_keyring=False``
+or permanently by setting ``use_keyring = False`` in `peekrc <peek/peekrc>`_ file
 
-Besides HTTP calls to Elasticsearch clusters, type ``help`` to get a list of builtin functions.
-Specifically, to enable **auto-completions** for APIs, run the ``_download_api_specs`` builtin function
+Besides HTTP calls to Elasticsearch clusters, type ``help`` to see a list of builtin functions.
+To **enable auto-completions** for APIs, run the ``_download_api_specs`` builtin function
 (note the leading underscore) to download API spec files from the
 `Kibana project <https://github.com/elastic/kibana>`_.
+
+Alternatively, it can also be installed from source with:
+
+.. code-block:: bash
+
+    python setup.py install
 
 Features
 --------
@@ -44,6 +50,7 @@ par-editing, triple-quotes, etc. It also offers following additional features:
 * Support run-as, x-opaque-id and arbitrary request headers
 * Load JSON payload from external files
 * Run file input in batch mode
+* Readline editing features, e.g. ``Ctrl-_`` for undo, ``Ctrl-r`` for reverse search, etc.
 * History management
 * Capture terminal input and output into file
 * Connect to `Elastic Cloud <https://cloud.elastic.co/>`_ with Cloud ID
@@ -60,7 +67,7 @@ a Peek session:
 .. code-block:: javascript
 
   // NOTE a blank line is needed to trigger API execution, or type "ESC + Enter" to execute regardlessly
-  // Exit the interactive session any time by pressing Ctrl-D or type exit
+  // Exit the interactive session any time by pressing Ctrl-d or type exit
   GET /_cluster/health  // comment is allowed almost anywhere
 
   // Index a single document
