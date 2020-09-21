@@ -61,8 +61,9 @@ par-editing, triple-quotes, etc. It also offers following additional features:
 Sample Usages
 -------------
 
-Assuming a locally running Elasticsearch cluster, the following sample can be directly copy/paste and executed in
-a Peek session:
+Assuming a locally running Elasticsearch cluster, start a Peek session with
+``peek --hosts localhost:9200 --username elastic``.
+The following sample is a quick guide on Peek usages.
 
 .. code-block:: javascript
 
@@ -106,7 +107,7 @@ a Peek session:
 
   // Connect using the above generated API key
   // The dot notation is used to index into JSON object and array
-  connect api_key=_.'id' + ":" + _.'api_key'  // default host is localhost:9200
+  connect api_key=_.'id' + ":" + _.'api_key' hosts='localhost:9200'  // Quotes are necessary for strings
 
   // Connect to Elastic Cloud with Cloud ID
   connect cloud_id='YOUR_CLOUD_ID' username='elastic'
