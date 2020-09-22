@@ -269,7 +269,7 @@ The following is a EBNF specification of the Peek language:
   list = "[", [ expr, { ",", expr }, [ "," ] ], "]" ;
   dict = "{", [ expr, ":", expr, { ",", expr, ":", expr }, [ "," ] ], "}" ;
   funcall = expr, "(", [ funcarg, { ",", funcarg } ], ")" ;
-  funcarg = { expr | option }
+  funcarg = { expr | option | "@", name }
 
   unaryop = "-" | "+" ;
   binop = "+" | "-" | "*" | "/" | "%" | "." ;
