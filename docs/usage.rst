@@ -129,8 +129,8 @@ session with ``session load='__auto__'``. With the builtin ``session`` managemen
 multiple sessions can be saved and restored at will.
 
 
-Auto-Completion and API Spec Files
-----------------------------------
+Auto-Completion
+---------------
 Peek's auto-completion feature for Elasticsearch APIs relies on the API spec files published by the
 `Kibana project <https://github.com/elastic/kibana>`_.
 Peek however does not ship with these spec files.
