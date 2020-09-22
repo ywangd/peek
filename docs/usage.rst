@@ -114,7 +114,7 @@ as requested via the ``test`` option to the ``connect`` function, e.g.:
 
 .. code-block:: bash
 
-  connect hosts='localhost:9200' test=true
+  connect hosts='localhost:9200' username='elastic' test=true
 
 This behaviour can also be enabled by default with ``test_connection = False`` in
 the ``peekrc`` file.
