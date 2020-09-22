@@ -198,7 +198,7 @@ External scripts can used to provide extra functions. They are simple Python scr
 and expose callabes under a variable named ``EXPORTS``. Please refer `natives.py <peek/natives.py>`_
 for examples.
 
-Please also read `Usages <docs/usage>`_ for more details.
+Please also read `Usages <docs/usage.rst>`_ for more details.
 
 Credits
 -------

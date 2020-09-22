@@ -2,7 +2,7 @@
 Usage
 =====
 
-For basic usages, please refer to the `Sample Usages <../README#sample-usages>`_ for a quick guide.
+For basic usages, please refer to the `Sample Usages <../README.rst#sample-usages>`_ for a quick guide.
 Here we provide a few more details which may become handy in certain situations.
 
 The CLI interface
@@ -34,7 +34,7 @@ Peek starts with a default connection which assumes a locally running, unsecured
 Elasticsearch cluster, i.e. ``http://localhost:9200``. This may not be the typical
 cluster you want to connect in real use cases. Please run ``peek -h`` to see a list
 of options to customise the start-up connection. You can also configure the
-:ref:`default connection <default-connection>` with
+`default connection <usage.rst#default-connection>`_ with
 ``peekrc`` file to avoid having to specify them each time.
 
 
@@ -49,7 +49,7 @@ Additionally, Peek also has a few of its keyboard shortcuts:
 * ``<F12>`` - toggle mouse support
 * ``ESC + Enter`` - (press ``ESC`` then press ``Enter``) immediately trigger execution of current input
 * ``ESC + c`` - Copy current input to system clipboard (NOTE this requires
-  `full installation <installation>`_).
+  `full installation <installation.rst>`_).
 
 The ``peekrc`` File
 -------------------
