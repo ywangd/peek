@@ -239,7 +239,7 @@ The following is a EBNF specification of the Peek language:
   prog = { stmt } ;
 
   stmt = http_stmt | function_stmt | let_stmt | forin_stmt ;
-  http_stmt = verb, path, { option }, "\n", dict ;
+  http_stmt = verb, path, { option }, "\n", [ payload ];
   func_stmt = name, { funcarg } ;
   let_stmt = "let", { name, "=", expr } ;
   forin_stmt = "for", name, "in", expr, "{", { stmt }, "}" ;
@@ -247,6 +247,7 @@ The following is a EBNF specification of the Peek language:
   verb = "GET" | "PUT" | "POST" | "DELETE" ;
   path = non_blank_characters, { non_blank_characters } ;
   option = name, "=", expr ;
+  payload = dict, { "\n", dict } ;
 
   expr = "true" | "false" | "null"
        | [ unaryop ], number
