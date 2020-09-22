@@ -34,7 +34,7 @@ Peek starts with a default connection which assumes a locally running, unsecured
 Elasticsearch cluster, i.e. ``http://localhost:9200``. This may not be the typical
 cluster you want to connect in real use cases. Please run ``peek -h`` to see a list
 of options to customise the start-up connection. You can also configure the
-:ref:`default connection <default-connection>` with
+`default connection <usage.rst#default-connection>`_ with
 ``peekrc`` file to avoid having to specify them each time.
 
 
@@ -129,8 +129,8 @@ session with ``session load='__auto__'``. With the builtin ``session`` managemen
 multiple sessions can be saved and restored at will.
 
 
-Auto-Completion and API Spec Files
-----------------------------------
+Auto-Completion
+---------------
 Peek's auto-completion feature for Elasticsearch APIs relies on the API spec files published by the
 `Kibana project <https://github.com/elastic/kibana>`_.
 Peek however does not ship with these spec files.
@@ -191,6 +191,7 @@ and become available. Following is a simple external function that just print "h
   def hello_world_func(app):
       return 'hello world'
 
+  # The EXPORTS variable is where Peek looks for defined functions
   EXPORTS = { 'hello': hello_world_func }
 
 To load the extension, just specify it in the ``peekrc`` file like:
@@ -218,5 +219,74 @@ instance. More sophisticated interactions are made possible with it:
       def description(self):
           return 'Health check for the Elasticsearch cluster'
 
-The ``options`` and ``description` properties are optional. If provided, they will
+  EXPORTS = { 'healthcheck': HealthFunc() }
+
+The ``options`` and ``description`` properties are optional. If provided, they will
 be used to populate auto-completion and help message.
+
+
+Scripting
+---------
+Peek features a mini scripting language which seamlessly integrates the HTTP call
+syntax. The goal of the language is to make it
+possible to perform simple repetitive work without leaving the interactive
+session, e.g. create an API key and authenticate with it,
+or quickly populate an index with random test data.
+The following is a EBNF specification of the Peek language:
+
+.. code-block:: ebnf
+
+  prog = { stmt } ;
+
+  stmt = http_stmt | function_stmt | let_stmt | forin_stmt ;
+  http_stmt = verb, path, { option }, "\n", [ payload ];
+  func_stmt = name, { funcarg } ;
+  let_stmt = "let", { name, "=", expr } ;
+  forin_stmt = "for", name, "in", expr, "{", { stmt }, "}" ;
+
+  verb = "GET" | "PUT" | "POST" | "DELETE" ;
+  path = non_blank_characters, { non_blank_characters } ;
+  option = name, "=", expr ;
+  payload = dict, { "\n", dict } ;
+
+  expr = "true" | "false" | "null"
+       | [ unaryop ], number
+       | string
+       | [ unaryop ], name
+       | list
+       | dict
+       | [ unaryop ], funcall
+       | expr, binop, expr
+       | [ unaryop ], "(", expr, ")" ;
+
+  number = digit, {digit} ;
+  name = "_" | letter, { "_" | letter | digit } ;
+
+  string = '"' , { all_characters - '"' }, '"'
+         | "'", { all_characters - "'" }, "'"
+         | '"""' , { all_characters - '"""' }, '"""'
+         | "'''", { all_characters - "'''" }, "'''" ;
+
+  list = "[", [ expr, { ",", expr }, [ "," ] ], "]" ;
+  dict = "{", [ expr, ":", expr, { ",", expr, ":", expr }, [ "," ] ], "}" ;
+  funcall = expr, "(", [ funcarg, { ",", funcarg } ], ")" ;
+  funcarg = { expr | option | "@", name }
+
+  unaryop = "-" | "+" ;
+  binop = "+" | "-" | "*" | "/" | "%" | "." ;
+  digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
+  letter = "A" | "B" | "C" | "D" | "E" | "F" | "G"
+         | "H" | "I" | "J" | "K" | "L" | "M" | "N"
+         | "O" | "P" | "Q" | "R" | "S" | "T" | "U"
+         | "V" | "W" | "X" | "Y" | "Z" | "a" | "b"
+         | "c" | "d" | "e" | "f" | "g" | "h" | "i"
+         | "j" | "k" | "l" | "m" | "n" | "o" | "p"
+         | "q" | "r" | "s" | "t" | "u" | "v" | "w"
+         | "x" | "y" | "z" ;
+
+
+Due to its simplistic nature, the language is not intended to be
+`Turing complete <https://en.wikipedia.org/wiki/Turing_completeness>`_
+and it is not due to lack of conditional control construct, e.g. ``if/else``.
+For complex scripting requirements, it is recommended to use Peek in batch
+mode as part of a shell script.
