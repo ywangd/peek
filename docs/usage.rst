@@ -2,7 +2,7 @@
 Usage
 =====
 
-For basic usages, please refer to the `Sample Usages <../README.rst#sample-usages>`_ for a quick guide.
+For basic usages, please refer to the `Sample Usages <../README#sample-usages>`_ for a quick guide.
 Here we provide a few more details which may become handy in certain situations.
 
 The CLI interface
@@ -49,7 +49,7 @@ Additionally, Peek also has a few of its keyboard shortcuts:
 * ``<F12>`` - toggle mouse support
 * ``ESC + Enter`` - (press ``ESC`` then press ``Enter``) immediately trigger execution of current input
 * ``ESC + c`` - Copy current input to system clipboard (NOTE this requires
-  `full installation <installation.rst>`_).
+  `full installation <installation>`_).
 
 The ``peekrc`` File
 -------------------
@@ -191,6 +191,7 @@ and become available. Following is a simple external function that just print "h
   def hello_world_func(app):
       return 'hello world'
 
+  # The EXPORTS variable is where Peek looks for defined functions
   EXPORTS = { 'hello': hello_world_func }
 
 To load the extension, just specify it in the ``peekrc`` file like:
@@ -218,5 +219,7 @@ instance. More sophisticated interactions are made possible with it:
       def description(self):
           return 'Health check for the Elasticsearch cluster'
 
-The ``options`` and ``description` properties are optional. If provided, they will
+  EXPORTS = { 'healthcheck': HealthFunc() }
+
+The ``options`` and ``description`` properties are optional. If provided, they will
 be used to populate auto-completion and help message.
