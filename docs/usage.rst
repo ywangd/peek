@@ -38,6 +38,19 @@ of options to customise the start-up connection. You can also configure the
 ``peekrc`` file to avoid having to specify them each time.
 
 
+Keyboard Shortcuts
+------------------
+The interactive prompt has most of the features for readline of emacs bindings.
+So you can expect things like `Ctrl-a`, `Ctrl-e`, `Ctrl-k`, `Ctrl-u`, `Ctrl-r`
+work as intended.
+Additionally, Peek also has a few of its keyboard shortcuts:
+
+* ``<F3>`` - toggle pretty and compact formatting of the input, e.g. JSON payload
+* ``<F12>`` - toggle mouse support
+* ``ESC + Enter`` - (press ``ESC`` then press ``Enter``) immediately trigger execution of current input
+* ``ESC + c`` - Copy current input to system clipboard (NOTE this requires
+  `full installation <installation.rst>`_).
+
 The ``peekrc`` File
 -------------------
 The ``peekrc`` file takes configurations to customise some aspects of the program. A
