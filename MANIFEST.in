@@ -12,5 +12,5 @@ recursive-exclude * *.py[co]
 
 recursive-include docs *.rst conf.py Makefile make.bat *.jpg *.png *.gif
 
-recursive-include peek peekrc certs
+recursive-include peek peekrc certs/*
 prune peek/specs

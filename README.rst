@@ -61,9 +61,13 @@ par-editing, triple-quotes, etc. It also offers following additional features:
 Sample Usages
 -------------
 
-Assuming a locally running Elasticsearch cluster, start a Peek session with
-``peek --hosts localhost:9200 --username elastic``.
-The following sample is a quick guide on Peek usages.
+Assuming a locally running Elasticsearch cluster, start a Peek session with:
+
+.. code-block:: bash
+
+  peek --hosts localhost:9200 --username elastic
+
+The following sample is a quick guide on Peek usages:
 
 .. code-block:: javascript
 
