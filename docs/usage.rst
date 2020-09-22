@@ -5,6 +5,52 @@ Usage
 For basic usages, please refer to the `Sample Usages <../README.rst#sample-usages>`_ for a quick guide.
 Here we provide a few more details which may become handy in certain situations.
 
+The CLI interface
+------------------
+Peek can work in both interactive or batch mode. Without an input file, Peek starts in the
+interactive mode. Otherwise, it runs in batch mode and execute the input file. The input
+file can be a pipe so that Peek can be used as part of an IO pipeline.
+
+In interactive mode, a blank line is normally required to trigger execution of a HTTP call.
+This is necessary because it is not always possible to tell whether Peek should wait
+for more payload lines. For an example, the ``PUT _bulk`` API can take a arbitrary
+number of lines as its payload. In contrast, functions are expected to be a single line
+and blank line is not needed to trigger their execution.
+
+However, the blank line is *not* always required if there are other
+ways that can mark the end of a HTTP call. For example:
+
+.. code-block:: javascript
+
+  GET _search  // no blank line is needed after this line
+  GET /  // no blank line is needed after this line as well
+  echo _  // no blank line is needed since function is always single-lined
+
+No blank line is needed anywhere in the above code fragment since a following
+HTTP statement or function statement can just as well signal the end of the previous
+statement.
+
+Peek starts with a default connection which assumes a locally running, unsecured
+Elasticsearch cluster, i.e. ``http://localhost:9200``. This may not be the typical
+cluster you want to connect in real use cases. Please run ``peek -h`` to see a list
+of options to customise the start-up connection. You can also configure the
+:ref:`default connection <default-connection>` with
+``peekrc`` file to avoid having to specify them each time.
+
+
+Keyboard Shortcuts
+------------------
+The interactive prompt has most of the features for readline of emacs bindings.
+So you can expect things like `Ctrl-a`, `Ctrl-e`, `Ctrl-k`, `Ctrl-u`, `Ctrl-r`
+work as intended.
+Additionally, Peek also has a few of its keyboard shortcuts:
+
+* ``<F3>`` - toggle pretty and compact formatting of the input, e.g. JSON payload
+* ``<F12>`` - toggle mouse support
+* ``ESC + Enter`` - (press ``ESC`` then press ``Enter``) immediately trigger execution of current input
+* ``ESC + c`` - Copy current input to system clipboard (NOTE this requires
+  `full installation <installation.rst>`_).
+
 The ``peekrc`` File
 -------------------
 The ``peekrc`` file takes configurations to customise some aspects of the program. A
@@ -68,7 +114,7 @@ as requested via the ``test`` option to the ``connect`` function, e.g.:
 
 .. code-block:: bash
 
-  connect hosts='localhost:9200' test=true
+  connect hosts='localhost:9200' username='elastic' test=true
 
 This behaviour can also be enabled by default with ``test_connection = False`` in
 the ``peekrc`` file.
@@ -102,3 +148,75 @@ caches the TypeScript completion rules in its own scripting format (look into
 ``extended_specs.es`` in its config directory for details). To force Peek parse
 the TypeScript files again, please remove the cache file. This behaviour can also be
 turned off with ``cache_extended_api_specs = False`` in ``peekrc`` file.
+
+Functions
+---------
+
+Builtin functions
+^^^^^^^^^^^^^^^^^
+Besides HTTP calls to Elasticsearch cluster. Peek also ships with a collection
+of builtin functions for various things.
+The single most useful one is likely the ``connect`` function. It takes an array
+of options and creates a new connection to a cluster:
+
+.. code-block:: javascript
+
+  connect hosts='host1.example.com:9200,host2.example.com:9200' username='elastic' use_ssl=true
+
+Note that quotes are required for string values. This is because Peek's CLI actually runs a
+mini language (more on this later). The ``hosts`` option takes a comma separate list of
+``host:port`` values. These connection options are handed directly to the
+`Python Elasticsearch client <https://github.com/elastic/elasticsearch-py>`_, where
+HTTP connection pooling, retry and so on are handled.
+
+Another useful function is ``run``, which runs an external Peek script file:
+
+.. code-block:: javascript
+
+  run 'my-script.es'  // quotes are necessary
+
+Any valid statements in the interactive mode can be put into a script for future references.
+
+
+Type ``help`` to see the list of builtin functions. Use ``help FUNCTION_NAME`` to check
+a bit more details on the specified function.
+
+External functions
+^^^^^^^^^^^^^^^^^^
+Functions are simple Python callables. They can be defined in external files, loaded by Peek
+and become available. Following is a simple external function that just print "hello world":
+
+.. code-block:: python
+
+  def hello_world_func(app):
+      return 'hello world'
+
+  EXPORTS = { 'hello': hello_world_func }
+
+To load the extension, just specify it in the ``peekrc`` file like:
+
+.. code-block:: ini
+
+  extension_path = /path/to/external/extension/file/or/directory
+
+Note the external function must accept at least one argument, which is the ``PeekApp``
+instance. More sophisticated interactions are made possible with it:
+
+.. code-block:: python
+
+  class HealthFunc:
+      def __call__(self, app, **options)
+          import json
+          conn = options.get('conn', None)
+          app.process_input(f'GET /_cluster/health conn={json.dumps(conn)}')
+
+      @property
+      def options(self):
+          return { 'conn': None }
+
+      @property
+      def description(self):
+          return 'Health check for the Elasticsearch cluster'
+
+The ``options`` and ``description` properties are optional. If provided, they will
+be used to populate auto-completion and help message.
