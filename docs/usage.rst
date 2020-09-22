@@ -245,7 +245,7 @@ The following is a EBNF specification of the Peek language:
   forin_stmt = "for", name, "in", expr, "{", { stmt }, "}" ;
 
   verb = "GET" | "PUT" | "POST" | "DELETE" ;
-  path = non_empty_char, { non_empty_char } ;
+  path = non_blank_characters, { non_blank_characters } ;
   option = name, "=", expr ;
 
   expr = "true" | "false" | "null"
