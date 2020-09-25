@@ -133,7 +133,8 @@ class PeekApp:
 
     def reset(self):
         self.es_client_manager = EsClientManager.from_dict(self, self.ecm_backup_data)
-        self.vm.context = {}
+        self.completer.init_api_specs()
+        self.vm = self._init_vm()
 
     def _get_message(self):
         idx = self.es_client_manager.clients().index(self.es_client_manager.current)

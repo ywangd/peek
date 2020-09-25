@@ -140,7 +140,9 @@ def test_echo(peek_app):
 
 @patch.dict(os.environ, {'PEEK_PASSWORD': 'password'})
 def test_reset(peek_app):
+    old_vm = peek_app.vm
     peek_app.display.info = MagicMock()
+    peek_app.completer.init_api_specs = MagicMock()
 
     peek_app.process_input('let foo = 42')
     assert peek_app.vm.get_value('foo') == 42
@@ -153,6 +155,8 @@ def test_reset(peek_app):
     peek_app.process_input('reset')
     assert len(peek_app.es_client_manager.clients()) == 1
     assert str(peek_app.es_client_manager) == '*  [0] foo @ http://localhost:9200'
+    assert peek_app.vm is not old_vm
+    peek_app.completer.init_api_specs.assert_called_once()
 
 
 def test_randint(peek_app):
