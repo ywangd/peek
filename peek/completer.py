@@ -18,7 +18,7 @@ from peek.parser import PeekParser, ParserEvent, ParserEventType
 
 _logger = logging.getLogger(__name__)
 
-_HTTP_METHOD_COMPLETER = WordCompleter(['GET', 'POST', 'PUT', 'DELETE'], ignore_case=True)
+_HTTP_METHOD_COMPLETER = WordCompleter(['GET', 'POST', 'PUT', 'DELETE', 'HEAD'], ignore_case=True)
 
 _ES_API_CALL_OPTION_NAME_COMPLETER = WordCompleter(
     [w + '=' for w in sorted(['conn', 'runas', 'headers', 'xoid', 'quiet'])])

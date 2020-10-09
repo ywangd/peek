@@ -99,9 +99,9 @@ more ephemeral and are stored in Peek's ``history`` sqlite file.
 Connection and Session
 ----------------------
 
-In one Peek session, we can have multiple connections to one or more Elasticsearch clusters.
-Connections can be added or removed for a session. A connection is created by specify
-at least ``hosts`` of the cluster. For secured cluster, relevant credentials are required
+In a single Peek session, we can have multiple connections to one or more Elasticsearch clusters.
+Connections can be added or removed for a session on the fly. A connection is created by specify
+at least the ``hosts`` of the cluster. For secured cluster, relevant credentials are required
 as well. Note by default, connection creation is purely local and does **not** automatically
 test the connection. In another word, even if the remote host is down or the credentials are wrong,
 a connection will still be created successfully. This behaviour is default because Peek always
@@ -116,7 +116,7 @@ ad-hoc for a specific connection by setting ``test=true`` to the ``connect`` fun
 
   connect hosts='localhost:9200' username='elastic' test=true
 
-This behaviour can also be enabled by default with ``test_connection = True`` in
+Alterntaively, this behaviour can also be enabled persistently with ``test_connection = True`` in
 the ``peekrc`` file.
 
 For a single Peek session, we may end up having multiple connections. Sometimes, it is

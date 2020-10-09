@@ -29,7 +29,7 @@ To **enable auto-completions** for APIs, run the ``_download_api_specs`` builtin
 (note the leading underscore) to download API spec files from the
 `Kibana project <https://github.com/elastic/kibana>`_.
 
-Alternatively, it can also be installed from source with:
+Alternatively, peek can also be installed from source with:
 
 .. code-block:: bash
 

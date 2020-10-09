@@ -39,6 +39,8 @@ def test_es_api_calls(peek_lexer):
     do_test(peek_lexer, """get /some/path
 {}
 
+head my-index/_doc/1
+
 get /another/path a=b c=d
 {"foo": "bar"}
 {"ok": [42]}

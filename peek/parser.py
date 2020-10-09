@@ -17,7 +17,7 @@ from peek.lexers import PeekLexer, BlankLine, CurlyLeft, DictKey, Colon, \
 
 _logger = logging.getLogger(__name__)
 
-HTTP_METHODS = ['GET', 'PUT', 'POST', 'DELETE']
+HTTP_METHODS = ['GET', 'PUT', 'POST', 'DELETE', 'HEAD']
 
 _BIN_OP_ORDERS = {
     None: -1,

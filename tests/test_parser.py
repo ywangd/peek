@@ -76,13 +76,20 @@ def test_parser_shellout(parser):
 
 
 def test_parser_single_es_api_call(parser):
-    text = """get /abc"""
+    text = """get /abc
+Head /my-index/_doc/1"""
     nodes = parser.parse(text)
-    assert len(nodes) == 1
+    assert len(nodes) == 2
     n = nodes[0]
     assert isinstance(n, EsApiCallInlinePayloadNode)
     assert n.method == 'GET'
     assert n.path == '/abc'
+    assert len(n.dict_nodes) == 0
+
+    n = nodes[1]
+    assert isinstance(n, EsApiCallInlinePayloadNode)
+    assert n.method == 'HEAD'
+    assert n.path == '/my-index/_doc/1'
     assert len(n.dict_nodes) == 0
 
 

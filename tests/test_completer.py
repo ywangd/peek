@@ -89,6 +89,11 @@ def test_complete_http_method_and_func_name():
     )
 
     assert completions_has(
+        get_completions(Document('hea')),
+        Completion(text='HEAD', start_position=-3),
+    )
+
+    assert completions_has(
         get_completions(Document('''get abc
 ge''')),
         Completion(text='GET', start_position=-2),
