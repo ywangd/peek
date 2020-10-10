@@ -6,7 +6,7 @@ from pygments.style import Style
 from pygments.token import Keyword, Literal, String, Number, Punctuation, Name, Comment, Whitespace, Generic, Error, \
     Operator, Text
 
-from peek.common import PeekToken
+from peek.common import PeekToken, HTTP_METHODS
 from peek.errors import PeekSyntaxError
 
 Percent = Punctuation.Percent
@@ -93,7 +93,8 @@ class PeekLexer(RegexLexer):
         'root': [
             (r'(!)(.*)', bygroups(ShellOut, Literal)),
             (r'//.*', Comment.Single),
-            (r'(?i)(GET|POST|PUT|DELETE|HEAD)\b(' + W + '*)', bygroups(HttpMethod, Whitespace), 'api_path'),
+            (r'(?i)(' + '|'.join(m.upper() for m in HTTP_METHODS) + r')\b(' + W + '*)',
+             bygroups(HttpMethod, Whitespace), 'api_path'),
             # TODO: more keywords
             (r'(let)\b(' + W + '*)', bygroups(Let, Whitespace), 'let_args'),
             (r'(for)\b(' + W + '*)', bygroups(For, Whitespace), 'for_name'),

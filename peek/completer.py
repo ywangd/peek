@@ -8,7 +8,7 @@ from prompt_toolkit.contrib.completers import SystemCompleter
 from prompt_toolkit.document import Document
 from pygments.token import Error, Literal, String, Name
 
-from peek.common import PeekToken
+from peek.common import PeekToken, HTTP_METHODS
 from peek.completions import PayloadKeyCompletion
 from peek.config import config_location
 from peek.es_api_spec.spec import ApiSpec
@@ -18,7 +18,7 @@ from peek.parser import PeekParser, ParserEvent, ParserEventType
 
 _logger = logging.getLogger(__name__)
 
-_HTTP_METHOD_COMPLETER = WordCompleter(['GET', 'POST', 'PUT', 'DELETE', 'HEAD'], ignore_case=True)
+_HTTP_METHOD_COMPLETER = WordCompleter([m.upper() for m in HTTP_METHODS], ignore_case=True)
 
 _ES_API_CALL_OPTION_NAME_COMPLETER = WordCompleter(
     [w + '=' for w in sorted(['conn', 'runas', 'headers', 'xoid', 'quiet'])])

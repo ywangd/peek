@@ -9,7 +9,7 @@ from pygments.token import Token, Whitespace, String, Comment, Literal, Number, 
 from peek.ast import NameNode, FuncCallNode, KeyValueNode, StringNode, NumberNode, TextNode, DictNode, \
     ArrayNode, ShellOutNode, EsApiCallInlinePayloadNode, EsApiCallFilePayloadNode, BinOpNode, UnaryOpNode, GroupNode, \
     SymbolNode, LetNode, ForInNode
-from peek.common import PeekToken
+from peek.common import PeekToken, HTTP_METHODS
 from peek.errors import PeekSyntaxError
 from peek.lexers import PeekLexer, BlankLine, CurlyLeft, DictKey, Colon, \
     CurlyRight, Comma, BracketLeft, BracketRight, TripleS, TripleD, EOF, FuncName, Assign, HttpMethod, OptionName, \
@@ -17,7 +17,7 @@ from peek.lexers import PeekLexer, BlankLine, CurlyLeft, DictKey, Colon, \
 
 _logger = logging.getLogger(__name__)
 
-HTTP_METHODS = ['GET', 'PUT', 'POST', 'DELETE', 'HEAD']
+HTTP_METHODS = [m.upper() for m in HTTP_METHODS]
 
 _BIN_OP_ORDERS = {
     None: -1,
