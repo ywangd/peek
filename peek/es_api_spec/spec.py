@@ -237,6 +237,9 @@ class ApiSpec:
             if k not in rules and '*' in rules:
                 _logger.debug(f'Matching * for key: {k!r}')
                 rules = rules['*']
+            elif k not in rules and '{field}' in rules:
+                _logger.debug(f'Matching {{field}} for key: {k!r}')
+                rules = rules['{field}']
             else:
                 rules = rules.get(k, None)
 

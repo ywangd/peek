@@ -654,3 +654,16 @@ def test_payload_value_completion_130():
         completions,
         Completion(text='standard'),
     )
+
+
+def test_field_placeholder():
+    assert completions_has(get_completions(Document('''GET _search
+{
+  "query": {
+    "match": {
+      "a_field": {
+        ""
+      }
+    },
+  },
+}''', 70)), Completion(text='type'), Completion(text='zero_terms_query'))
