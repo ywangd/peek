@@ -27,6 +27,9 @@ auto_save_session = True
 # Automatically load last auto saved session
 auto_load_session = False
 
+# Command or script to execute after a session is started or reset
+on_startup =
+
 # Kibana project directory to look for API spec files
 kibana_dir =
 

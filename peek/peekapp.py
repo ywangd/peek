@@ -56,6 +56,7 @@ class PeekApp:
         self.is_pretty = True
         self._init_es_client_manager()
         self.ecm_backup_data = self.es_client_manager.to_dict()
+        self._on_startup()
 
     def run(self):
         try:
@@ -131,9 +132,10 @@ class PeekApp:
         return prompt(message=message, is_password=is_secret)
 
     def reset(self):
-        self._repopulate_clients(EsClientManager.from_dict(self, self.ecm_backup_data))
         self.completer.init_api_specs()
         self.vm = self._init_vm()
+        self._repopulate_clients(EsClientManager.from_dict(self, self.ecm_backup_data))
+        self._on_startup()
 
     def _get_message(self):
         idx = self.es_client_manager.index_current
@@ -291,3 +293,8 @@ class PeekApp:
         on_connection_add = self.config.get('on_connection_add')
         if on_connection_add is not None:
             self.process_input(on_connection_add)
+
+    def _on_startup(self):
+        on_startup = self.config.get('on_startup')
+        if on_startup is not None:
+            self.process_input(on_startup)

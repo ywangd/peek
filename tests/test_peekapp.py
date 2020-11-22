@@ -3,7 +3,7 @@
 """Tests for `peek` package."""
 import json
 import os
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, call
 
 import pytest
 from configobj import ConfigObj
@@ -205,6 +205,25 @@ def test_app_can_start_with_no_connection(config_obj):
 
         assert len(app.es_client_manager.clients()) == 0
         app._get_message()  # as long as it does not error
+
+
+@patch('peek.peekapp.PromptSession', MagicMock())
+def test_app_will_call_on_startup(config_obj):
+    config_obj['on_connection_add'] = 'echo "on_startup"'
+    mock_history = MagicMock()
+    MockHistory = MagicMock(return_value=mock_history)
+    mock_display = MagicMock()
+    MockDisplay = MagicMock(return_value=mock_display)
+
+    def get_config(_, extra_config):
+        config_obj.merge(ConfigObj(extra_config))
+        return config_obj
+
+    with patch('peek.peekapp.get_config', get_config), patch('peek.peekapp.SqLiteHistory', MockHistory), \
+         patch('peek.peekapp.Display', MockDisplay):
+        app = PeekApp(extra_config_options=('log_level=None', 'use_keyring=False'))
+        app.reset()
+        mock_display.info.assert_has_calls([call('"on_startup"'), call('"on_startup"')])
 
 
 @pytest.fixture
