@@ -50,6 +50,9 @@ Additionally, Peek also has a few of its own keyboard shortcuts:
 * ``ESC + Enter`` - (press ``ESC`` then press ``Enter``) immediately trigger execution of current input
 * ``ESC + c`` - Copy current input to system clipboard (NOTE this requires
   `full installation <installation.rst#stable-release>`_).
+* ``ESC + a`` - Go to the beginning of the current input buffer
+* ``ESC + e`` - Go to the end of the current input buffer
+
 
 The ``peekrc`` File
 -------------------
@@ -185,7 +188,8 @@ a bit more details on the specified function.
 External functions
 ^^^^^^^^^^^^^^^^^^
 Functions are simple Python callables. They can be defined in external files, loaded by Peek
-and become available. Following is a simple external function that just print "hello world":
+and become available. Following is a simple external function of name ``hello` that just prints
+"hello world" when invoked:
 
 .. code-block:: python
 

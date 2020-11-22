@@ -67,6 +67,14 @@ def key_bindings(app):
         event.current_buffer.reset()
         event.current_buffer.validate_and_handle()
 
+    @kb.add('escape', 'a')
+    def _(event: KeyPressEvent):
+        event.current_buffer.cursor_position = 0
+
+    @kb.add('escape', 'e')
+    def _(event: KeyPressEvent):
+        event.current_buffer.cursor_position = len(event.current_buffer.text)
+
     @kb.add('c-d')
     def _(event):
         app.signal_exit()
