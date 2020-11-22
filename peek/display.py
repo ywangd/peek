@@ -39,8 +39,11 @@ class Display:
                     (PeekStyle.styles[TipsMinor], header_text)
                 ]),
                 plain_source=f'=== {header_text}')
-        source, plain_source = self._try_jsonify(source)  # TODO: try more types
-        self._tee_print(source, plain_source=plain_source)
+        if isinstance(source, FormattedText):
+            self._tee_print(source)
+        else:
+            source, plain_source = self._try_jsonify(source)  # TODO: try more types
+            self._tee_print(source, plain_source=plain_source)
 
     def error(self, source, header_text=''):
         if source is None:
@@ -52,7 +55,10 @@ class Display:
                     FormattedText([(PeekStyle.styles[TipsMinor], header_text)])
                 ]),
                 plain_source=f'--- {header_text}')
-        self._tee_print(source, plain_source=source)
+        if isinstance(source, FormattedText):
+            self._tee_print(source)
+        else:
+            self._tee_print(source, plain_source=source)
 
     def _try_jsonify(self, source):
         # If it is a string, first check whether it can be decoded as JSON

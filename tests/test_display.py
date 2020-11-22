@@ -1,7 +1,7 @@
 from io import StringIO
 from unittest.mock import MagicMock, patch
 
-from prompt_toolkit.formatted_text import PygmentsTokens
+from prompt_toolkit.formatted_text import PygmentsTokens, FormattedText
 
 from peek.display import Display
 from peek.natives import EXPORTS
@@ -99,6 +99,21 @@ def test_display_will_not_print_header_when_in_batch_mode():
             display.info(1)
             print_formatted_text.assert_not_called()
             mock_print.assert_called_once_with('1', file=mock_stdout, end='')
+
+
+def test_display_will_support_formatted_text():
+    print_formatted_text = MagicMock()
+    with patch('peek.display.print_formatted_text', print_formatted_text):
+        mock_app.batch_mode = False
+        mock_app.capture.file = MagicMock(return_value=None)
+        source_message = FormattedText()
+        display.info(source_message)
+        print_formatted_text.assert_called_with(
+            source_message, style=display.style, style_transformation=display.style_transformation)
+        source_error = FormattedText()
+        display.error(source_error)
+        print_formatted_text.assert_called_with(
+            source_error, style=display.style, style_transformation=display.style_transformation)
 
 
 class _PygmentsToken:
