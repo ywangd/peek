@@ -365,7 +365,11 @@ class PeekVM(Visitor):
             return
         sys.path.insert(0, os.path.dirname(fields[0]))
         try:
-            m = importlib.import_module(os.path.basename(fields[0]))
+            module_name = os.path.basename(fields[0])
+            if module_name in sys.modules:
+                m = importlib.reload(sys.modules[module_name])
+            else:
+                m = importlib.import_module(module_name)
             exports = getattr(m, 'EXPORTS', None)
             if isinstance(exports, dict):
                 self.context.update(exports)
