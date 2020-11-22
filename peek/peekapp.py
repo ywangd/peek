@@ -136,14 +136,20 @@ class PeekApp:
         self.vm = self._init_vm()
 
     def _get_message(self):
-        idx = self.es_client_manager.clients().index(self.es_client_manager.current)
-        info_line = f' [{idx}] {self.es_client_manager.current}'
-        if len(info_line) > 100:
-            info_line = info_line[:97] + '...'
-        return FormattedText([
-            (PeekStyle.styles[Heading], '>>>'),
-            (PeekStyle.styles[TipsMinor], info_line + '\n'),
-        ])
+        idx = self.es_client_manager.index_current
+        if idx is None:
+            return FormattedText([
+                (PeekStyle.styles[Heading], '>>>'),
+                (PeekStyle.styles[TipsMinor], ' No Connection\n'),
+            ])
+        else:
+            info_line = f' [{idx}] {self.es_client_manager.current}'
+            if len(info_line) > 100:
+                info_line = info_line[:97] + '...'
+            return FormattedText([
+                (PeekStyle.styles[Heading], '>>>'),
+                (PeekStyle.styles[TipsMinor], info_line + '\n'),
+            ])
 
     def _get_default_text(self):
         text = self.preserved_text
@@ -208,6 +214,10 @@ class PeekApp:
             )
 
     def _init_es_client_manager(self):
+        if self.cli_ns.zero_connection:
+            self._repopulate_clients(EsClientManager())
+            return
+
         options = {}
         keys = [
             'name',
@@ -235,11 +245,12 @@ class PeekApp:
             _logger.info('Auto-loading connection state')
             data = self.history.load_session(AUTO_SAVE_NAME)
             if data is not None:
-                return self._repopulate_clients(EsClientManager.from_dict(self, json.loads(data)))
+                self._repopulate_clients(EsClientManager.from_dict(self, json.loads(data)))
+                return
 
         es_client_manager = EsClientManager()
         es_client_manager.add(connect(self, **options))
-        return self._repopulate_clients(es_client_manager)
+        self._repopulate_clients(es_client_manager)
 
     def _repopulate_clients(self, m: EsClientManager):
         """
@@ -251,7 +262,6 @@ class PeekApp:
         idx_current = m.index_current
         if idx_current is not None and idx_current < len(self.es_client_manager.clients()):
             self.es_client_manager.set_current(idx_current)
-        return self.es_client_manager
 
     def _init_vm(self):
         return PeekVM(self)

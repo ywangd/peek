@@ -50,6 +50,8 @@ def main():
                         help='Force prompting for password')
     parser.add_argument('--no_prompt', action='store_true', default=argparse.SUPPRESS,
                         help='Do not prompt for password')
+    parser.add_argument('-z', '--zero_connection', action='store_true',
+                        help='Start the session with no connection')
 
     parser.add_argument('-V', '--version', action='version',
                         version=__version__)

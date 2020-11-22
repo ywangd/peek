@@ -82,6 +82,7 @@ def test_app_will_not_auto_load_session_if_connection_is_specified_on_cli(config
         def __init__(self):
             self.username = 'foo'
             self.password = 'password'
+            self.zero_connection = False
 
     with patch('peek.peekapp.get_config', get_config), patch('peek.peekapp.SqLiteHistory', MockHistory):
         PeekApp(extra_config_options=('log_level=None', 'use_keyring=False'), cli_ns=MockCliNs())
@@ -183,6 +184,27 @@ def test_app_will_respect_on_connection_add_callback(config_obj):
         app.config['on_connection_add'] = 'echo "second_time"'
         app.process_input('connect')
         mock_display.info.assert_any_call('"second_time"')
+
+
+@patch('peek.peekapp.PromptSession', MagicMock())
+def test_app_can_start_with_no_connection(config_obj):
+    mock_history = MagicMock()
+    MockHistory = MagicMock(return_value=mock_history)
+
+    def get_config(_, extra_config):
+        config_obj.merge(ConfigObj(extra_config))
+        return config_obj
+
+    class MockCliNs:
+
+        def __init__(self):
+            self.zero_connection = True
+
+    with patch('peek.peekapp.get_config', get_config), patch('peek.peekapp.SqLiteHistory', MockHistory):
+        app = PeekApp(extra_config_options=('log_level=None', 'use_keyring=False'), cli_ns=MockCliNs())
+
+        assert len(app.es_client_manager.clients()) == 0
+        app._get_message()  # as long as it does not error
 
 
 @pytest.fixture

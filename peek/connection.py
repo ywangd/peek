@@ -339,8 +339,6 @@ class EsClientManager:
             idx = self._clients.index(self.get_client(x))
             self.remove_client(idx)
         elif isinstance(x, int):
-            if len(self._clients) == 1:
-                raise PeekError('Cannot delete the last connection')
             if x < 0 or x >= len(self._clients):
                 raise PeekError(f'Attempt to remove ES client at invalid index [{x}]')
             removed = self._clients.pop(x)

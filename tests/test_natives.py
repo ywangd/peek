@@ -29,6 +29,7 @@ def peek_app():
         def __init__(self):
             self.username = 'foo'
             self.password = 'password'
+            self.zero_connection = False
 
     with patch('peek.peekapp.PromptSession', MagicMock()), \
          patch('peek.peekapp.get_config', get_config), \
