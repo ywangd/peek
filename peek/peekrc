@@ -9,6 +9,9 @@ use_keyring = True
 # Test server connection by issuing an authenticate request after invoking the connect function
 test_connection = False
 
+# Command or script to execute when a new connection is added
+on_connection_add =
+
 # Pretty print the response JSON
 pretty_print = True
 

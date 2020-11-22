@@ -2,7 +2,7 @@ import json
 import logging
 import os
 from abc import ABCMeta, abstractmethod
-from typing import List
+from typing import List, Iterable
 
 from configobj import Section
 from elasticsearch import Elasticsearch, AuthenticationException
@@ -252,16 +252,37 @@ class RefreshingEsClient(BaseClient):
         )
 
 
+class DelegatingListener:
+
+    def __init__(self, on_add=None, on_set=None, on_remove=None):
+        self._on_add = on_add
+        self._on_set = on_set
+        self._on_remove = on_remove
+
+    def on_add(self, m):
+        return self._on_add(m) if self._on_add is not None else True
+
+    def on_set(self, m):
+        return self._on_set(m) if self._on_set is not None else True
+
+    def on_remove(self, m, c):
+        return self._on_remove(m, c) if self._on_remove is not None else True
+
+
 class EsClientManager:
 
-    def __init__(self):
+    def __init__(self, listeners: Iterable[DelegatingListener] = ()):
         self._clients: List[EsClient] = []
         self._index_current = None
+        self.listeners = listeners
 
     def add(self, client):
         self._clients.append(client)
         self._index_current = len(self._clients) - 1
         # TODO: maintain size
+        for listener in self.listeners:
+            if listener.on_add(self) is False:
+                break
 
     @property
     def index_current(self):
@@ -285,6 +306,9 @@ class EsClientManager:
             self._index_current = x
         else:
             raise ValueError(f'Connection must be specified by either name or index, got {x!r}')
+        for listener in self.listeners:
+            if listener.on_set(self) is False:
+                break
 
     def clients(self):
         return self._clients
@@ -319,7 +343,7 @@ class EsClientManager:
                 raise PeekError('Cannot delete the last connection')
             if x < 0 or x >= len(self._clients):
                 raise PeekError(f'Attempt to remove ES client at invalid index [{x}]')
-            self._clients.pop(x)
+            removed = self._clients.pop(x)
             if not self._clients:
                 self._index_current = None
                 return
@@ -327,6 +351,9 @@ class EsClientManager:
                 self._index_current -= 1
             elif x == self._index_current:
                 self._index_current = 0
+            for listener in self.listeners:
+                if listener.on_remove(self, removed) is False:
+                    break
         else:
             raise ValueError(f'Connection must be specified by either name or index, got {x!r}')
 

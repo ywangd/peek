@@ -19,7 +19,7 @@ from peek.common import NONE_NS, AUTO_SAVE_NAME
 from peek.completer import PeekCompleter
 from peek.completions import monkey_patch_completion_state
 from peek.config import get_config, config_location
-from peek.connection import EsClientManager, connect
+from peek.connection import EsClientManager, connect, DelegatingListener
 from peek.display import Display
 from peek.errors import PeekError, PeekSyntaxError
 from peek.history import SqLiteHistory
@@ -46,17 +46,16 @@ class PeekApp:
         self.cli_ns = cli_ns
         self._init_logging()
         self.history = SqLiteHistory(self.config.as_int('history_max'))
-        self.es_client_manager = self._init_es_client_manager()
-        self.ecm_backup_data = self.es_client_manager.to_dict()
         self.completer = PeekCompleter(self)
-        self.prompt = self._init_prompt()
-        monkey_patch_completion_state()
         self.display = Display(self)
         self.parser = PeekParser()
         self.vm = self._init_vm()
-
+        self.prompt = self._init_prompt()
+        monkey_patch_completion_state()
         # TODO: better name for signal payload json reformat
         self.is_pretty = True
+        self._init_es_client_manager()
+        self.ecm_backup_data = self.es_client_manager.to_dict()
 
     def run(self):
         try:
@@ -132,7 +131,7 @@ class PeekApp:
         return prompt(message=message, is_password=is_secret)
 
     def reset(self):
-        self.es_client_manager = EsClientManager.from_dict(self, self.ecm_backup_data)
+        self._repopulate_clients(EsClientManager.from_dict(self, self.ecm_backup_data))
         self.completer.init_api_specs()
         self.vm = self._init_vm()
 
@@ -189,7 +188,6 @@ class PeekApp:
                 clipboard = None
 
             return PromptSession(
-                message=self._get_message(),
                 style=style_from_pygments_cls(PeekStyle),
                 lexer=PygmentsLexer(PeekLexer),
                 auto_suggest=AutoSuggestFromHistory(),
@@ -237,11 +235,23 @@ class PeekApp:
             _logger.info('Auto-loading connection state')
             data = self.history.load_session(AUTO_SAVE_NAME)
             if data is not None:
-                return EsClientManager.from_dict(self, json.loads(data))
+                return self._repopulate_clients(EsClientManager.from_dict(self, json.loads(data)))
 
         es_client_manager = EsClientManager()
         es_client_manager.add(connect(self, **options))
-        return es_client_manager
+        return self._repopulate_clients(es_client_manager)
+
+    def _repopulate_clients(self, m: EsClientManager):
+        """
+        Detour to populate the clients due to dependency, e.g. on_add callback gets a reference of the App
+        """
+        self.es_client_manager = EsClientManager(listeners=[DelegatingListener(on_add=self._on_client_add)])
+        for es_client in m.clients():
+            self.es_client_manager.add(es_client)
+        idx_current = m.index_current
+        if idx_current is not None and idx_current < len(self.es_client_manager.clients()):
+            self.es_client_manager.set_current(idx_current)
+        return self.es_client_manager
 
     def _init_vm(self):
         return PeekVM(self)
@@ -266,3 +276,8 @@ class PeekApp:
 
     def _should_support_mouse(self) -> bool:
         return self.config.as_bool('mouse_support')
+
+    def _on_client_add(self, es_client_manager: EsClientManager):
+        on_connection_add = self.config.get('on_connection_add')
+        if on_connection_add is not None:
+            self.process_input(on_connection_add)

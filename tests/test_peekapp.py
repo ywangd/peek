@@ -164,6 +164,27 @@ def test_app_will_not_auto_save_session_when_disabled(config_obj):
     mock_history.save_session.assert_not_called()
 
 
+@patch('peek.peekapp.PromptSession', MagicMock())
+def test_app_will_respect_on_connection_add_callback(config_obj):
+    config_obj['on_connection_add'] = 'echo "on_connection_add"'
+    mock_history = MagicMock()
+    MockHistory = MagicMock(return_value=mock_history)
+    mock_display = MagicMock()
+    MockDisplay = MagicMock(return_value=mock_display)
+
+    def get_config(_, extra_config):
+        config_obj.merge(ConfigObj(extra_config))
+        return config_obj
+
+    with patch('peek.peekapp.get_config', get_config), patch('peek.peekapp.SqLiteHistory', MockHistory), \
+         patch('peek.peekapp.Display', MockDisplay):
+        app = PeekApp(extra_config_options=('log_level=None', 'use_keyring=False'))
+        mock_display.info.assert_called_with('"on_connection_add"')
+        app.config['on_connection_add'] = 'echo "second_time"'
+        app.process_input('connect')
+        mock_display.info.assert_any_call('"second_time"')
+
+
 @pytest.fixture
 def config_obj():
     from peek import __file__ as package_root

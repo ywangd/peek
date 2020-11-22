@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch, call
 
 import pytest
 
-from peek.connection import connect, EsClient, RefreshingEsClient, EsClientManager
+from peek.connection import connect, EsClient, RefreshingEsClient, EsClientManager, DelegatingListener
 from peek.errors import PeekError
 
 
@@ -172,7 +172,13 @@ def test_es_client_manager():
     mock_app = MagicMock(name='PeekApp')
     mock_app.config.as_bool = MagicMock(return_value=False)
 
-    es_client_manager = EsClientManager()
+    on_add = MagicMock()
+    on_set = MagicMock()
+    on_remove = MagicMock()
+    listener_0 = DelegatingListener(on_add=on_add, on_set=on_set, on_remove=on_remove)
+    listener_1 = DelegatingListener(on_add=on_add, on_set=lambda m: False)
+    listener_2 = DelegatingListener(on_add=on_add, on_set=on_set, on_remove=on_remove)
+    es_client_manager = EsClientManager(listeners=[listener_0, listener_1, listener_2])
     local_admin_0 = EsClient(name='local-admin', hosts='localhost:9200', username='admin', password='password')
     local_foo_1 = EsClient(name='local-foo', hosts='localhost:9200', username='foo', password='password')
     local_bar_saml_2 = RefreshingEsClient(parent=local_admin_0, username='bar@example.com', access_token='access_token',
@@ -183,6 +189,7 @@ def test_es_client_manager():
                                        name='remote-dangling-oidc')
 
     es_client_manager.add(local_admin_0)
+    on_add.assert_has_calls([call(es_client_manager), call(es_client_manager), call(es_client_manager)])
     es_client_manager.add(local_foo_1)
     es_client_manager.add(local_bar_saml_2)
     es_client_manager.add(remote_admin_3)
@@ -191,6 +198,7 @@ def test_es_client_manager():
     assert remote_oidc_4 == es_client_manager.current
 
     es_client_manager.set_current(2)
+    on_set.assert_has_calls([call(es_client_manager)])
     assert local_bar_saml_2 == es_client_manager.current
 
     es_client_manager.set_current('remote-admin')
@@ -235,3 +243,7 @@ def test_es_client_manager():
     es_client_manager.move_current_to(4)
     assert es_client_manager.current == remote_admin_3
     assert es_client_manager.get_client(4) == remote_admin_3
+
+    removed = es_client_manager.get_client(1)
+    es_client_manager.remove_client(1)
+    on_remove.assert_has_calls([call(es_client_manager, removed), call(es_client_manager, removed)])
