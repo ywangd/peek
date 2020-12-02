@@ -5,9 +5,11 @@ import logging
 import operator
 import os
 import sys
+import warnings
 from numbers import Number
 from subprocess import Popen
 
+import elasticsearch
 from pygments.token import Name
 
 from peek.ast import Visitor, EsApiCallNode, DictNode, KeyValueNode, ArrayNode, NumberNode, \
@@ -16,6 +18,8 @@ from peek.ast import Visitor, EsApiCallNode, DictNode, KeyValueNode, ArrayNode, 
 from peek.errors import PeekError
 from peek.natives import EXPORTS
 from peek.visitors import Ref
+
+warnings_available = elasticsearch.__version__ >= (7, 7, 0)
 
 _logger = logging.getLogger(__name__)
 
@@ -137,7 +141,11 @@ class PeekVM(Visitor):
             return
 
         try:
-            response = es_client.perform_request(node.method, path, payload, headers=headers if headers else None)
+            with warnings.catch_warnings(record=True) as ws:
+                response = es_client.perform_request(node.method, path, payload, headers=headers if headers else None)
+            for w in ws:
+                if not quiet and self._should_show_warnings(w):
+                    self.app.display.warn(str(w.message))
             self.context['_'] = _maybe_decode_json(response)
             if not quiet:
                 self.app.display.info(response, header_text=self._get_header_text(conn, runas))
@@ -387,6 +395,13 @@ class PeekVM(Visitor):
         if runas is not None:
             parts.append(f'runas={runas!r}')
         return ' '.join(parts)
+
+    def _should_show_warnings(self, w):
+        if warnings_available and self.app.config.as_bool('show_warnings'):
+            from elasticsearch.exceptions import ElasticsearchDeprecationWarning
+            return w.category == ElasticsearchDeprecationWarning
+        else:
+            return False
 
 
 def _maybe_decode_json(r):

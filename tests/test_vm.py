@@ -146,3 +146,25 @@ def test_payload_file(peek_vm, parser):
         '{"category": "click", "tag": 10}\n',
         headers=None,
     )
+
+
+def test_warning_header(peek_vm, parser):
+    import elasticsearch
+    if elasticsearch.__version__ < (7, 7, 0):
+        return
+
+    import warnings
+    from elasticsearch.exceptions import ElasticsearchDeprecationWarning
+
+    peek_vm.app.display.warn = MagicMock(return_value=None)
+    es_client = peek_vm.app.es_client_manager.get_client()
+
+    message = 'This is a warning message'
+
+    def perform_request(*args, **kwargs):
+        warnings.warn(message, ElasticsearchDeprecationWarning)
+
+    es_client.perform_request = MagicMock(side_effect=perform_request)
+
+    peek_vm.execute_node(parser.parse('GET /')[0])
+    peek_vm.app.display.warn.assert_called_with(message)

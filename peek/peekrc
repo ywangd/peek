@@ -15,6 +15,9 @@ on_connection_add =
 # Pretty print the response JSON
 pretty_print = True
 
+# Output response warning headers
+show_warnings = True
+
 # Maximum number of history entries to keep
 history_max = 10000
 

@@ -60,6 +60,18 @@ class Display:
         else:
             self._tee_print(source, plain_source=source)
 
+    def warn(self, source):
+        if source is None:
+            return
+        if isinstance(source, FormattedText):
+            self._tee_print(source)
+        else:
+            self._tee_print(
+                FormattedText([
+                    ('#ffdf5d', f'WARNING: {source}'),
+                ]),
+                plain_source=f'WARNING: {source}')
+
     def _try_jsonify(self, source):
         # If it is a string, first check whether it can be decoded as JSON
         if isinstance(source, str):
