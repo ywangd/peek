@@ -60,11 +60,17 @@ class ConnectionFunc:
             'info': app.es_client_manager.index_current,
             'remove': app.es_client_manager.index_current,
             'keep': app.es_client_manager.index_current,
+            'wipe': True,
         })
 
         current = current if current is not None else options.get('current', None)
         if current is not None:
             app.es_client_manager.set_current(current)
+
+        wipe = options.get('wipe', None)
+        if wipe:
+            for _ in range(len(app.es_client_manager.clients())):
+                app.es_client_manager.remove_client()
 
         remove = options.get('remove', None)
         if remove is not None:
@@ -91,7 +97,7 @@ class ConnectionFunc:
     @property
     def options(self):
         return {'current': None, 'remove': None, 'move': None, 'rename': None, 'info': None, 'keep': None,
-                '@info': None, '@remove': None, '@keep': None}
+                '@info': None, '@remove': None, '@keep': None, '@wipe': None}
 
     @property
     def description(self):
