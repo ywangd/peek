@@ -207,7 +207,7 @@ class ApiSpec:
         return [], {}  # catch all
 
     def _find_rules_for_method_and_url_path(self, method: str, path_tokens: List[PeekToken]):
-        token_stream = [t.value for t in path_tokens if t.ttype is not Slash]
+        token_stream = [t.value for t in path_tokens if t.ttype is PathPart]
         try:
             api_spec = next(matchable_specs(method, token_stream, self.specs,
                                             required_field='data_autocomplete_rules'))

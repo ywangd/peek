@@ -250,6 +250,12 @@ def test_payload_completion_000():
         Completion(text="role_descriptors"),
     )
 
+    assert completions_has(
+        get_completions(Document('''POST _security/api_key?refresh=wait_for
+{""}''', 42)),
+        Completion(text="role_descriptors"),
+    )
+
 
 def test_payload_completion_001():
     assert completions_has(
