@@ -306,17 +306,6 @@ class PeekParser:
                     self._publish_event(ParserEventType.BEFORE_FUNC_OPTION_VALUE)
                     kwarg_nodes.append(KeyValueNode(n, self._parse_expr()))
                     self._publish_event(ParserEventType.AFTER_FUNC_OPTION_VALUE)
-                elif self._peek_token().ttype is ParenLeft:  # nested function expr
-                    self._consume_token(ParenLeft)
-                    sub_symbol_nodes, sub_arg_nodes, sub_kwarg_nodes = self._parse_func_call_args(is_stmt=False)
-                    arg_nodes.append(FuncCallNode(
-                        n,
-                        ArrayNode(sub_symbol_nodes),
-                        ArrayNode(sub_arg_nodes),
-                        DictNode(sub_kwarg_nodes),
-                        is_stmt=False
-                    ))
-                    self._consume_token(ParenRight)
                 else:
                     arg_nodes.append(self._parse_expr_after_left_operand(n))
             elif self._peek_token().ttype is At:
