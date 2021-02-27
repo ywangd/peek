@@ -1,6 +1,6 @@
 import json
 import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, call
 
 import pytest
 from configobj import ConfigObj
@@ -173,3 +173,12 @@ def test_randint(peek_app):
 
     peek_app.process_input('let fiz = randint()')
     assert 0 <= peek_app.vm.get_value('bar') < 100
+
+
+def test_getenv(peek_app):
+    peek_app.display.info = MagicMock()
+    mock_os_getenv = MagicMock()
+    with patch('os.getenv', mock_os_getenv):
+        peek_app.process_input('let a = getenv("CODE")')
+        peek_app.process_input('let b = getenv("FOO")')
+    mock_os_getenv.assert_has_calls([call("CODE", ''), call("FOO", '')])

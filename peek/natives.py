@@ -278,6 +278,16 @@ class CaptureFunc:
         return 'Capture session IO into a file'
 
 
+class GetEnvFunc:
+    def __call__(self, app, name):
+        return os.getenv(name, '')
+
+    @property
+    def description(self):
+        return 'Get value of the environmental variable of the given name. ' \
+               'Returns an empty string if name does not exist'
+
+
 class ResetFunc:
 
     def __call__(self, app, **options):
@@ -379,6 +389,7 @@ EXPORTS = {
     'range': RangeFunc(),
     'randint': RandIntFunc(),
     'capture': CaptureFunc(),
+    'getenv': GetEnvFunc(),
     'reset': ResetFunc(),
     'exit': ExitFunc(),
     'help': HelpFunc(),
