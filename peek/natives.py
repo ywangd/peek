@@ -5,6 +5,7 @@ import random
 
 from configobj import ConfigObj
 
+from peek import __version__
 from peek.common import DEFAULT_SAVE_NAME
 from peek.config import config_location
 from peek.connection import ConnectFunc, EsClientManager
@@ -328,6 +329,17 @@ class HelpFunc:
         return 'List available functions and show help message of a function'
 
 
+class VersionFunc:
+
+    def __call__(self, app):
+        import elasticsearch
+        return f'"Peek (v{__version__})"\n"elasticsearch-py (v{elasticsearch.__versionstr__})"'
+
+    @property
+    def description(self):
+        return 'Show version info of the installation'
+
+
 class DownloadApiSpecsFunc:
 
     def __call__(self, app, **options):
@@ -393,6 +405,7 @@ EXPORTS = {
     'reset': ResetFunc(),
     'exit': ExitFunc(),
     'help': HelpFunc(),
+    'version': VersionFunc(),
     '_download_api_specs': DownloadApiSpecsFunc(),
     'saml_authenticate': SamlAuthenticateFunc(),
     'oidc_authenticate': OidcAuthenticateFunc(),

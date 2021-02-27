@@ -182,3 +182,13 @@ def test_getenv(peek_app):
         peek_app.process_input('let a = getenv("CODE")')
         peek_app.process_input('let b = getenv("FOO")')
     mock_os_getenv.assert_has_calls([call("CODE", ''), call("FOO", '')])
+
+
+def test_version(peek_app):
+    peek_app.display.info = MagicMock()
+    peek_app.process_input('let v = version()')
+    value = peek_app.vm.get_value('v')
+    assert 'Peek' in value
+    from peek import __version__
+    assert f'v{__version__}' in value
+    assert 'elasticsearch-py' in value
