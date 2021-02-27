@@ -65,9 +65,11 @@ _UNARY_OP_FUNCS = {
 
 class PeekVM(Visitor):
 
-    def __init__(self, app):
+    def __init__(self, app, bin_op_funcs=None, unary_op_funcs=None):
         super().__init__()
         self.app = app
+        self._bin_op_funcs = bin_op_funcs or _BIN_OP_FUNCS
+        self._unary_op_funcs = unary_op_funcs or _UNARY_OP_FUNCS
         self.context = {}
         self.builtins = EXPORTS
         if self.app.config.as_bool('load_extension'):
@@ -290,7 +292,7 @@ class PeekVM(Visitor):
         with self.consumer(lambda v: right_operand.set(v)):
             node.right_node.accept(self)
 
-        op_func = _BIN_OP_FUNCS.get(node.op_token.value, None)
+        op_func = self._bin_op_funcs.get(node.op_token.value, None)
         if op_func is None:
             raise PeekError(f'Unknown binary operator: {node.op_token.value!r}')
         self.consume(op_func(left_operand.get(), right_operand.get()))
@@ -300,7 +302,7 @@ class PeekVM(Visitor):
         with self.consumer(lambda v: operand.set(v)):
             node.operand_node.accept(self)
 
-        op_func = _UNARY_OP_FUNCS.get(node.op_token.value, None)
+        op_func = self._unary_op_funcs.get(node.op_token.value, None)
         if op_func is None:
             raise PeekError(f'Unknown unary operator: {node.op_token.value!r}')
         self.consume(op_func(operand.get()))

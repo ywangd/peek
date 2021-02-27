@@ -1,7 +1,9 @@
+import functools
 import itertools
 import logging
 import os
 import re
+from typing import Iterable
 from unittest.mock import MagicMock
 
 from configobj import ConfigObj
@@ -11,7 +13,7 @@ from peek.config import config_location
 from peek.parser import PeekParser
 from peek.visitors import FormattingVisitor
 from peek.visitors import Ref
-from peek.vm import PeekVM
+from peek.vm import PeekVM, _BIN_OP_FUNCS
 
 _CONST_SIMPLE_PATTERN = re.compile(r'^(export )?const (?P<name>\w+)[^=]* = (?P<rest>{[^;]*);?')
 _CONST_COMPLEX_PATTERN = re.compile(r'^(export )?const (?P<name>\w+)[^=]* = '
@@ -83,7 +85,11 @@ class JsSpecParser:
         sources = [f'// {file_name}']
         state = ''
         for line in file_content.splitlines():
-            stripped = line.strip().replace('...', '"...": @')
+            stripped = line.strip()
+            if '...[' in stripped:
+                stripped = stripped.replace('...[', '_.splat % [')
+            elif '...' in stripped:
+                stripped = stripped.replace('...', '"...": @')
             if state == 'comments':
                 if stripped.startswith('*/'):
                     state = ''
@@ -180,6 +186,9 @@ class JsSpecParser:
         if stripped == 'function (s) {':
             sources.append('{')
             return True
+        elif 'function (s) {' in stripped:
+            sources.append(stripped.replace('function (s) {', '{'))
+            return True
         else:
             return False
 
@@ -249,13 +258,34 @@ mock_app.parser = PeekParser()
 class JsSpecEvaluator(PeekVM):
 
     def __init__(self):
-        super().__init__(mock_app)
+        def flexible_dot(left_operand, right_operand):
+            if isinstance(left_operand, list) and right_operand == 'sort':
+                return lambda app: _sort(left_operand)
+            elif isinstance(left_operand, list) and right_operand == 'flatMap':
+                return lambda app, func: functools.partial(_flat_map, left_operand)(app, func)
+            else:
+                return _BIN_OP_FUNCS['.'](left_operand, right_operand)
+
+        def flexible_mod(left_operand, right_operand):
+            if left_operand == self.builtins['_']['splat']:
+                return left_operand(right_operand)
+            else:
+                return _BIN_OP_FUNCS['%'](left_operand, right_operand)
+
+        bin_op_funcs = dict(_BIN_OP_FUNCS)
+        bin_op_funcs.update({
+            '.': flexible_dot,
+            '%': flexible_mod,
+        })
+
+        super().__init__(mock_app, bin_op_funcs=bin_op_funcs)
         mock_app.vm = self
         self.builtins = {
             '_': {
                 'defaults': _defaults,
                 'flatten': _flatten,
                 'map': _map,
+                'splat': self._splat,
             },
             'return': lambda _, v: v,
             'specService': lambda _, v: v,
@@ -307,6 +337,13 @@ class JsSpecEvaluator(PeekVM):
                 node.right_node = TextNode(node.right_node.token)
         super(JsSpecEvaluator, self)._unwind_lhs(node)
 
+    def _splat(self, values: Iterable):
+        if not isinstance(values, Iterable):
+            raise ValueError(f'Expect Iterable, got {values!r}')
+        for v in values[:-1]:
+            self.consume(v)
+        return values[-1]
+
 
 def add_global_autocomplete_rules(app, name, rule):
     app.vm.context['GLOBAL'][name] = rule
@@ -340,3 +377,12 @@ def _flatten(app, *args):
     This is specific to mappings.properties.format. NOT a generic flatten function
     """
     return list(itertools.chain(*args[0][0]))
+
+
+def _flat_map(values, app, func):
+    results = _map(app, values, func)
+    return list(itertools.chain(*results))
+
+
+def _sort(values):
+    return sorted(values)
