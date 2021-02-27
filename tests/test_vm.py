@@ -6,7 +6,7 @@ from configobj import ConfigObj
 
 from peek.errors import PeekError
 from peek.parser import PeekParser
-from peek.vm import PeekVM
+from peek.vm import PeekVM, _maybe_encode_date_math
 
 
 @pytest.fixture
@@ -73,6 +73,9 @@ def test_peek_vm_es_api_call(peek_vm, parser):
     assert_called_with(peek_vm, 'world')
     peek_vm.execute_node(parser.parse('GET ("foo" + "/" + 42)')[0])
     peek_vm.app.es_client_manager.current.perform_request.assert_called_with('GET', '/foo/42', None, headers=None)
+    peek_vm.execute_node(parser.parse('PUT /<my-index-{now/d}>')[0])
+    peek_vm.app.es_client_manager.current.perform_request.assert_called_with('PUT', '/%3Cmy-index-%7Bnow%2Fd%7D%3E',
+                                                                             None, headers=None)
 
 
 def test_es_api_call_quiet(peek_vm, parser):
@@ -170,3 +173,10 @@ def test_warning_header(peek_vm, parser):
 
     peek_vm.execute_node(parser.parse('GET /')[0])
     peek_vm.app.display.warn.assert_called_with(message)
+
+
+def test_maybe_encode_date_math():
+    assert _maybe_encode_date_math('/<my-index-{now/d}>') == '/%3Cmy-index-%7Bnow%2Fd%7D%3E'
+    assert (_maybe_encode_date_math(
+        '/<logstash-{now/d-2d}>,<logstash-{now/d-1d}>,<logstash-{now/d}>/_search') ==
+            '/%3Clogstash-%7Bnow%2Fd-2d%7D%3E,%3Clogstash-%7Bnow%2Fd-1d%7D%3E,%3Clogstash-%7Bnow%2Fd%7D%3E/_search')

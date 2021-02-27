@@ -5,6 +5,7 @@ import logging
 import operator
 import os
 import sys
+import urllib
 import warnings
 from numbers import Number
 from subprocess import Popen
@@ -144,7 +145,8 @@ class PeekVM(Visitor):
 
         try:
             with warnings.catch_warnings(record=True) as ws:
-                response = es_client.perform_request(node.method, path, payload, headers=headers if headers else None)
+                response = es_client.perform_request(node.method, _maybe_encode_date_math(path),
+                                                     payload, headers=headers if headers else None)
             for w in ws:
                 if not quiet and self._should_show_warnings(w):
                     self.app.display.warn(str(w.message))
@@ -411,3 +413,21 @@ def _maybe_decode_json(r):
         return json.loads(r)
     except Exception:
         return r
+
+
+def _maybe_encode_date_math(path):
+    parts = []
+    current_pos = 0
+    while True:
+        next_pos = path.find('}>', current_pos)
+        if next_pos == -1:
+            parts.append(path[current_pos:])
+            break
+        next_pos += 2
+        pos = path.rfind('<', current_pos, next_pos)
+        if pos > current_pos:
+            parts.append(path[current_pos:pos])
+        parts.append(urllib.parse.quote(path[pos:next_pos], safe=''))
+        current_pos = next_pos
+
+    return ''.join(parts)
