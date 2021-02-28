@@ -87,6 +87,10 @@ The following sample is a quick guide on Peek usages:
   {"index":{"_index":"test","_id":"2"}}
   {"value":"2","category":"click"}
 
+  // Auto encoding for date math expression
+  // The following is encoded automatically into "PUT /%3Cmy-index-%7Bnow%2Fd%7D%3E" on the background
+  PUT /<my-index-{now/d}>
+
   // Shell out to download the EQL threat hunting demo file
   !curl -o normalized-T1117-AtomicRed-regsvr32.json https://raw.githubusercontent.com/elastic/elasticsearch/master/docs/src/test/resources/normalized-T1117-AtomicRed-regsvr32.json
 

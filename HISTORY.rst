@@ -2,6 +2,16 @@
 History
 =======
 
+0.2.2 (2021-02-28)
+------------------
+
+* Allow start with no connection (also allow to remove the last connection)
+* Display warning headers from server
+* Support the HEAD http method
+* Smart date math expression handling
+* Support post-event callback for both session and connection
+* Display now takes formatted text for style and color
+
 0.2.1 (2020-09-22)
 ------------------
 
