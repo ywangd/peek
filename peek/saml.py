@@ -2,10 +2,10 @@ import json
 import logging
 import os
 import ssl
-import time
 import urllib
 import webbrowser
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from queue import Queue
 from threading import Thread
 from typing import Any, Optional
 
@@ -27,7 +27,8 @@ class CallbackHTTPRequestHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         content_length = int(self.headers['Content-Length'])
         body = self.rfile.read(content_length)
-        _SamlExchange.callback_path = body
+        _logger.debug(f'Read body: {body}')
+        _SamlExchange.callback_path.put(body)
         self.send_response(200)
         self.end_headers()
         self.wfile.write(b'Callback received, you can now close the browser tab.')
@@ -45,13 +46,14 @@ def saml_authenticate(es_client: EsClient, realm: str, callback_port: str, name:
     httpd = _saml_start_http_server(callback_port)
     print('Please use browser to complete authentication against the idP')
     webbrowser.open(prepare_response['redirect'])
-    while _SamlExchange.callback_path is None:
-        time.sleep(0.1)
+    callback_path = _SamlExchange.callback_path.get()
+    if isinstance(callback_path, bytes):
+        callback_path = callback_path.decode('utf-8')
     try:
         httpd.shutdown()
-        query = urllib.parse.parse_qs(_SamlExchange.callback_path.decode())
+        query = urllib.parse.parse_qs(callback_path)
         if 'SAMLResponse' not in query or len(query['SAMLResponse']) != 1:
-            raise PeekError(f'Invalid saml callback response: {_SamlExchange.callback_path!r}')
+            raise PeekError(f'Invalid saml callback response: {callback_path!r}')
         content = query['SAMLResponse'][0]
         auth_response = _saml_do_authenticate(es_client, realm, prepare_response['id'], content)
         return RefreshingEsClient(
@@ -93,6 +95,7 @@ def _saml_do_authenticate(es_client, realm: str, _id: str, content: str):
 def _saml_start_http_server(callback_port):
     from peek import __file__ as package_root
     package_root = os.path.dirname(package_root)
+    _SamlExchange.callback_path = Queue(maxsize=1)
     httpd = HTTPServer(('localhost', int(callback_port)), CallbackHTTPRequestHandler)
     keyfile = os.path.join(package_root, 'certs', 'key.pem')
     certfile = os.path.join(package_root, 'certs', 'cert.pem')

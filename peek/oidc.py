@@ -2,9 +2,9 @@ import json
 import logging
 import os
 import ssl
-import time
 import webbrowser
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from queue import Queue
 from threading import Thread
 from typing import Any, Optional
 
@@ -20,7 +20,8 @@ class _OidcExchange:
 class CallbackHTTPRequestHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
-        _OidcExchange.callback_path = self.path
+        _logger.debug(f'Path is: {self.path}')
+        _OidcExchange.callback_path.put(self.path)
         self.send_response(200)
         self.end_headers()
         self.wfile.write(b'Callback received, you can now close the browser tab.')
@@ -41,12 +42,13 @@ def oidc_authenticate(es_client: EsClient, realm: str, callback_port: str, name:
     httpd = _oidc_start_http_server(callback_port)
     print('Please use browser to complete authentication against the idP')
     webbrowser.open(prepare_response['redirect'])
-    while _OidcExchange.callback_path is None:
-        time.sleep(0.1)
+    callback_path = _OidcExchange.callback_path.get()
+    if isinstance(callback_path, bytes):
+        callback_path = callback_path.decode('utf-8')
     try:
         httpd.shutdown()
         auth_response = _oidc_do_authenticate(es_client, realm, prepare_response['state'], prepare_response['nonce'],
-                                              _OidcExchange.callback_path)
+                                              callback_path)
         return RefreshingEsClient(
             es_client,
             auth_response['username'],
@@ -87,6 +89,7 @@ def _oidc_do_authenticate(es_client, realm: str, state: str, nonce: str, redirec
 def _oidc_start_http_server(callback_port):
     from peek import __file__ as package_root
     package_root = os.path.dirname(package_root)
+    _OidcExchange.callback_path = Queue(maxsize=1)
     httpd = HTTPServer(('localhost', int(callback_port)), CallbackHTTPRequestHandler)
     keyfile = os.path.join(package_root, 'certs', 'key.pem')
     certfile = os.path.join(package_root, 'certs', 'cert.pem')
