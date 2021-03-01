@@ -40,10 +40,10 @@ class CallbackHTTPRequestHandler(BaseHTTPRequestHandler):
                       fmt % args))
 
 
-def saml_authenticate(es_client: EsClient, realm: str, callback_port: str, name: Optional[str]):
+def saml_authenticate(es_client: EsClient, realm: str, callback_port: str, callback_ssl: bool, name: Optional[str]):
     _logger.info(f'SAML authenticate for realm {realm!r} and callback port {callback_port!r}')
     prepare_response = _saml_prepare(es_client, realm)
-    httpd = _saml_start_http_server(callback_port)
+    httpd = _saml_start_http_server(callback_port, callback_ssl)
     print('Please use browser to complete authentication against the idP')
     webbrowser.open(prepare_response['redirect'])
     callback_path = _SamlExchange.callback_path.get()
@@ -92,18 +92,19 @@ def _saml_do_authenticate(es_client, realm: str, _id: str, content: str):
     return response
 
 
-def _saml_start_http_server(callback_port):
+def _saml_start_http_server(callback_port, callback_ssl):
     from peek import __file__ as package_root
     package_root = os.path.dirname(package_root)
     _SamlExchange.callback_path = Queue(maxsize=1)
     httpd = HTTPServer(('localhost', int(callback_port)), CallbackHTTPRequestHandler)
-    keyfile = os.path.join(package_root, 'certs', 'key.pem')
-    certfile = os.path.join(package_root, 'certs', 'cert.pem')
-    httpd.socket = ssl.wrap_socket(
-        httpd.socket,
-        keyfile=keyfile,
-        certfile=certfile,
-        server_side=True)
+    if callback_ssl:
+        keyfile = os.path.join(package_root, 'certs', 'key.pem')
+        certfile = os.path.join(package_root, 'certs', 'cert.pem')
+        httpd.socket = ssl.wrap_socket(
+            httpd.socket,
+            keyfile=keyfile,
+            certfile=certfile,
+            server_side=True)
 
     t = Thread(target=httpd.serve_forever, daemon=True)
     t.start()
@@ -118,6 +119,7 @@ class SamlAuthenticateFunc:
             app.es_client_manager.current if conn is None else app.es_client_manager.get_client(conn),
             realm,
             options.get('callback_port', '5601'),
+            options.get('callback_ssl', True),
             name=options.get('name', None),
         )
         app.es_client_manager.add(saml_es_client)
@@ -125,7 +127,7 @@ class SamlAuthenticateFunc:
 
     @property
     def options(self):
-        return {'realm': 'saml1', 'callback_port': '5601', 'name': None, 'conn': None}
+        return {'realm': 'saml1', 'callback_port': '5601', 'callback_ssl': True, 'name': None, 'conn': None}
 
     @property
     def description(self):

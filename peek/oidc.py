@@ -36,10 +36,10 @@ class CallbackHTTPRequestHandler(BaseHTTPRequestHandler):
                       fmt % args))
 
 
-def oidc_authenticate(es_client: EsClient, realm: str, callback_port: str, name: Optional[str]):
+def oidc_authenticate(es_client: EsClient, realm: str, callback_port: str, callback_ssl: bool, name: Optional[str]):
     _logger.info(f'OIDC authenticate for realm {realm!r} and callback port {callback_port!r}')
     prepare_response = _oidc_prepare(es_client, realm)
-    httpd = _oidc_start_http_server(callback_port)
+    httpd = _oidc_start_http_server(callback_port, callback_ssl)
     print('Please use browser to complete authentication against the idP')
     webbrowser.open(prepare_response['redirect'])
     callback_path = _OidcExchange.callback_path.get()
@@ -86,18 +86,19 @@ def _oidc_do_authenticate(es_client, realm: str, state: str, nonce: str, redirec
     return response
 
 
-def _oidc_start_http_server(callback_port):
+def _oidc_start_http_server(callback_port, callback_ssl):
     from peek import __file__ as package_root
     package_root = os.path.dirname(package_root)
     _OidcExchange.callback_path = Queue(maxsize=1)
     httpd = HTTPServer(('localhost', int(callback_port)), CallbackHTTPRequestHandler)
-    keyfile = os.path.join(package_root, 'certs', 'key.pem')
-    certfile = os.path.join(package_root, 'certs', 'cert.pem')
-    httpd.socket = ssl.wrap_socket(
-        httpd.socket,
-        keyfile=keyfile,
-        certfile=certfile,
-        server_side=True)
+    if callback_ssl:
+        keyfile = os.path.join(package_root, 'certs', 'key.pem')
+        certfile = os.path.join(package_root, 'certs', 'cert.pem')
+        httpd.socket = ssl.wrap_socket(
+            httpd.socket,
+            keyfile=keyfile,
+            certfile=certfile,
+            server_side=True)
 
     t = Thread(target=httpd.serve_forever, daemon=True)
     t.start()
@@ -112,6 +113,7 @@ class OidcAuthenticateFunc:
             app.es_client_manager.current if conn is None else app.es_client_manager.get_client(conn),
             realm,
             options.get('callback_port', '5601'),
+            options.get('callback_ssl', True),
             name=options.get('name', None),
         )
         app.es_client_manager.add(oidc_es_client)
@@ -119,7 +121,7 @@ class OidcAuthenticateFunc:
 
     @property
     def options(self):
-        return {'realm': 'oidc1', 'callback_port': '5601', 'name': None, 'conn': None}
+        return {'realm': 'oidc1', 'callback_port': '5601', 'callback_ssl': True, 'name': None, 'conn': None}
 
     @property
     def description(self):
