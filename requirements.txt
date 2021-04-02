@@ -1,5 +1,5 @@
 prompt-toolkit~=3.0.5
-Pygments~=2.6.1
+Pygments>=2.7.4
 configobj~=5.0.6
 elasticsearch>=7.7.0,<8.0.0
 urllib3~=1.25.8
