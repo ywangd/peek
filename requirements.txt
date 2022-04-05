@@ -1,6 +1,6 @@
-prompt-toolkit~=3.0.5
-Pygments>=2.7.4
+prompt-toolkit~=3.0.29
+Pygments~=2.11.2
 configobj~=5.0.6
-elasticsearch>=7.7.0,<8.0.0
-urllib3~=1.26.5
-keyring~=21.2.1
+elasticsearch>=7.17.0,<8.0.0
+urllib3~=1.26.9
+keyring~=23.5.0
