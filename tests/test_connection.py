@@ -113,7 +113,7 @@ def test_connect_will_prefer_cloud_id():
     mock_app = MagicMock(name='PeekApp')
     mock_app.config.as_bool = MagicMock(return_value=False)
 
-    mock_es = MagicMock
+    mock_es = MagicMock()
     MockEs = MagicMock(return_value=mock_es)
 
     with patch('peek.connection.Elasticsearch', MockEs):

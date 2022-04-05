@@ -1,9 +1,11 @@
+import functools
 import json
 import logging
 import os
 from abc import ABCMeta, abstractmethod
 from typing import List, Iterable
 
+import elasticsearch.client.utils
 from configobj import Section
 from elasticsearch import Elasticsearch, AuthenticationException
 from urllib3 import Timeout
@@ -11,6 +13,17 @@ from urllib3 import Timeout
 from peek.errors import PeekError
 
 _logger = logging.getLogger(__name__)
+
+# Wrappers for adding request and response content type
+_wrapper_json = elasticsearch.client.utils.query_params(
+    request_mimetypes=["application/json"],
+    response_mimetypes=["application/json"]
+)
+
+_wrapper_text = elasticsearch.client.utils.query_params(
+    request_mimetypes=["application/json"],
+    response_mimetypes=["text/plain", "application/json"]
+)
 
 
 class NoopDeserializer:
@@ -84,6 +97,8 @@ class EsClient(BaseClient):
             headers=headers,
             ssl_assert_hostname=assert_hostname,
         )
+        # skip product verification because it requires deserialization of payload
+        self.es.transport._verified_elasticsearch = True
 
     def perform_request(self, method, path, payload=None, deserialize_it=False, **kwargs):
         _logger.debug(f'Performing request: {method!r}, {path!r}, {payload!r}')
@@ -92,7 +107,8 @@ class EsClient(BaseClient):
             if not deserialize_it:
                 # Avoid deserializing the response since we parse it with the main loop for syntax highlighting
                 self.es.transport.deserializer = noopDeserializer
-            return self.es.transport.perform_request(method, path, body=payload, **kwargs)
+            _wrapper = _wrapper_text if path.startswith("/_cat/") or path == '/_nodes/hot_threads' else _wrapper_json
+            return _wrapper(functools.partial(self.es.transport.perform_request, method, path))(body=payload, **kwargs)
         finally:
             if not deserialize_it:
                 self.es.transport.deserializer = deserializer
