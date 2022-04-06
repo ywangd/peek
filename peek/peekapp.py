@@ -193,6 +193,7 @@ class PeekApp:
                 from prompt_toolkit.clipboard.pyperclip import PyperclipClipboard
                 clipboard = PyperclipClipboard()
             except ImportError:
+                _logger.info('pyperclip not available, disable clipboard integration')
                 clipboard = None
 
             return PromptSession(

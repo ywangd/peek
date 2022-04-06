@@ -54,7 +54,7 @@ setup(
     packages=find_packages(include=['peek', 'peek.*']),
     setup_requires=setup_requirements,
     extras_require={
-        'full': ['kerberos~=1.3.0', 'pyperclip~=1.8.0']
+        'full': ['kerberos~=1.3.1', 'pyperclip~=1.8.2']
     },
     test_suite='tests',
     tests_require=test_requirements,
