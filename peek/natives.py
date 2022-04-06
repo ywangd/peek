@@ -157,16 +157,46 @@ class SessionFunc:
 class RunFunc:
 
     def __call__(self, app, file, **options):
-        with open(file) as ins:
-            app.process_input(ins.read(), echo=options.get('echo', True))
+        should_echo = options.get('echo', True)
+        is_capture = options.get('is_capture')
+        if is_capture:
+            # preprocess to remove non-executable sections of captured output
+            with open(file) as ins:
+                filtered = self._filter_captured_output(ins.readlines())
+            app.process_input('\n'.join(filtered), echo=should_echo)
+        else:
+            with open(file) as ins:
+                app.process_input(ins.read(), echo=should_echo)
 
     @property
     def options(self):
-        return {'echo': True}
+        return {'echo': True, 'is_capture': False}
 
     @property
     def description(self):
         return 'Load and execute external script'
+
+    def _filter_captured_output(self, lines):
+        filtered = []
+        state = 0
+        while len(lines) > 0:
+            line = lines.pop(0).strip()
+            if state == 0:
+                if line == '===' or line.startswith('==='):
+                    state = 1
+                elif line == 'capture' or line.startswith('capture '):
+                    continue
+                elif line == '>>>' or line.startswith('>>> '):
+                    continue
+                else:
+                    filtered.append(line)
+            elif state == 1:
+                if line == '>>>' or line.startswith('>>> '):
+                    state = 0
+                else:
+                    continue
+
+        return filtered
 
 
 class HistoryFunc:

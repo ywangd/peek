@@ -62,8 +62,11 @@ class PeekApp:
         try:
             while not self._should_exit:
                 try:
+                    message = self._get_message()
+                    if self.capture.file() is not None:
+                        print(''.join(v[1] for v in message), file=self.capture.file())
                     text: str = self.prompt.prompt(
-                        message=self._get_message(),
+                        message=message,
                         default=self._get_default_text(),
                     )
                     _logger.debug(f'input: {text!r}')
