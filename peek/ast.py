@@ -331,7 +331,7 @@ class EsApiCallInlinePayloadNode(EsApiCallNode):
 class EsApiCallFilePayloadNode(EsApiCallNode):
 
     def __init__(self, method_node: NameNode, path_node: Union[TextNode, GroupNode], options_node: DictNode,
-                 file_node: TextNode):
+                 file_node: SymbolNode):
         super().__init__(method_node, path_node, options_node)
         self.file_node = file_node
 

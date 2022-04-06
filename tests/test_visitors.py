@@ -179,6 +179,20 @@ def test_formatting_symbol_inside_dict(parser):
 '''
 
 
+def test_format_file_reference(parser):
+    nodes = parser.parse('''PUT _license
+@license.json''')
+    assert FormattingVisitor(pretty=False).visit(nodes[0]) == '''PUT _license
+@license.json
+'''
+
+    assert TreeFormattingVisitor().visit(nodes[0]) == '''EsApiStmt
+  PUT
+  _license
+  Dict
+  @license.json'''
+
+
 def test_tree_formatting(parser):
     visitor = TreeFormattingVisitor()
     nodes = parser.parse('''f @abc 1 "a" b=a foo="bar" 1 * 2 + (3-2) * 5 / 6

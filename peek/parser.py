@@ -177,7 +177,7 @@ class PeekParser:
             self._publish_event(ParserEventType.ES_PAYLOAD_FILE_AT)
             self._consume_token(At)
             return EsApiCallFilePayloadNode(
-                method_node, path_node, DictNode(option_nodes), TextNode(self._consume_token(Literal)))
+                method_node, path_node, DictNode(option_nodes), SymbolNode(self._consume_token(Literal)))
         else:
             dict_nodes = []
             while self._peek_token().ttype is not EOF:
