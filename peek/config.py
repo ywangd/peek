@@ -56,6 +56,9 @@ def load_config(package_config_file: str,
     return config
 
 
+_CONFIG = None
+
+
 def get_config(config_file: str = None, extra_config_options: Iterable[str] = None):
     from peek import __file__ as package_root
     package_root = os.path.dirname(package_root)
@@ -63,4 +66,12 @@ def get_config(config_file: str = None, extra_config_options: Iterable[str] = No
     default_config_file = expanduser(config_location() + 'peekrc')
     ensure_dir_exists(default_config_file)
     config_file = config_file or default_config_file
-    return load_config(package_config_file, config_file, extra_config_options)
+    global _CONFIG
+    _CONFIG = load_config(package_config_file, config_file, extra_config_options)
+    return _CONFIG
+
+
+def get_global_config():
+    if _CONFIG is None:
+        raise ValueError("global config not initialized")
+    return _CONFIG

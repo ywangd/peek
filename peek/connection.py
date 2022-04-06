@@ -11,6 +11,7 @@ from configobj import Section
 from elasticsearch import Elasticsearch, AuthenticationException
 from urllib3 import Timeout
 
+from peek.config import get_global_config
 from peek.errors import PeekError
 
 _logger = logging.getLogger(__name__)
@@ -108,11 +109,22 @@ class EsClient(BaseClient):
             if not deserialize_it:
                 # Avoid deserializing the response since we parse it with the main loop for syntax highlighting
                 self.es.transport.deserializer = noopDeserializer
-            _wrapper = _wrapper_text if path.startswith("/_cat/") or path == '/_nodes/hot_threads' else _wrapper_json
+            _wrapper = self._get_wrapper(path)
             return _wrapper(functools.partial(self.es.transport.perform_request, method, path))(body=payload, **kwargs)
         finally:
             if not deserialize_it:
                 self.es.transport.deserializer = deserializer
+
+    def _get_wrapper(self, path):
+        if path == '/_nodes/hot_threads':
+            return _wrapper_text
+        elif path.startswith("/_cat/"):
+            if get_global_config().as_bool('accept_json_for_cat'):
+                return _wrapper_json
+            else:
+                return _wrapper_text
+        else:
+            return _wrapper_json
 
     def info(self):
         if self.api_key:
