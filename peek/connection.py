@@ -463,8 +463,7 @@ def connect(app, **options):
     if isinstance(app.config.get('connection'), Section):
         final_options.update({k: v for k, v in app.config.get('connection').dict().items() if v})
 
-    # Override with provided options, including null values since it could be intentional
-    final_options.update({k: v for k, v in options.items()})
+    final_options.update(_maybe_configure_smart_connect(app, options))
 
     if final_options['cloud_id'] is not None:
         final_options['hosts'] = None
@@ -475,6 +474,45 @@ def connect(app, **options):
         return _connect_token(app, **final_options)
     else:
         return _connect_userpass(app, **final_options)
+
+
+def _maybe_configure_smart_connect(app, options: dict):
+    # Override with provided options, including null values since it could be intentional
+    smart_options = {k: v for k, v in options.items()}
+    # Attempt to configure smart connect based on the last HTTP response
+    if len(options) == 0:
+        try:
+            last_response = app.vm.get_value('_')
+            if 'id' in last_response and 'api_key' in last_response:
+                _maybe_copy_current_client_options(app, smart_options)
+                smart_options['api_key'] = f'{last_response["id"]}:{last_response["api_key"]}'
+            elif 'access_token' in last_response:
+                _maybe_copy_current_client_options(app, smart_options)
+                smart_options['token'] = last_response['access_token']
+            elif 'token' in last_response and 'value' in last_response['token']:
+                _maybe_copy_current_client_options(app, smart_options)
+                smart_options['token'] = last_response['token']['value']
+        except NameError:  # if _ does not exist, simply ignore and proceed
+            pass
+
+    return smart_options
+
+
+def _maybe_copy_current_client_options(app, options: dict):
+    if hasattr(app, 'es_client_manager') and len(app.es_client_manager.clients()) > 0:
+        current_es_client = app.es_client_manager.current
+        if current_es_client.cloud_id is not None:
+            options['cloud_id'] = current_es_client.cloud_id
+        else:
+            options['hosts'] = current_es_client.hosts
+
+        options['use_ssl'] = current_es_client.use_ssl
+        options['verify_certs'] = current_es_client.verify_certs
+        options['assert_hostname'] = current_es_client.assert_hostname
+        options['ca_certs'] = current_es_client.ca_certs
+        options['client_cert'] = current_es_client.client_cert
+        options['client_key'] = current_es_client.client_key
+        # not copy the headers
 
 
 def _connect_userpass(app, **options):
