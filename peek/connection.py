@@ -1,3 +1,4 @@
+import base64
 import functools
 import json
 import logging
@@ -526,11 +527,18 @@ def _connect_userpass(app, **options):
 
 def _connect_api_key(app, **options):
     _logger.debug('Connecting with API key')
+    api_key = options['api_key']
+    if ':' not in api_key:
+        api_key = base64.decodebytes(api_key.encode()).decode()
+
+    if ':' not in api_key:
+        raise ValueError('invalid api key credential format')
+
     return EsClient(
         name=options['name'],
         hosts=options['hosts'],
         cloud_id=options['cloud_id'],
-        api_key=options['api_key'].split(':'),
+        api_key=api_key.split(':'),
         use_ssl=options['use_ssl'],
         verify_certs=options['verify_certs'],
         assert_hostname=options['assert_hostname'],
