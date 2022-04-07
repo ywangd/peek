@@ -8,7 +8,7 @@ from prompt_toolkit.document import Document
 from pygments.token import String, Name
 
 from peek.common import PeekToken
-from peek.es_api_spec.completer import ESApiCompleter, can_match
+from peek.es_api_spec.api_completer import ESApiCompleter, can_match
 from peek.es_api_spec.kspec_js import build_js_specs
 from peek.es_api_spec.kspec_json import load_json_specs
 from peek.lexers import Slash, PathPart, Assign, CurlyLeft, CurlyRight, DictKey, Colon, BracketLeft, EOF, Comma

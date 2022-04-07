@@ -395,7 +395,7 @@ class DownloadApiSpecsFunc:
         for info in zf.infolist():
             if 'spec_definitions' in info.filename:
                 zf.extract(info, path=config_dir)
-        app.completer.init_api_specs()
+        app.completer.init_api_completer()
         return f'Version {kibana_version} API spec files are ready'
 
     @property

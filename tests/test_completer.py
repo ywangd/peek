@@ -22,6 +22,7 @@ config = {
     'load_api_specs': True,
     'build_extended_api_specs': True,
     'cache_extended_api_specs': False,
+    'use_elasticsearch_specification': False,
 }
 mock_app.config = ConfigObj(config)
 

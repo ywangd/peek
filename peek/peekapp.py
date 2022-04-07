@@ -135,7 +135,7 @@ class PeekApp:
         return prompt(message=message, is_password=is_secret)
 
     def reset(self):
-        self.completer.init_api_specs()
+        self.completer.init_api_completer()
         self.vm = self._init_vm()
         self._repopulate_clients(EsClientManager.from_dict(self, self.ecm_backup_data))
         self._on_startup()
