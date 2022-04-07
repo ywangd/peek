@@ -504,6 +504,21 @@ def _maybe_configure_smart_connect(app, options: dict):
             elif 'token' in last_response and 'value' in last_response['token']:
                 _maybe_copy_current_client_options(app, smart_options)
                 smart_options['token'] = last_response['token']['value']
+            else:
+                last_request = app.vm.get_value('__')
+                urlpath = last_request['path']
+                if last_request['method'] in ('POST', 'PUT') and (urlpath.startswith('/_security/user/')
+                                                                  or urlpath.startswith('/_xpack/security/user/')):
+                    if urlpath.startswith('/_security/user/'):
+                        username = urlpath[len('/_security/user/'):]
+                    else:
+                        username = urlpath[len('/_xpack/security/user/'):]
+                    payload = json.loads(last_request['payload'])
+                    password = payload.get('password', None)
+                    _maybe_copy_current_client_options(app, smart_options)
+                    smart_options['username'] = username
+                    smart_options['password'] = password
+
         except NameError:  # if _ does not exist, simply ignore and proceed
             pass
 

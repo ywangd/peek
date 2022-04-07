@@ -145,8 +145,12 @@ class PeekVM(Visitor):
 
         try:
             with warnings.catch_warnings(record=True) as ws:
-                response = es_client.perform_request(node.method, _maybe_encode_date_math(path),
-                                                     payload, headers=headers if headers else None)
+                final_path = _maybe_encode_date_math(path)
+                final_headers = headers if headers else None
+                self.context['__'] = {'method': node.method, 'path': final_path, 'payload': payload,
+                                      'headers': final_headers}
+                response = es_client.perform_request(node.method, final_path,
+                                                     payload, headers=final_headers)
             for w in ws:
                 if not quiet and self._should_show_warnings(w):
                     self.app.display.warn(str(w.message))
