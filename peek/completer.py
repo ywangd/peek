@@ -11,7 +11,7 @@ from pygments.token import Error, Literal, String, Name
 from peek.common import PeekToken, HTTP_METHODS
 from peek.completions import PayloadKeyCompletion
 from peek.config import config_location
-from peek.es_api_spec.spec import ApiSpec
+from peek.es_api_spec.kspec import KibanaSpecCompleter
 from peek.lexers import PeekLexer, UrlPathLexer, PathPart, ParamName, Ampersand, QuestionMark, Slash, HttpMethod, \
     FuncName, ShellOut, DictKey, EOF
 from peek.parser import PeekParser, ParserEvent, ParserEventType
@@ -146,7 +146,7 @@ class PeekCompleter(Completer):
         if not kibana_dir:
             kibana_dir = os.path.join(package_root, 'specs', 'kibana-7.8.1')
         _logger.info(f'Attempt to build Elasticsearch API specs from: {kibana_dir}')
-        return ApiSpec(self.app, kibana_dir)
+        return KibanaSpecCompleter(self.app, kibana_dir)
 
     def get_completions(self, document: Document, complete_event: CompleteEvent) -> Iterable[Completion]:
         _logger.debug(f'Document: {document}, Event: {complete_event}')

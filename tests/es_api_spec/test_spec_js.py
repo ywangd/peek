@@ -6,7 +6,7 @@ from unittest.mock import patch, MagicMock
 import pytest
 
 from peek import __file__ as package_root
-from peek.es_api_spec.spec_js import JsSpecParser, JsSpecEvaluator, build_js_specs
+from peek.es_api_spec.kspec_js import JsSpecParser, JsSpecEvaluator, build_js_specs
 
 package_root = os.path.dirname(package_root)
 kibana_dir = os.path.join(package_root, 'specs', 'kibana-7.8.1')
@@ -39,8 +39,8 @@ def test_build_js_spec_will_respect_cache_config():
     cache_file_exists = random.choice((True, False))
     with patch('os.path.exists', MagicMock(return_value=cache_file_exists)), \
          patch('builtins.open', MagicMock(return_value=cache_io)), \
-         patch('peek.es_api_spec.spec_js.JsSpecParser', mock_parser_cls), \
-         patch('peek.es_api_spec.spec_js.JsSpecEvaluator', mock_evaluator):
+         patch('peek.es_api_spec.kspec_js.JsSpecParser', mock_parser_cls), \
+         patch('peek.es_api_spec.kspec_js.JsSpecEvaluator', mock_evaluator):
         build_js_specs(kibana_dir, use_cache_file)
 
         if not use_cache_file:

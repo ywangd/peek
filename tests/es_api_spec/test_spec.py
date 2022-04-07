@@ -3,8 +3,8 @@ import os
 import pytest
 
 from peek import __file__ as package_root
-from peek.es_api_spec.spec import matchable_specs
-from peek.es_api_spec.spec_json import load_json_specs
+from peek.es_api_spec.kspec import matchable_specs
+from peek.es_api_spec.kspec_json import load_json_specs
 
 package_root = os.path.dirname(package_root)
 kibana_dir = os.path.join(package_root, 'specs', 'kibana-7.8.1')
