@@ -213,8 +213,8 @@ def test_complete_payload_key():
 
 def test_complete_payload_inner_key():
     assert completions_has(
-        get_completions(Document('''PUT _security/role/{name}
-{"indices":[{ "" }]}''', 41)),
+        get_completions(Document('''PUT _security/role/name
+{"indices":[{ "" }]}''', 39)),
         Completion(text='names'),
     )
 
@@ -226,456 +226,485 @@ def test_complete_payload_value_metadata():
     )
 
 
-#
-# def test_complete_payload_value():
-#     assert completions_has(
-#         get_completions(Document('''post _security/api_key
-# {"role_descriptors": }''', 44)),
-#         Completion(text='{}'),
-#     )
-#
-#
-# def test_not_complete_http_options():
-#     assert len(list(get_completions(Document('''POST _security/oauth2/token
-# ''')))) == 0
-#
-#
-# def test_not_complete_http_path():
-#     assert no_completion(
-#         get_completions(Document('''get
-# ''')))
-#
-#
-# def test_payload_completion_000():
-#     assert completions_has(
-#         get_completions(Document('''POST _security/api_key
-# {""}''', 25)),
-#         Completion(text="role_descriptors"),
-#     )
-#
-#     assert completions_has(
-#         get_completions(Document('''POST _security/api_key?refresh=wait_for
-# {""}''', 42)),
-#         Completion(text="role_descriptors"),
-#     )
-#
-#
-# def test_payload_completion_001():
-#     assert completions_has(
-#         get_completions(Document('''POST _security/api_key
-# {
-#   "role_descriptors": {
-#     "role_name": {
-#       "indices": [
-#         {""}
-#       ]
-#     }
-#   }
-# }''', 97)),
-#         Completion(text="field_security"),
-#     )
-#
-#
-# def test_payload_completion_002():
-#     assert completions_has(
-#         get_completions(Document('''POST _security/api_key
-# {
-#   "role_descriptors": {
-#     "role_name": {
-#       "indices": [
-#         {"field_security": ""}
-#       ]
-#     }
-#   },
-#   "n"
-# }''', 141)),
-#         Completion(text="name", start_position=-1),
-#     )
-#
-#
-# def test_payload_completion_003():
-#     assert completions_has(
-#         get_completions(Document('''POST _security/api_key
-# {
-#   "role_descriptors": {
-#     "role_name": {
-#       "cluster": [],
-#       ""
-#     }
-#   }
-# }''', 97)),
-#         Completion(text="indices"),
-#     )
-#
-#
-# def test_payload_completion_004():
-#     assert completions_has(
-#         get_completions(Document('''POST _security/oauth2/token
-# {""}''', 30)),
-#         Completion(text="scope"),
-#     )
-#
-#
-# def test_file_payload_completion():
-#     f = os.listdir('.')[0]
-#     assert completions_has(
-#         get_completions(Document('''get /
-# @''')),
-#         Completion(text=f)
-#     )
-#
-#
-# def test_option_completion_will_not_appear_inside_payload():
-#     assert no_completion(
-#         get_completions(Document('''GET /
-# {
-# c
-# }''', 9))
-#     )
-#
-#
-# def test_payload_completion_will_not_appear_inside_option_value():
-#     assert no_completion(
-#         get_completions(Document('''GET _search headers={ "" }
-# {
-# ""
-# }''', 23))
-#     )
-#
-#
-# def test_payload_completion_will_not_appear_inside_multi_line_option_value():
-#     assert no_completion(
-#         get_completions(Document('''GET _search headers={
-# ""
-# }
-# {
-# ""
-# }''', 23))
-#     )
-#
-#
-# def test_payload_key_completion_will_not_appear_in_value_position():
-#     completions = list(get_completions(Document('''PUT _security/api_key
-# {
-#   "name":
-# }''', 33)))
-#     assert completions_has(
-#         completions,
-#         Completion('""')
-#     )
-#     assert completions_has_no(completions, Completion('name'))
-#
-#
-# def test_payload_key_completion_works_within_array():
-#     assert completions_has(
-#         get_completions(Document('''PUT _security/api_key
-# {"role_descriptors":{"role_name":{"indices":[{""}]}}}
-# ''', 69)),
-#         Completion(text='names'),
-#         Completion(text='field_security'),
-#     )
-#
-#
-# def test_payload_key_completion_will_retry_with_global():
-#     assert completions_has(
-#         get_completions(Document('''GET _search
-# {
-#   "aggs": {
-#     "NAME": {
-#       ""
-#     }
-#   },
-# }''', 47)),
-#         Completion(text='adjacency_matrix'),
-#         Completion(text='diversified_sampler'),
-#     )
-#
-#
-# def test_payload_key_completion_will_work_inside_template():
-#     assert completions_has(
-#         get_completions(Document('''GET _search
-# {
-#   "script_fields": {
-#     ""
-#   }
-# }''', 40)),
-#         Completion(text='FIELD')
-#     )
-#
-#
-# def test_payload_key_completion_will_work_inside_template_but_not_override_existing_candidates():
-#     assert completions_equal(
-#         get_completions(Document('''GET _security/user/_has_privileges
-# {
-#   "application": {
-#     "app"
-#   },
-# }''', 64)),
-#         Completion(text='application', start_position=-3)
-#     )
-#
-#
-# def test_payload_key_completion_has_special_handling_for_empty_script_key():
-#     assert completions_has(
-#         get_completions(Document('''GET _search
-# {
-#   "script_fields": {
-#     "FIELD": {
-#       "script": {
-#         ""
-#       }
-#     }
-#   },
-# }
-# ''', 77)),
-#         Completion('source'),
-#         Completion('id'),
-#         Completion('lang'),
-#         Completion('params'),
-#     )
-#
-#
-# def test_payload_key_completion_will_work_with_relative_scope_link():
-#     assert completions_has(
-#         get_completions(Document('''GET _search
-# {"query":{"bool":{"filter":[{"and":{"filters":[{
-#   ""
-# }]}}]}}}''', 64)),
-#         Completion(text='and'),
-#         Completion(text='bool'),
-#         Completion(text='exists'),
-#         Completion(text='ids'),
-#         Completion(text='limit'),
-#         Completion(text='geo_bounding_box'),
-#     )
-#
-#     assert completions_has(
-#         get_completions(Document('''GET _search
-# {"query":{"span_near":{"clauses":[{
-#   ""
-# }],"slop":12,"in_order":false}}}
-# ''', 51)),
-#         Completion(text='span_near'),
-#         Completion(text='span_first'),
-#         Completion(text='span_or'),
-#         Completion(text='span_containing'),
-#     )
-#
-#
-# def test_payload_value_completion_010():
-#     assert completions_has(
-#         get_completions(Document('''PUT _security/api_key
-# {
-#   "role_descriptors": {
-#     "role_name": \n},
-# }''', 64)),
-#         Completion(text='{}')
-#     )
-#
-#     assert completions_has(
-#         get_completions(Document('''PUT _security/api_key
-# {
-#   "role_descriptors": {
-#     "role_name": \n},
-# }''', 65)),
-#         Completion(text='{}')
-#     )
-#
-#
-# def test_payload_value_completion_050():
-#     assert completions_has(
-#         get_completions(Document('''PUT _security/api_key
-# {
-#   "role_descriptors": {
-#     "role_name": {
-#       "indices":
-#     },
-#   },
-# }''', 83)),
-#         Completion(text='[{}]')
-#     )
-#
-#     assert completions_has(
-#         get_completions(Document('''PUT _security/api_key
-# {
-#   "role_descriptors": {
-#     "role_name": {
-#       "indices": \n},
-#   },
-# }''', 84)),
-#         Completion(text='[{}]')
-#     )
-#
-#
-# def test_payload_value_completion_100():
-#     completions = list(get_completions(Document('''PUT my-index
-# {
-#   "mappings": {
-#     "properties": {
-#       "abc": {
-#         "type": "t",
-#         "doc_values": true,
-#         "similarity": "BM25",
-#         "term_vector": "",
-#         "copy_to": ["{field}"],
-#         "analyzer":
-#       }
-#     },
-#   },
-# }''', 84)))
-#     assert completions_has(
-#         completions,
-#         Completion(text='text', start_position=-1),
-#         Completion(text='byte', start_position=-1),
-#         Completion(text='integer', start_position=-1),
-#         Completion(text='float', start_position=-1),
-#     )
-#     assert completions_has_no(completions, Completion(text='keyword', start_position=-1))
-#
-#
-# def test_payload_value_completion_110():
-#     completions = list(get_completions(Document('''PUT my-index
-# {
-#   "mappings": {
-#     "properties": {
-#       "abc": {
-#         "type": "text",
-#         "doc_values": ,
-#         "similarity": "BM25",
-#         "term_vector": "",
-#         "copy_to": ["{field}"],
-#         "analyzer":
-#       }
-#     },
-#   },
-# }''', 112)))
-#     assert completions_has(
-#         completions,
-#         Completion(text='true'),
-#         Completion(text='false'),
-#     )
-#
-#     completions = list(get_completions(Document('''PUT my-index
-# {
-#   "mappings": {
-#     "properties": {
-#       "abc": {
-#         "type": "text",
-#         "doc_values": t,
-#         "similarity": "BM25",
-#         "term_vector": "",
-#         "copy_to": ["{field}"],
-#         "analyzer":
-#       }
-#     },
-#   },
-# }''', 113)))
-#     assert completions_has(
-#         completions,
-#         Completion(text='true', start_position=-1),
-#     )
-#     assert completions_has_no(
-#         completions,
-#         Completion(text='false', start_position=-1),
-#     )
-#
-#
-# def test_payload_value_completion_120():
-#     completions = list(get_completions(Document('''PUT my-index
-# {
-#   "mappings": {
-#     "properties": {
-#       "abc": {
-#         "type": "text",
-#         "doc_values": false,
-#         "similarity": "BM25",
-#         "term_vector": "",
-#         "copy_to": ,
-#         "analyzer":
-#       }
-#     },
-#   },
-# }''', 195)))
-#     assert completions_has(
-#         completions,
-#         Completion(text='""'),
-#         Completion(text='["{field}"]'),
-#     )
-#
-#     completions = list(get_completions(Document('''PUT my-index
-# {
-#   "mappings": {
-#     "properties": {
-#       "abc": {
-#         "type": "text",
-#         "doc_values": false,
-#         "similarity": "BM25",
-#         "term_vector": "",
-#         "copy_to": "",
-#         "analyzer":
-#       }
-#     },
-#   },
-# }''', 196)))
-#     assert completions_has(
-#         completions,
-#         Completion(text='{field}'),
-#     )
-#
-#
-# def test_payload_value_completion_130():
-#     completions = list(get_completions(Document('''PUT my-index
-# {
-#   "mappings": {
-#     "properties": {
-#       "abc": {
-#         "type": "text",
-#         "doc_values": false,
-#         "similarity": "BM25",
-#         "term_vector": "",
-#         "copy_to": "",
-#         "analyzer": ,
-#       }
-#     },
-#   },
-# }''', 219)))
-#     assert completions_has(
-#         completions,
-#         Completion(text='"standard"'),
-#     )
-#
-#     completions = list(get_completions(Document('''PUT my-index
-# {
-#   "mappings": {
-#     "properties": {
-#       "abc": {
-#         "type": "text",
-#         "doc_values": false,
-#         "similarity": "BM25",
-#         "term_vector": "",
-#         "copy_to": "",
-#         "analyzer": "",
-#       }
-#     },
-#   },
-# }''', 220)))
-#     assert completions_has(
-#         completions,
-#         Completion(text='standard'),
-#     )
-#
-#
-# def test_field_placeholder():
-#     assert completions_has(get_completions(Document('''GET _search
-# {
-#   "query": {
-#     "match": {
-#       "a_field": {
-#         ""
-#       }
-#     },
-#   },
-# }''', 70)), Completion(text='type'), Completion(text='zero_terms_query'))
+def test_complete_payload_value_array_of_dict():
+    assert completions_has(
+        get_completions(Document('''PUT _security/role/test
+{"indices": }''', 36)),
+        Completion(text='[{}]'),
+    )
+
+    assert completions_has(
+        get_completions(Document('''PUT _security/role/test
+{"indices": [  ] }''', 39)),
+        Completion(text='{}'),
+    )
+
+
+def test_complete_payload_value():
+    assert completions_has(
+        get_completions(Document('''PUT _security/role/test
+{"cluster":[""]}''', 37)),
+        Completion(text='all'),
+        Completion(text='manage'),
+    )
+
+    assert completions_has(
+        get_completions(Document('''PUT _security/role/test
+{"cluster":[]}''', 37)),
+        Completion(text='"all"'),
+        Completion(text='"manage"'),
+    )
+
+
+def test_complete_payload_value_dict():
+    assert completions_has(
+        get_completions(Document('''post _security/api_key
+{"role_descriptors": }''', 44)),
+        Completion(text='{}'),
+    )
+
+
+def test_not_complete_http_options():
+    assert len(list(get_completions(Document('''POST _security/oauth2/token
+''')))) == 0
+
+
+def test_not_complete_http_path():
+    assert no_completion(
+        get_completions(Document('''get
+''')))
+
+
+def test_payload_completion_000():
+    assert completions_has(
+        get_completions(Document('''POST _security/api_key
+{""}''', 25)),
+        Completion(text="role_descriptors"),
+    )
+
+    assert completions_has(
+        get_completions(Document('''POST _security/api_key?refresh=wait_for
+{""}''', 42)),
+        Completion(text="role_descriptors"),
+    )
+
+
+def test_payload_completion_001():
+    assert completions_has(
+        get_completions(Document('''POST _security/api_key
+{
+  "role_descriptors": {
+    "role_name": {
+      "indices": [
+        {""}
+      ]
+    }
+  }
+}''', 97)),
+        Completion(text="field_security"),
+    )
+
+
+def test_payload_completion_002():
+    assert completions_has(
+        get_completions(Document('''POST _security/api_key
+{
+  "role_descriptors": {
+    "role_name": {
+      "indices": [
+        {"field_security": ""}
+      ]
+    }
+  },
+  "n"
+}''', 141)),
+        Completion(text="name", start_position=-1),
+    )
+
+
+def test_payload_completion_003():
+    assert completions_has(
+        get_completions(Document('''POST _security/api_key
+{
+  "role_descriptors": {
+    "role_name": {
+      "cluster": [],
+      ""
+    }
+  }
+}''', 97)),
+        Completion(text="indices"),
+    )
+
+
+def test_payload_completion_004():
+    assert completions_has(
+        get_completions(Document('''POST _security/oauth2/token
+{""}''', 30)),
+        Completion(text="scope"),
+    )
+
+
+def test_file_payload_completion():
+    f = os.listdir('.')[0]
+    assert completions_has(
+        get_completions(Document('''get /
+@''')),
+        Completion(text=f)
+    )
+
+
+def test_option_completion_will_not_appear_inside_payload():
+    assert no_completion(
+        get_completions(Document('''GET /
+{
+c
+}''', 9))
+    )
+
+
+def test_payload_completion_will_not_appear_inside_option_value():
+    assert no_completion(
+        get_completions(Document('''GET _search headers={ "" }
+{
+""
+}''', 23))
+    )
+
+
+def test_payload_completion_will_not_appear_inside_multi_line_option_value():
+    assert no_completion(
+        get_completions(Document('''GET _search headers={
+""
+}
+{
+""
+}''', 23))
+    )
+
+
+def test_payload_key_completion_will_not_appear_in_value_position():
+    completions = list(get_completions(Document('''PUT _security/api_key
+{
+  "name":
+}''', 33)))
+    assert completions_has(
+        completions,
+        Completion('""')
+    )
+    assert completions_has_no(completions, Completion('name'))
+
+
+def test_payload_key_completion_works_within_array():
+    assert completions_has(
+        get_completions(Document('''PUT _security/api_key
+{"role_descriptors":{"role_name":{"indices":[{""}]}}}
+''', 69)),
+        Completion(text='names'),
+        Completion(text='field_security'),
+    )
+
+
+def test_payload_key_completion_will_retry_with_global():
+    assert completions_has(
+        get_completions(Document('''GET _search
+{
+  "aggs": {
+    "NAME": {
+      ""
+    }
+  },
+}''', 47)),
+        Completion(text='adjacency_matrix'),
+        Completion(text='diversified_sampler'),
+    )
+
+
+def test_payload_key_completion_will_work_inside_template():
+    assert completions_has(
+        get_completions(Document('''GET _search
+{
+  "script_fields": {
+    ""
+  }
+}''', 40)),
+        Completion(text='FIELD')
+    )
+
+
+def test_payload_key_completion_will_work_inside_template_but_not_override_existing_candidates():
+    assert completions_equal(
+        get_completions(Document('''GET _security/user/_has_privileges
+{
+  "application": {
+    "app"
+  },
+}''', 64)),
+        Completion(text='application', start_position=-3)
+    )
+
+
+def test_payload_key_completion_has_special_handling_for_empty_script_key():
+    assert completions_has(
+        get_completions(Document('''GET _search
+{
+  "script_fields": {
+    "FIELD": {
+      "script": {
+        ""
+      }
+    }
+  },
+}
+''', 77)),
+        Completion('source'),
+        Completion('id'),
+        Completion('lang'),
+        Completion('params'),
+    )
+
+
+def test_payload_key_completion_will_work_with_relative_scope_link():
+    assert completions_has(
+        get_completions(Document('''GET _search
+{"query":{"bool":{"filter":[{"and":{"filters":[{
+  ""
+}]}}]}}}''', 64)),
+        Completion(text='and'),
+        Completion(text='bool'),
+        Completion(text='exists'),
+        Completion(text='ids'),
+        Completion(text='limit'),
+        Completion(text='geo_bounding_box'),
+    )
+
+    assert completions_has(
+        get_completions(Document('''GET _search
+{"query":{"span_near":{"clauses":[{
+  ""
+}],"slop":12,"in_order":false}}}
+''', 51)),
+        Completion(text='span_near'),
+        Completion(text='span_first'),
+        Completion(text='span_or'),
+        Completion(text='span_containing'),
+    )
+
+
+def test_payload_value_completion_010():
+    assert completions_has(
+        get_completions(Document('''PUT _security/api_key
+{
+  "role_descriptors": {
+    "role_name": \n},
+}''', 64)),
+        Completion(text='{}')
+    )
+
+    assert completions_has(
+        get_completions(Document('''PUT _security/api_key
+{
+  "role_descriptors": {
+    "role_name": \n},
+}''', 65)),
+        Completion(text='{}')
+    )
+
+
+def test_payload_value_completion_050():
+    assert completions_has(
+        get_completions(Document('''PUT _security/api_key
+{
+  "role_descriptors": {
+    "role_name": {
+      "indices":
+    },
+  },
+}''', 83)),
+        Completion(text='[{}]')
+    )
+
+    assert completions_has(
+        get_completions(Document('''PUT _security/api_key
+{
+  "role_descriptors": {
+    "role_name": {
+      "indices": \n},
+  },
+}''', 84)),
+        Completion(text='[{}]')
+    )
+
+
+def test_payload_value_completion_100():
+    completions = list(get_completions(Document('''PUT my-index
+{
+  "mappings": {
+    "properties": {
+      "abc": {
+        "type": "t",
+        "doc_values": true,
+        "similarity": "BM25",
+        "term_vector": "",
+        "copy_to": ["{field}"],
+        "analyzer":
+      }
+    },
+  },
+}''', 84)))
+    assert completions_has(
+        completions,
+        Completion(text='text', start_position=-1),
+        Completion(text='byte', start_position=-1),
+        Completion(text='integer', start_position=-1),
+        Completion(text='float', start_position=-1),
+    )
+    assert completions_has_no(completions, Completion(text='keyword', start_position=-1))
+
+
+def test_payload_value_completion_110():
+    completions = list(get_completions(Document('''PUT my-index
+{
+  "mappings": {
+    "properties": {
+      "abc": {
+        "type": "text",
+        "doc_values": ,
+        "similarity": "BM25",
+        "term_vector": "",
+        "copy_to": ["{field}"],
+        "analyzer":
+      }
+    },
+  },
+}''', 112)))
+    assert completions_has(
+        completions,
+        Completion(text='true'),
+        Completion(text='false'),
+    )
+
+    completions = list(get_completions(Document('''PUT my-index
+{
+  "mappings": {
+    "properties": {
+      "abc": {
+        "type": "text",
+        "doc_values": t,
+        "similarity": "BM25",
+        "term_vector": "",
+        "copy_to": ["{field}"],
+        "analyzer":
+      }
+    },
+  },
+}''', 113)))
+    assert completions_has(
+        completions,
+        Completion(text='true', start_position=-1),
+    )
+    assert completions_has_no(
+        completions,
+        Completion(text='false', start_position=-1),
+    )
+
+
+def test_payload_value_completion_120():
+    completions = list(get_completions(Document('''PUT my-index
+{
+  "mappings": {
+    "properties": {
+      "abc": {
+        "type": "text",
+        "doc_values": false,
+        "similarity": "BM25",
+        "term_vector": "",
+        "copy_to": ,
+        "analyzer":
+      }
+    },
+  },
+}''', 195)))
+    assert completions_has(
+        completions,
+        Completion(text='""'),
+        Completion(text='["{field}"]'),
+    )
+
+    completions = list(get_completions(Document('''PUT my-index
+{
+  "mappings": {
+    "properties": {
+      "abc": {
+        "type": "text",
+        "doc_values": false,
+        "similarity": "BM25",
+        "term_vector": "",
+        "copy_to": "",
+        "analyzer":
+      }
+    },
+  },
+}''', 196)))
+    assert completions_has(
+        completions,
+        Completion(text='{field}'),
+    )
+
+
+def test_payload_value_completion_130():
+    completions = list(get_completions(Document('''PUT my-index
+{
+  "mappings": {
+    "properties": {
+      "abc": {
+        "type": "text",
+        "doc_values": false,
+        "similarity": "BM25",
+        "term_vector": "",
+        "copy_to": "",
+        "analyzer": ,
+      }
+    },
+  },
+}''', 219)))
+    assert completions_has(
+        completions,
+        Completion(text='"standard"'),
+    )
+
+    completions = list(get_completions(Document('''PUT my-index
+{
+  "mappings": {
+    "properties": {
+      "abc": {
+        "type": "text",
+        "doc_values": false,
+        "similarity": "BM25",
+        "term_vector": "",
+        "copy_to": "",
+        "analyzer": "",
+      }
+    },
+  },
+}''', 220)))
+    assert completions_has(
+        completions,
+        Completion(text='standard'),
+    )
+
+
+def test_field_placeholder():
+    assert completions_has(get_completions(Document('''GET _search
+{
+  "query": {
+    "match": {
+      "a_field": {
+        ""
+      }
+    },
+  },
+}''', 70)), Completion(text='type'), Completion(text='zero_terms_query'))
 
 
 def equivalent_completions(c0: Completion, c1: Completion):

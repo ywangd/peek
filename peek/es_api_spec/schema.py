@@ -122,12 +122,6 @@ class ESSchemaCompleter(ESApiCompleter):
         payload_keys = [ast.literal_eval(t.value) for t in unpaired_dict_key_tokens]
         _logger.debug(f'Payload keys are: {payload_keys}')
 
-        rules = self._resolve_rules_for_keys(rules, payload_keys, unwrap_value_for_last_key=False)
-        if rules is None:
-            _logger.debug(f'Rules not available for keys: {payload_keys!r}')
-            return [], {}
-        _logger.debug(f'Found rules for payload keys: {rules!r}')
-
         # Find last Colon position
         for index_colon in range(len(payload_tokens) - 1, -1, -1):
             if payload_tokens[index_colon].ttype is Colon:
@@ -136,42 +130,37 @@ class ESSchemaCompleter(ESApiCompleter):
             _logger.warning(f'Should not happen - Colon not found in payload: {payload_tokens}')
             return [], {}
 
+        body = Body.from_dict(self._schema.types[endpoint.request].body)
+        prop: Variable = body.property_for_key(self._schema.types, payload_keys)
+        if prop is None:
+            return [], {}
+
         if index_colon == len(payload_tokens) - 1:  # Colon is the last token
             _logger.debug('Colon is the last token')
             # The simpler case when value position has nothing yet
-            if isinstance(rules, dict):
-                if '__one_of' in rules:
-                    return [Completion('""' if isinstance(c, str) else json.dumps(c))
-                            for c in rules['__one_of']], rules
-                else:
-                    return [Completion('{}')], rules
-            elif isinstance(rules, list):
-                if rules and isinstance(rules[0], dict):
-                    return [Completion('[{}]')], rules
-                else:
-                    return [Completion('[]')], rules
-            else:
-                return [Completion(json.dumps(rules))], rules
+            return [Completion(json.dumps(v)) for v in prop.candidate_values(self._schema.types)], {}
         else:
             token_after_colon = payload_tokens[index_colon + 1]
             last_payload_token = payload_tokens[-1]
             _logger.debug(f'The token after colon is: {token_after_colon}, last payload_token is: {last_payload_token}')
             if token_after_colon.ttype is BracketLeft:
-                if token_after_colon is last_payload_token or (last_payload_token.ttype is Comma):
-                    if isinstance(rules, list) and rules and isinstance(rules[0], dict):
-                        return [Completion('{}')], rules
+                # if token_after_colon is last_payload_token or (last_payload_token.ttype is Comma):
+                if isinstance(prop.value, ArrayOf):
+                    # penetrate array
+                    if last_payload_token.ttype in String:
+                        return [Completion(v) for v in
+                                prop.value.get_member().candidate_values(self._schema.types)
+                                if isinstance(v, str)], {}
+                    else:
+                        return [Completion(json.dumps(v)) for v in
+                                prop.value.get_member().candidate_values(self._schema.types)], {}
             elif token_after_colon.ttype in String and token_after_colon is last_payload_token:
-                if isinstance(rules, dict) and '__one_of' in rules:
-                    return [Completion(c) for c in rules['__one_of'] if isinstance(c, str)], rules
-                elif isinstance(rules, list):
-                    return [Completion(c) for c in rules if isinstance(c, str)], rules
-                elif isinstance(rules, str):
-                    return [Completion(rules)], rules
+                return [Completion(v) for v in prop.value.candidate_values(self._schema.types)
+                        if isinstance(v, str)], {}
+
             elif token_after_colon.ttype is Name and token_after_colon is last_payload_token:
-                if isinstance(rules, dict) and '__one_of' in rules:
-                    return [Completion(json.dumps(c)) for c in rules['__one_of'] if c in (True, False, None)], rules
-                elif isinstance(rules, list):
-                    return [Completion(json.dumps(c)) for c in rules if c in (True, False, None)], rules
+                return [Completion(json.dumps(v)) for v in prop.value.candidate_values(self._schema.types)
+                        if v in (True, False, None)], {}
 
         return [], {}  # catch all
 
@@ -390,7 +379,11 @@ class InstanceOf(Value):
 class ArrayOf(Value):
 
     def candidate_values(self, types: Dict[TypeDefinitionName, Union[Alias, Interface, Enum, Request]]):
-        return [[]]
+        member_value = self.get_member().candidate_values(types)
+        if member_value == [{}]:
+            return [[{}]]
+        else:
+            return [[]]
 
     def value_template(self, types: Dict[TypeDefinitionName, Union[Alias, Interface, Enum, Request]]):
         templates = [[]]
@@ -507,6 +500,10 @@ class Body:
                        payload_keys: List[str]):
         return {}
 
+    def property_for_key(self, types: Dict[TypeDefinitionName, Union[Alias, Interface, Enum, Request]],
+                         payload_keys: List[str]):
+        return None
+
     def __getattr__(self, item):
         return self.data.get(item, None)
 
@@ -569,6 +566,30 @@ class PropertiesBody(Body):
                 name_to_value[prop.name] = prop.value_template(types)
 
         return name_to_value
+
+    def property_for_key(self, types: Dict[TypeDefinitionName, Union[Alias, Interface, Enum, Request]],
+                         payload_keys: List[str]):
+        properties = self.get_properties()
+        while len(payload_keys) > 0:
+            matched_prop = None
+            for prop in properties:
+                if prop.name != payload_keys[0]:
+                    continue
+                payload_keys.pop(0)
+                matched_prop = prop
+                break
+            if matched_prop is None:
+                return None
+            else:
+                if len(payload_keys) == 0:
+                    return matched_prop
+                else:
+                    if isinstance(matched_prop.value, ArrayOf):
+                        # penetrate array
+                        properties = matched_prop.value.get_member().candidate_keys(types)
+                    else:
+                        properties = matched_prop.candidate_keys(types)
+        return None
 
 
 class Schema:
