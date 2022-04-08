@@ -189,6 +189,43 @@ get _cluster/health c''')),
         Completion(text='conn=', start_position=-1),
     )
 
+
+def test_complete_payload_key():
+    assert completions_has(
+        get_completions(Document('''POST _security/api_key/grant
+    {""}''', 35)),
+        Completion(text='username'),
+        Completion(text='grant_type')
+    )
+
+    assert completions_has(
+        get_completions(Document('''put _security/role/test
+{""}''', 26)),
+        Completion(text='applications'),
+    )
+
+    assert completions_has(
+        get_completions(Document('''POST _security/api_key/grant
+        {"api_key": { "" } }''', 52)),
+        Completion(text='role_descriptors'),
+    )
+
+
+def test_complete_payload_inner_key():
+    assert completions_has(
+        get_completions(Document('''PUT _security/role/{name}
+{"indices":[{ "" }]}''', 41)),
+        Completion(text='names'),
+    )
+
+
+def test_complete_payload_value_metadata():
+    assert no_completion(
+        get_completions(Document('''put _security/role/test
+{"metadata": {""}}''', 39))
+    )
+
+
 #
 # def test_complete_payload_value():
 #     assert completions_has(

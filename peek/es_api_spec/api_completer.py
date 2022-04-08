@@ -27,7 +27,8 @@ class ESApiCompleter(metaclass=ABCMeta):
     @abstractmethod
     def complete_payload(self, document: Document, complete_event: CompleteEvent, method: str,
                          path_tokens: List[PeekToken],
-                         payload_tokens: List[PeekToken]) -> Tuple[List[Completion], dict]:
+                         payload_tokens: List[PeekToken],
+                         payload_events: List[ParserEvent]) -> Tuple[List[Completion], dict]:
         pass
 
     @abstractmethod

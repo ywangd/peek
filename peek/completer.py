@@ -329,7 +329,8 @@ class PeekCompleter(Completer):
         last_event = state_tracker.last_event
         payload_tokens = tokens[tokens.index(last_event.token):]
         candidates, rules = self.api_completer.complete_payload(
-            document, complete_event, method_token.value.upper(), path_tokens, payload_tokens)
+            document, complete_event, method_token.value.upper(), path_tokens, payload_tokens,
+            state_tracker.payload_events)
         if not candidates:
             return []
         constant_completer = ConstantCompleter(candidates)

@@ -71,7 +71,7 @@ class KibanaSpecCompleter(ESApiCompleter):
         return [Completion(c) for c in candidates]
 
     # TODO: refactor with parser state tracker
-    def complete_payload(self, document: Document, complete_event: CompleteEvent, method, path_tokens, payload_tokens):
+    def complete_payload(self, document, complete_event, method, path_tokens, payload_tokens, payload_events):
         _logger.debug(f'Completing for API payload: {method!r} {path_tokens!r} {payload_tokens!r}')
         rules = self._find_rules_for_method_and_url_path(method, path_tokens)
         if rules is None:
