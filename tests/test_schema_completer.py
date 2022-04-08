@@ -295,13 +295,13 @@ def test_payload_completion_001():
 {
   "role_descriptors": {
     "role_name": {
-      "indices": [
+      "index": [
         {""}
       ]
     }
   }
-}''', 97)),
-        Completion(text="field_security"),
+}''', 95)),
+        Completion(text="privileges"),
     )
 
 
@@ -333,7 +333,7 @@ def test_payload_completion_003():
     }
   }
 }''', 97)),
-        Completion(text="indices"),
+        Completion(text="index"),
     )
 
 
@@ -398,10 +398,10 @@ def test_payload_key_completion_will_not_appear_in_value_position():
 def test_payload_key_completion_works_within_array():
     assert completions_has(
         get_completions(Document('''PUT _security/api_key
-{"role_descriptors":{"role_name":{"indices":[{""}]}}}
-''', 69)),
+{"role_descriptors":{"role_name":{"index":[{""}]}}}
+''', 68)),
         Completion(text='names'),
-        Completion(text='field_security'),
+        Completion(text='privileges'),
     )
 
 
@@ -517,21 +517,22 @@ def test_payload_value_completion_050():
 {
   "role_descriptors": {
     "role_name": {
-      "indices":
+      "index":
     },
   },
-}''', 83)),
+}''', 82)),
         Completion(text='[{}]')
     )
 
+    # the completion does not work if it is after a newline
     assert completions_has(
         get_completions(Document('''PUT _security/api_key
 {
   "role_descriptors": {
     "role_name": {
-      "indices": \n},
+      "index": \n},
   },
-}''', 84)),
+}''', 82)),
         Completion(text='[{}]')
     )
 

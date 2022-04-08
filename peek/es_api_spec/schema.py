@@ -166,7 +166,7 @@ class ESSchemaCompleter(ESApiCompleter):
 
     def _get_matchable_endpoint(self, method, path_tokens):
         try:
-            token_stream = [t.value for t in path_tokens if t.ttype is not Slash]
+            token_stream = [t.value for t in path_tokens if t.ttype is PathPart]
             endpoint = next(self._schema.matchable_endpoints(method, token_stream))
             _logger.debug(f'Found endpoint for {method!r} {path_tokens}')
             return endpoint
@@ -243,6 +243,8 @@ class Builtin(TypeDefinition):
     def candidate_values(self, types):
         if self.name.name == 'boolean':
             return [True, False]
+        elif self.name.name == 'string':
+            return ['']
         elif self.name.name == 'null':
             return [None]
         else:
@@ -401,7 +403,8 @@ class DictionaryOf(Value):
         return [{}]
 
     def candidate_keys(self, types: Dict[TypeDefinitionName, Union[Alias, Interface, Enum, Request]]):
-        return self.get_key().candidate_keys(types)
+        # TODO: check key type is string?
+        return [Wildcard(self.value)]
 
     def value_template(self, types: Dict[TypeDefinitionName, Union[Alias, Interface, Enum, Request]]):
         return [{}]
@@ -460,6 +463,22 @@ class UserDefined(Value):
 @dataclass(frozen=True)
 class Void(Value):
     pass
+
+
+@dataclass(frozen=True)
+class Wildcard(Value):
+
+    def candidate_values(self, types: Dict[TypeDefinitionName, Union[Alias, Interface, Enum, Request]]):
+        return self.get_value().candidate_values(types)
+
+    def candidate_keys(self, types: Dict[TypeDefinitionName, Union[Alias, Interface, Enum, Request]]):
+        return self.get_value().candidate_keys(types)
+
+    def value_template(self, types: Dict[TypeDefinitionName, Union[Alias, Interface, Enum, Request]]):
+        return self.get_value().value_template(types)
+
+    def get_value(self):
+        return Value.from_dict(self.data)
 
 
 @dataclass(frozen=True)
@@ -544,7 +563,7 @@ class PropertiesBody(Body):
         while len(payload_keys) > 0:
             matched_prop = None
             for prop in properties:
-                if prop.name != payload_keys[0]:
+                if prop.name != payload_keys[0] and not isinstance(prop, Wildcard):
                     continue
                 payload_keys.pop(0)
                 matched_prop = prop
@@ -552,7 +571,7 @@ class PropertiesBody(Body):
             if matched_prop is None:
                 return {}
             else:
-                if isinstance(matched_prop.value, ArrayOf):
+                if not isinstance(matched_prop, Wildcard) and isinstance(matched_prop.value, ArrayOf):
                     # penetrate array
                     properties = matched_prop.value.get_member().candidate_keys(types)
                 else:
@@ -573,7 +592,7 @@ class PropertiesBody(Body):
         while len(payload_keys) > 0:
             matched_prop = None
             for prop in properties:
-                if prop.name != payload_keys[0]:
+                if prop.name != payload_keys[0] and not isinstance(prop, Wildcard):
                     continue
                 payload_keys.pop(0)
                 matched_prop = prop
@@ -584,7 +603,7 @@ class PropertiesBody(Body):
                 if len(payload_keys) == 0:
                     return matched_prop
                 else:
-                    if isinstance(matched_prop.value, ArrayOf):
+                    if not isinstance(matched_prop, Wildcard) and isinstance(matched_prop.value, ArrayOf):
                         # penetrate array
                         properties = matched_prop.value.get_member().candidate_keys(types)
                     else:
