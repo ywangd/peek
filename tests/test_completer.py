@@ -673,4 +673,4 @@ def test_field_placeholder():
       }
     },
   },
-}''', 70)), Completion(text='type'), Completion(text='zero_terms_query'))
+}''', 70)), Completion(text='fuzziness'), Completion(text='zero_terms_query'))

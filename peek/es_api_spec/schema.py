@@ -5,15 +5,14 @@ import numbers
 import os.path
 import zipfile
 from dataclasses import dataclass
-from enum import Enum
-from typing import List, Dict, Union
+from typing import List, Dict, Union, Any
 
 from prompt_toolkit.completion import CompleteEvent, Completion
 from prompt_toolkit.document import Document
 from pygments.token import String, Name
 
 from peek.es_api_spec.api_completer import can_match, ESApiCompleter
-from peek.lexers import Slash, PathPart, Assign, CurlyLeft, CurlyRight, DictKey, Colon, EOF, BracketLeft, Comma
+from peek.lexers import Slash, PathPart, Assign, CurlyLeft, CurlyRight, DictKey, Colon, EOF, BracketLeft
 from peek.parser import ParserEventType
 
 _logger = logging.getLogger(__name__)
@@ -97,10 +96,15 @@ class ESSchemaCompleter(ESApiCompleter):
         body = Body.from_dict(self._schema.types[endpoint.request].body)
         name_to_values = body.candidate_keys(self._schema.types, payload_keys)
 
-        return [Completion(c) for c in name_to_values.keys()], name_to_values
+        return [Completion(c) for c in sorted(name_to_values.keys())], name_to_values
 
     def complete_payload_value(self, document, complete_event, method, path_tokens, payload_tokens, payload_events):
         _logger.debug(f'Completing for API payload value: {method!r} {path_tokens!r} {payload_tokens!r}')
+        completions, context = self._do_complete_payload_value(document, complete_event, method, path_tokens,
+                                                               payload_tokens, payload_events)
+        return [Completion(c) for c in sorted(set(completions))], context
+
+    def _do_complete_payload_value(self, document, complete_event, method, path_tokens, payload_tokens, payload_events):
         endpoint: Endpoint = self._get_matchable_endpoint(method, path_tokens)
         if endpoint.request is None:
             return [], {}
@@ -131,36 +135,48 @@ class ESSchemaCompleter(ESApiCompleter):
             return [], {}
 
         body = Body.from_dict(self._schema.types[endpoint.request].body)
-        prop: Variable = body.property_for_key(self._schema.types, payload_keys)
-        if prop is None:
+        properties: List[Variable] = body.properties_for_keys(self._schema.types, payload_keys)
+        if len(properties) == 0:
             return [], {}
 
         if index_colon == len(payload_tokens) - 1:  # Colon is the last token
             _logger.debug('Colon is the last token')
             # The simpler case when value position has nothing yet
-            return [Completion(json.dumps(v)) for v in prop.candidate_values(self._schema.types)], {}
+            completions = []
+            for prop in properties:
+                completions += [json.dumps(v) for v in prop.candidate_values(self._schema.types)]
+            return completions, {}
         else:
             token_after_colon = payload_tokens[index_colon + 1]
             last_payload_token = payload_tokens[-1]
             _logger.debug(f'The token after colon is: {token_after_colon}, last payload_token is: {last_payload_token}')
             if token_after_colon.ttype is BracketLeft:
                 # if token_after_colon is last_payload_token or (last_payload_token.ttype is Comma):
-                if isinstance(prop.value, ArrayOf):
-                    # penetrate array
-                    if last_payload_token.ttype in String:
-                        return [Completion(v) for v in
-                                prop.value.get_member().candidate_values(self._schema.types)
-                                if isinstance(v, str)], {}
-                    else:
-                        return [Completion(json.dumps(v)) for v in
-                                prop.value.get_member().candidate_values(self._schema.types)], {}
+                completions = []
+                for prop in properties:
+                    if isinstance(prop.value, ArrayOf):
+                        # penetrate array
+                        if last_payload_token.ttype in String:
+                            completions += [v for v in
+                                            prop.value.get_member().candidate_values(self._schema.types)
+                                            if isinstance(v, str)]
+                        else:
+                            completions += [json.dumps(v) for v in
+                                            prop.value.get_member().candidate_values(self._schema.types)]
+                return completions, {}
             elif token_after_colon.ttype in String and token_after_colon is last_payload_token:
-                return [Completion(v) for v in prop.value.candidate_values(self._schema.types)
-                        if isinstance(v, str)], {}
+                completions = []
+                for prop in properties:
+                    completions += [v for v in prop.candidate_values(self._schema.types)
+                                    if isinstance(v, str)]
+                return completions, {}
 
             elif token_after_colon.ttype is Name and token_after_colon is last_payload_token:
-                return [Completion(json.dumps(v)) for v in prop.value.candidate_values(self._schema.types)
-                        if v in (True, False, None)], {}
+                completions = []
+                for prop in properties:
+                    completions += [json.dumps(v) for v in prop.candidate_values(self._schema.types)
+                                    if v in (True, False, None)]
+                return completions, {}
 
         return [], {}  # catch all
 
@@ -484,6 +500,7 @@ class Wildcard(Value):
 @dataclass(frozen=True)
 class Variable:
     name: str
+    aliases: List[str]
     value: Value
 
     def candidate_values(self, types: Dict[TypeDefinitionName, Union[Alias, Interface, Enum, Request]]):
@@ -508,7 +525,11 @@ class Variable:
 
     @staticmethod
     def from_dict(data):
-        return Variable(name=data['name'], value=Value.from_dict(data['type']))
+        return Variable(
+            name=data['name'],
+            aliases=data.get('aliases', []),
+            value=Value.from_dict(data['type'])
+        )
 
 
 @dataclass(frozen=True)
@@ -519,9 +540,9 @@ class Body:
                        payload_keys: List[str]):
         return {}
 
-    def property_for_key(self, types: Dict[TypeDefinitionName, Union[Alias, Interface, Enum, Request]],
-                         payload_keys: List[str]):
-        return None
+    def properties_for_keys(self, types: Dict[TypeDefinitionName, Union[Alias, Interface, Enum, Request]],
+                            payload_keys: List[str]) -> List:
+        return []
 
     def __getattr__(self, item):
         return self.data.get(item, None)
@@ -558,57 +579,70 @@ class PropertiesBody(Body):
         return [Variable.from_dict(prop) for prop in self.properties]
 
     def candidate_keys(self, types: Dict[TypeDefinitionName, Union[Alias, Interface, Enum, Request]],
-                       payload_keys: List[str]):
-        properties = self.get_properties()
-        while len(payload_keys) > 0:
-            matched_prop = None
-            for prop in properties:
-                if prop.name != payload_keys[0] and not isinstance(prop, Wildcard):
-                    continue
-                payload_keys.pop(0)
-                matched_prop = prop
-                break
-            if matched_prop is None:
-                return {}
-            else:
-                if not isinstance(matched_prop, Wildcard) and isinstance(matched_prop.value, ArrayOf):
+                       payload_keys: List[str]) -> Dict[str, Any]:
+        """
+        For the given payload_keys, find properties that match the sequence, then return their sub-properties
+        in the format of {property_name: property_template_value}.
+        """
+
+        if len(payload_keys) == 0:
+            all_sub_properties = self.get_properties()
+        else:
+            matched_properties = self.properties_for_keys(types, payload_keys)
+            all_sub_properties = []
+            for prop in matched_properties:
+                if not isinstance(prop, Wildcard) and isinstance(prop.value, ArrayOf):
                     # penetrate array
-                    properties = matched_prop.value.get_member().candidate_keys(types)
+                    all_sub_properties += prop.value.get_member().candidate_keys(types)
                 else:
-                    properties = matched_prop.candidate_keys(types)
+                    all_sub_properties += prop.candidate_keys(types)
 
         name_to_value = {}
-        for prop in properties:
-            prop_name = prop.name
-            # Name check makes sure the prop is of Variable type
-            if prop_name is not None:
-                name_to_value[prop.name] = prop.value_template(types)
+        for sub_prop in all_sub_properties:
+            if not isinstance(sub_prop, Variable):
+                continue
+            name_to_value[sub_prop.name] = sub_prop.value_template(types)
 
         return name_to_value
 
-    def property_for_key(self, types: Dict[TypeDefinitionName, Union[Alias, Interface, Enum, Request]],
-                         payload_keys: List[str]):
-        properties = self.get_properties()
+    def properties_for_keys(self, types: Dict[TypeDefinitionName, Union[Alias, Interface, Enum, Request]],
+                            payload_keys: List[str]) -> List[Union[Variable, Wildcard]]:
+        """
+        For the given payload_keys, find properties that match the sequence. The result is a list of property
+        because there could be more than one path that matches the key sequence.
+        """
+        candidate_properties = self.get_properties()
+        if len(payload_keys) == 0:
+            raise ValueError('no payload keys to find for properties')
+
         while len(payload_keys) > 0:
-            matched_prop = None
-            for prop in properties:
-                if prop.name != payload_keys[0] and not isinstance(prop, Wildcard):
-                    continue
-                payload_keys.pop(0)
-                matched_prop = prop
-                break
-            if matched_prop is None:
-                return None
-            else:
-                if len(payload_keys) == 0:
-                    return matched_prop
+            matched_properties = []
+            for prop in candidate_properties:
+                if self._property_match_key(prop, payload_keys[0]):
+                    matched_properties.append(prop)
+
+            if len(matched_properties) == 0:  # No match is found
+                return []
+
+            # match is found
+            payload_keys.pop(0)
+            if len(payload_keys) == 0:
+                return [p for p in matched_properties if isinstance(p, Variable) or isinstance(p, Wildcard)]
+
+            # Prepare for the next round of key matching
+            candidate_properties = []
+            for matched_property in matched_properties:
+                if not isinstance(matched_property, Wildcard) and isinstance(matched_property.value, ArrayOf):
+                    # penetrate array
+                    candidate_properties += matched_property.value.get_member().candidate_keys(types)
                 else:
-                    if not isinstance(matched_prop, Wildcard) and isinstance(matched_prop.value, ArrayOf):
-                        # penetrate array
-                        properties = matched_prop.value.get_member().candidate_keys(types)
-                    else:
-                        properties = matched_prop.candidate_keys(types)
-        return None
+                    candidate_properties += matched_property.candidate_keys(types)
+
+        return []  # should not reach here, but for safe
+
+    @staticmethod
+    def _property_match_key(prop, key):
+        return prop.name == key or isinstance(prop, Wildcard) or (prop.aliases and key in prop.aliases)
 
 
 class Schema:
