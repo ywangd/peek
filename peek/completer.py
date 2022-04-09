@@ -135,8 +135,8 @@ class PeekCompleter(Completer):
     def init_api_completer(self):
         if self.app.config.as_bool('use_elasticsearch_specification'):
             _logger.info('Use elasticsearch-specification schema for autocompletion')
-            from peek.es_api_spec.schema import ESSchemaCompleter
-            return ESSchemaCompleter()
+            from peek.es_api_spec.schema import SchemaESApiCompleter
+            return SchemaESApiCompleter()
         else:
             from peek import __file__ as package_root
             package_root = os.path.dirname(package_root)
@@ -150,8 +150,8 @@ class PeekCompleter(Completer):
             if not kibana_dir:
                 kibana_dir = os.path.join(package_root, 'specs', 'kibana-7.8.1')
             _logger.info(f'Attempt to build Elasticsearch API specs from: {kibana_dir}')
-            from peek.es_api_spec.kspec import KibanaSpecCompleter
-            return KibanaSpecCompleter(self.app, kibana_dir)
+            from peek.es_api_spec.kspec import KibanaSpecESApiCompleter
+            return KibanaSpecESApiCompleter(self.app, kibana_dir)
 
     def get_completions(self, document: Document, complete_event: CompleteEvent) -> Iterable[Completion]:
         _logger.debug(f'Document: {document}, Event: {complete_event}')

@@ -264,6 +264,14 @@ def test_complete_payload_value_dict():
     )
 
 
+def test_complete_payload_key_alias():
+    assert completions_has(
+        get_completions(Document('''GET /_search
+{ "" }''', 16)),
+        Completion(text='aggs'),
+    )
+
+
 def test_not_complete_http_options():
     assert len(list(get_completions(Document('''POST _security/oauth2/token
 ''')))) == 0
@@ -631,6 +639,7 @@ def test_payload_value_completion_120():
         Completion(text='[]'),
         # Completion(text='["{field}"]'),
     )
+
 
 #     completions = list(get_completions(Document('''PUT my-index
 # {

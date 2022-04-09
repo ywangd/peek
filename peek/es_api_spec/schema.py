@@ -18,7 +18,7 @@ from peek.parser import ParserEventType
 _logger = logging.getLogger(__name__)
 
 
-class ESSchemaCompleter(ESApiCompleter):
+class SchemaESApiCompleter(ESApiCompleter):
 
     def __init__(self):
         self._schema = Schema()
@@ -48,26 +48,16 @@ class ESSchemaCompleter(ESApiCompleter):
     def complete_query_param_name(self, document, complete_event, method, path_tokens):
         _logger.debug(f'Completing URL query param name: {path_tokens[-1]}')
         token_stream = [t.value for t in path_tokens if t.ttype is PathPart]
-        candidates = set()
-        for endpoint in self._schema.matchable_endpoints(method, token_stream):
-            candidates.update(self._schema.query_param_names(endpoint))
-        return [Completion(c) for c in candidates]
+        return [Completion(c) for c in self._schema.query_param_names(method, token_stream)]
 
     def complete_query_param_value(self, document, complete_event, method, path_tokens):
         _logger.debug(f'Completing URL query param value: {path_tokens[-1]}')
         param_name_token = path_tokens[-2] if path_tokens[-1].ttype is Assign else path_tokens[-3]
         token_stream = [t.value for t in path_tokens if t.ttype is PathPart]
-        candidates = set()
-        for endpoint in self._schema.matchable_endpoints(method, token_stream):
-            candidates.update(self._schema.query_param_values(param_name_token.value, endpoint))
-        return [Completion(c) for c in candidates]
+        return [Completion(c) for c in self._schema.query_param_values(method, token_stream, param_name_token.value)]
 
     def complete_payload(self, document, complete_event, method, path_tokens, payload_tokens, payload_events):
         _logger.debug(f'Completing for API payload: {method!r} {path_tokens!r} {payload_tokens!r}')
-        endpoint: Endpoint = self._get_matchable_endpoint(method, path_tokens)
-        if endpoint is None or endpoint.request is None:
-            return [], {}
-
         # TODO: refactor with parser state tracker
         payload_keys = []
         curly_level = 0
@@ -93,27 +83,22 @@ class ESSchemaCompleter(ESApiCompleter):
         if curly_level == len(payload_keys):
             payload_keys.pop()
 
-        body = Body.from_dict(self._schema.types[endpoint.request].body)
-        name_to_values = body.candidate_keys(self._schema.types, payload_keys)
-
+        ts = [t.value for t in path_tokens if t.ttype is PathPart]
+        name_to_values = self._schema.candidate_keys(method, ts, payload_keys)
         return [Completion(c) for c in sorted(name_to_values.keys())], name_to_values
 
     def complete_payload_value(self, document, complete_event, method, path_tokens, payload_tokens, payload_events):
         _logger.debug(f'Completing for API payload value: {method!r} {path_tokens!r} {payload_tokens!r}')
-        completions, context = self._do_complete_payload_value(document, complete_event, method, path_tokens,
-                                                               payload_tokens, payload_events)
-        return [Completion(c) for c in sorted(set(completions))], context
+        completions = self._do_complete_payload_value(document, complete_event, method, path_tokens,
+                                                      payload_tokens, payload_events)
+        return [Completion(c) for c in sorted(set(completions))], {}
 
     def _do_complete_payload_value(self, document, complete_event, method, path_tokens, payload_tokens, payload_events):
-        endpoint: Endpoint = self._get_matchable_endpoint(method, path_tokens)
-        if endpoint.request is None:
-            return [], {}
-
         unpaired_dict_key_tokens = []
         for payload_event in payload_events:
             if payload_event.type is ParserEventType.BEFORE_DICT_KEY_EXPR:
                 _logger.debug(f'No completion is possible for payload with dict key expr: {payload_event.token}')
-                return [], {}
+                return []
             elif payload_event.type is ParserEventType.DICT_KEY:
                 unpaired_dict_key_tokens.append(payload_event.token)
             elif payload_event.type is ParserEventType.AFTER_DICT_VALUE and payload_event.token.ttype is not EOF:
@@ -121,7 +106,7 @@ class ESSchemaCompleter(ESApiCompleter):
 
         if not unpaired_dict_key_tokens:  # should not happen
             _logger.warning('No unpaired dict key tokens are found')
-            return [], {}
+            return []
 
         payload_keys = [ast.literal_eval(t.value) for t in unpaired_dict_key_tokens]
         _logger.debug(f'Payload keys are: {payload_keys}')
@@ -132,79 +117,47 @@ class ESSchemaCompleter(ESApiCompleter):
                 break
         else:
             _logger.warning(f'Should not happen - Colon not found in payload: {payload_tokens}')
-            return [], {}
+            return []
 
-        body = Body.from_dict(self._schema.types[endpoint.request].body)
-        properties: List[Variable] = body.properties_for_keys(self._schema.types, payload_keys)
-        if len(properties) == 0:
-            return [], {}
-
+        ts = [t.value for t in path_tokens if t.ttype is PathPart]
         if index_colon == len(payload_tokens) - 1:  # Colon is the last token
             _logger.debug('Colon is the last token')
             # The simpler case when value position has nothing yet
-            completions = []
-            for prop in properties:
-                completions += [json.dumps(v) for v in prop.candidate_values(self._schema.types)]
-            return completions, {}
+            return [json.dumps(v) for v in self._schema.candidate_values(method, ts, payload_keys)]
         else:
             token_after_colon = payload_tokens[index_colon + 1]
             last_payload_token = payload_tokens[-1]
             _logger.debug(f'The token after colon is: {token_after_colon}, last payload_token is: {last_payload_token}')
             if token_after_colon.ttype is BracketLeft:
                 # if token_after_colon is last_payload_token or (last_payload_token.ttype is Comma):
-                completions = []
-                for prop in properties:
-                    if isinstance(prop.value, ArrayOf):
-                        # penetrate array
-                        if last_payload_token.ttype in String:
-                            completions += [v for v in
-                                            prop.value.get_member().candidate_values(self._schema.types)
-                                            if isinstance(v, str)]
-                        else:
-                            completions += [json.dumps(v) for v in
-                                            prop.value.get_member().candidate_values(self._schema.types)]
-                return completions, {}
+                values = self._schema.candidate_values(method, ts, payload_keys, inside_array=True)
+                if last_payload_token.ttype in String:
+                    return [v for v in values if isinstance(v, str)]
+                else:
+                    return [json.dumps(v) for v in values]
             elif token_after_colon.ttype in String and token_after_colon is last_payload_token:
-                completions = []
-                for prop in properties:
-                    completions += [v for v in prop.candidate_values(self._schema.types)
-                                    if isinstance(v, str)]
-                return completions, {}
-
+                return [v for v in self._schema.candidate_values(method, ts, payload_keys) if isinstance(v, str)]
             elif token_after_colon.ttype is Name and token_after_colon is last_payload_token:
-                completions = []
-                for prop in properties:
-                    completions += [json.dumps(v) for v in prop.candidate_values(self._schema.types)
-                                    if v in (True, False, None)]
-                return completions, {}
+                return [json.dumps(v)
+                        for v in self._schema.candidate_values(method, ts, payload_keys) if v in (True, False, None)]
 
-        return [], {}  # catch all
-
-    def _get_matchable_endpoint(self, method, path_tokens):
-        try:
-            token_stream = [t.value for t in path_tokens if t.ttype is PathPart]
-            endpoint = next(self._schema.matchable_endpoints(method, token_stream))
-            _logger.debug(f'Found endpoint for {method!r} {path_tokens}')
-            return endpoint
-        except StopIteration:
-            _logger.debug(f'No matching endpoint found for {method!r} {path_tokens}')
-            return None
+        return []  # catch all
 
 
 @dataclass(frozen=True)
-class TypeDefinitionName:
+class TypeName:
     name: str
     namespace: str
 
     @staticmethod
     def from_dict(d):
-        return TypeDefinitionName(d['name'], d['namespace'])
+        return TypeName(d['name'], d['namespace'])
 
 
 @dataclass(frozen=True)
 class Endpoint:
     urls: List[Dict]
-    request: TypeDefinitionName
+    request: TypeName
     description: str
     doc_url: str
 
@@ -212,7 +165,7 @@ class Endpoint:
     def from_dict(d):
         return Endpoint(
             urls=d['urls'],
-            request=TypeDefinitionName.from_dict(d['request']) if d['request'] else None,
+            request=TypeName.from_dict(d['request']) if d['request'] else None,
             description=d['description'],
             doc_url=d['docUrl']
         )
@@ -220,7 +173,7 @@ class Endpoint:
 
 @dataclass(frozen=True)
 class TypeDefinition:
-    name: TypeDefinitionName
+    name: TypeName
     data: Dict
 
     def candidate_values(self, types):
@@ -237,7 +190,7 @@ class TypeDefinition:
 
     @staticmethod
     def from_dict(data):
-        name = TypeDefinitionName.from_dict(data.pop('name'))
+        name = TypeName.from_dict(data.pop('name'))
         kind = data.pop('kind')
         if kind == 'type_alias':
             return Alias(name=name, data=data)
@@ -344,13 +297,13 @@ class Response(TypeDefinition):
 class Value:
     data: Dict
 
-    def candidate_values(self, types: Dict[TypeDefinitionName, Union[Alias, Interface, Enum, Request]]):
+    def candidate_values(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]]):
         return []
 
-    def candidate_keys(self, types: Dict[TypeDefinitionName, Union[Alias, Interface, Enum, Request]]):
+    def candidate_keys(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]]):
         return []
 
-    def value_template(self, types: Dict[TypeDefinitionName, Union[Alias, Interface, Enum, Request]]):
+    def value_template(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]]):
         return []
 
     def __getattr__(self, item):
@@ -380,30 +333,30 @@ class Value:
 @dataclass(frozen=True)
 class InstanceOf(Value):
 
-    def candidate_values(self, types: Dict[TypeDefinitionName, Union[Alias, Interface, Enum, Request]]):
+    def candidate_values(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]]):
         return types[self.get_type_name()].candidate_values(types)
 
-    def candidate_keys(self, types: Dict[TypeDefinitionName, Union[Alias, Interface, Enum, Request]]):
+    def candidate_keys(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]]):
         return types[self.get_type_name()].candidate_keys(types)
 
-    def value_template(self, types: Dict[TypeDefinitionName, Union[Alias, Interface, Enum, Request]]):
+    def value_template(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]]):
         return types[self.get_type_name()].value_template(types)
 
-    def get_type_name(self) -> TypeDefinitionName:
-        return TypeDefinitionName.from_dict(self.type)
+    def get_type_name(self) -> TypeName:
+        return TypeName.from_dict(self.type)
 
 
 @dataclass(frozen=True)
 class ArrayOf(Value):
 
-    def candidate_values(self, types: Dict[TypeDefinitionName, Union[Alias, Interface, Enum, Request]]):
+    def candidate_values(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]]):
         member_value = self.get_member().candidate_values(types)
         if member_value == [{}]:
             return [[{}]]
         else:
             return [[]]
 
-    def value_template(self, types: Dict[TypeDefinitionName, Union[Alias, Interface, Enum, Request]]):
+    def value_template(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]]):
         templates = [[]]
         templates += self.get_member().value_template(types)
         return templates
@@ -415,14 +368,14 @@ class ArrayOf(Value):
 @dataclass(frozen=True)
 class DictionaryOf(Value):
 
-    def candidate_values(self, types: Dict[TypeDefinitionName, Union[Alias, Interface, Enum, Request]]):
+    def candidate_values(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]]):
         return [{}]
 
-    def candidate_keys(self, types: Dict[TypeDefinitionName, Union[Alias, Interface, Enum, Request]]):
+    def candidate_keys(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]]):
         # TODO: check key type is string?
-        return [Wildcard(self.value)]
+        return [Wildcard(self.get_value())]
 
-    def value_template(self, types: Dict[TypeDefinitionName, Union[Alias, Interface, Enum, Request]]):
+    def value_template(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]]):
         return [{}]
 
     def get_key(self) -> Value:
@@ -438,19 +391,19 @@ class DictionaryOf(Value):
 @dataclass(frozen=True)
 class UnionOf(Value):
 
-    def candidate_values(self, types: Dict[TypeDefinitionName, Union[Alias, Interface, Enum, Request]]):
+    def candidate_values(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]]):
         all_results = []
         for member in self.get_members():
             all_results += member.candidate_values(types)
         return all_results
 
-    def candidate_keys(self, types: Dict[TypeDefinitionName, Union[Alias, Interface, Enum, Request]]):
+    def candidate_keys(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]]):
         all_results = []
         for member in self.get_members():
             all_results += member.candidate_keys(types)
         return all_results
 
-    def value_template(self, types: Dict[TypeDefinitionName, Union[Alias, Interface, Enum, Request]]):
+    def value_template(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]]):
         # TODO: this just return the first template
         return self.get_members()[0].value_template(types)
 
@@ -461,10 +414,10 @@ class UnionOf(Value):
 @dataclass(frozen=True)
 class Literal(Value):
 
-    def candidate_values(self, types: Dict[TypeDefinitionName, Union[Alias, Interface, Enum, Request]]):
+    def candidate_values(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]]):
         return [self.get_value()]
 
-    def value_template(self, types: Dict[TypeDefinitionName, Union[Alias, Interface, Enum, Request]]):
+    def value_template(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]]):
         return [self.get_value()]
 
     def get_value(self):
@@ -482,34 +435,18 @@ class Void(Value):
 
 
 @dataclass(frozen=True)
-class Wildcard(Value):
-
-    def candidate_values(self, types: Dict[TypeDefinitionName, Union[Alias, Interface, Enum, Request]]):
-        return self.get_value().candidate_values(types)
-
-    def candidate_keys(self, types: Dict[TypeDefinitionName, Union[Alias, Interface, Enum, Request]]):
-        return self.get_value().candidate_keys(types)
-
-    def value_template(self, types: Dict[TypeDefinitionName, Union[Alias, Interface, Enum, Request]]):
-        return self.get_value().value_template(types)
-
-    def get_value(self):
-        return Value.from_dict(self.data)
-
-
-@dataclass(frozen=True)
 class Variable:
     name: str
     aliases: List[str]
     value: Value
 
-    def candidate_values(self, types: Dict[TypeDefinitionName, Union[Alias, Interface, Enum, Request]]):
+    def candidate_values(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]]):
         return self.value.candidate_values(types)
 
-    def candidate_keys(self, types: Dict[TypeDefinitionName, Union[Alias, Interface, Enum, Request]]):
+    def candidate_keys(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]]):
         return self.value.candidate_keys(types)
 
-    def value_template(self, types: Dict[TypeDefinitionName, Union[Alias, Interface, Enum, Request]]):
+    def value_template(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]]):
         templates = self.value.value_template(types)
         if len(templates) == 0:
             _logger.warning(f'templates length is zero for [{self}]')
@@ -523,6 +460,9 @@ class Variable:
 
         return template
 
+    def match_key(self, key: str):
+        return self.name == key or key in self.aliases
+
     @staticmethod
     def from_dict(data):
         return Variable(
@@ -532,15 +472,25 @@ class Variable:
         )
 
 
+@dataclass(frozen=True, init=False)
+class Wildcard(Variable):
+
+    def __init__(self, value: Value):
+        super(Wildcard, self).__init__(name='*', aliases=[], value=value)
+
+    def match_key(self, key: str):
+        return True
+
+
 @dataclass(frozen=True)
 class Body:
     data: Dict
 
-    def candidate_keys(self, types: Dict[TypeDefinitionName, Union[Alias, Interface, Enum, Request]],
+    def candidate_keys(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]],
                        payload_keys: List[str]):
         return {}
 
-    def properties_for_keys(self, types: Dict[TypeDefinitionName, Union[Alias, Interface, Enum, Request]],
+    def properties_for_keys(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]],
                             payload_keys: List[str]) -> List:
         return []
 
@@ -578,20 +528,19 @@ class PropertiesBody(Body):
     def get_properties(self):
         return [Variable.from_dict(prop) for prop in self.properties]
 
-    def candidate_keys(self, types: Dict[TypeDefinitionName, Union[Alias, Interface, Enum, Request]],
+    def candidate_keys(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]],
                        payload_keys: List[str]) -> Dict[str, Any]:
         """
         For the given payload_keys, find properties that match the sequence, then return their sub-properties
         in the format of {property_name: property_template_value}.
         """
-
         if len(payload_keys) == 0:
             all_sub_properties = self.get_properties()
         else:
             matched_properties = self.properties_for_keys(types, payload_keys)
             all_sub_properties = []
             for prop in matched_properties:
-                if not isinstance(prop, Wildcard) and isinstance(prop.value, ArrayOf):
+                if isinstance(prop.value, ArrayOf):
                     # penetrate array
                     all_sub_properties += prop.value.get_member().candidate_keys(types)
                 else:
@@ -599,14 +548,18 @@ class PropertiesBody(Body):
 
         name_to_value = {}
         for sub_prop in all_sub_properties:
-            if not isinstance(sub_prop, Variable):
+            # Filter out wildcard to avoid showing '*' as a suggestion for dict keys
+            if not isinstance(sub_prop, Variable) or isinstance(sub_prop, Wildcard):
                 continue
-            name_to_value[sub_prop.name] = sub_prop.value_template(types)
+            value_template = sub_prop.value_template(types)
+            name_to_value[sub_prop.name] = value_template
+            for alias in sub_prop.aliases:
+                name_to_value[alias] = value_template
 
         return name_to_value
 
-    def properties_for_keys(self, types: Dict[TypeDefinitionName, Union[Alias, Interface, Enum, Request]],
-                            payload_keys: List[str]) -> List[Union[Variable, Wildcard]]:
+    def properties_for_keys(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]],
+                            payload_keys: List[str]) -> List[Variable]:
         """
         For the given payload_keys, find properties that match the sequence. The result is a list of property
         because there could be more than one path that matches the key sequence.
@@ -618,7 +571,9 @@ class PropertiesBody(Body):
         while len(payload_keys) > 0:
             matched_properties = []
             for prop in candidate_properties:
-                if self._property_match_key(prop, payload_keys[0]):
+                if not isinstance(prop, Variable):
+                    continue
+                if prop.match_key(payload_keys[0]):
                     matched_properties.append(prop)
 
             if len(matched_properties) == 0:  # No match is found
@@ -627,12 +582,12 @@ class PropertiesBody(Body):
             # match is found
             payload_keys.pop(0)
             if len(payload_keys) == 0:
-                return [p for p in matched_properties if isinstance(p, Variable) or isinstance(p, Wildcard)]
+                return [p for p in matched_properties if isinstance(p, Variable)]
 
             # Prepare for the next round of key matching
             candidate_properties = []
             for matched_property in matched_properties:
-                if not isinstance(matched_property, Wildcard) and isinstance(matched_property.value, ArrayOf):
+                if isinstance(matched_property.value, ArrayOf):
                     # penetrate array
                     candidate_properties += matched_property.value.get_member().candidate_keys(types)
                 else:
@@ -640,24 +595,20 @@ class PropertiesBody(Body):
 
         return []  # should not reach here, but for safe
 
-    @staticmethod
-    def _property_match_key(prop, key):
-        return prop.name == key or isinstance(prop, Wildcard) or (prop.aliases and key in prop.aliases)
-
 
 class Schema:
 
     def __init__(self):
         data = self._load_bundled()
         self.endpoints = [Endpoint.from_dict(d) for d in data['endpoints']]
-        self.types: Dict[TypeDefinitionName, Union[Alias, Interface, Enum, Request]] = {
+        self.types: Dict[TypeName, Union[Alias, Interface, Enum, Request]] = {
             b.name: b for b in [
-                Builtin(name=TypeDefinitionName("binary", "_builtins"), data={}),
-                Builtin(name=TypeDefinitionName("boolean", "_builtins"), data={}),
-                Builtin(name=TypeDefinitionName("null", "_builtins"), data={}),
-                Builtin(name=TypeDefinitionName("number", "_builtins"), data={}),
-                Builtin(name=TypeDefinitionName("string", "_builtins"), data={}),
-                Builtin(name=TypeDefinitionName("void", "_builtins"), data={})
+                Builtin(name=TypeName("binary", "_builtins"), data={}),
+                Builtin(name=TypeName("boolean", "_builtins"), data={}),
+                Builtin(name=TypeName("null", "_builtins"), data={}),
+                Builtin(name=TypeName("number", "_builtins"), data={}),
+                Builtin(name=TypeName("string", "_builtins"), data={}),
+                Builtin(name=TypeName("void", "_builtins"), data={})
             ]
         }
         for d in data['types']:
@@ -667,7 +618,53 @@ class Schema:
             self.types[type_definition.name] = type_definition
         self._common_parameters = self._build_common_params()
 
-    def matchable_endpoints(self, method: str, ts: List[str]) -> List[Endpoint]:
+    def query_param_names(self, method: str, ts: List[str]) -> List[str]:
+        candidates = set()
+        for endpoint in self._matchable_endpoints(method, ts):
+            request: Request = self.types[endpoint.request]
+            if self._request_has_common_query_params(request):
+                candidates.update(self._common_parameters.keys())
+            query = request.get_query()
+            if query is not None:
+                candidates.update(query.keys())
+
+        return sorted(candidates)
+
+    def query_param_values(self, method: str, ts: List[str], param_name: str) -> List[str]:
+        candidates = set()
+        for endpoint in self._matchable_endpoints(method, ts):
+            request: Request = self.types[endpoint.request]
+            if self._request_has_common_query_params(request) and param_name in self._common_parameters.keys():
+                candidates.update(self._common_parameters[param_name])
+            else:
+                query_param = self._get_query_parameter(param_name, request)
+                if query_param is not None:
+                    candidates.update(self._filter_for_param_values(query_param.candidate_values(self.types)))
+
+        return sorted(candidates)
+
+    def candidate_keys(self, method, ts: List[str], payload_keys: List[str]) -> Dict[str, Any]:
+        endpoint: Endpoint = self._matchable_endpoint(method, ts)
+        if endpoint.request is None:
+            return {}
+        body = Body.from_dict(self.types[endpoint.request].body)
+        return body.candidate_keys(self.types, payload_keys)
+
+    def candidate_values(self, method, ts: List[str], payload_keys: List[str], inside_array=False) -> List[Any]:
+        endpoint: Endpoint = self._matchable_endpoint(method, ts)
+        if endpoint.request is None:
+            return []
+        body = Body.from_dict(self.types[endpoint.request].body)
+        properties = body.properties_for_keys(self.types, payload_keys)
+        values = []
+        for prop in properties:
+            if inside_array and isinstance(prop.value, ArrayOf):
+                values += prop.value.get_member().candidate_values(self.types)
+            else:
+                values += prop.candidate_values(self.types)
+        return values
+
+    def _matchable_endpoints(self, method: str, ts: List[str]) -> List[Endpoint]:
         for endpoint in self.endpoints:
             matched = False
             for url in endpoint.urls:
@@ -683,30 +680,17 @@ class Schema:
             if matched:
                 yield endpoint
 
-    def query_param_names(self, endpoint: Endpoint):
-        request: Request = self.types[endpoint.request]
-        names = []
-        if self._request_has_common_query_parameters(request):
-            names += self._common_parameters.keys()
+    def _matchable_endpoint(self, method, ts: List[str]) -> Union[Endpoint, None]:
+        try:
+            endpoint = next(self._matchable_endpoints(method, ts))
+            _logger.debug(f'Found endpoint for {method!r} {ts}')
+            return endpoint
+        except StopIteration:
+            _logger.debug(f'No matching endpoint found for {method!r} {ts}')
+            return None
 
-        query = request.get_query()
-        if query is not None:
-            names += query.keys()
-
-        return names
-
-    def query_param_values(self, param_name: str, endpoint: Endpoint):
-        request: Request = self.types[endpoint.request]
-        if self._request_has_common_query_parameters(request):
-            if param_name in self._common_parameters.keys():
-                return self._common_parameters[param_name]
-        query_parameter = self._get_query_parameter(param_name, request)
-        if query_parameter is None:
-            return []
-        return self._filter_for_param_values(query_parameter.candidate_values(self.types))
-
-    def _build_common_params(self):
-        type_definition = self.types[TypeDefinitionName('CommonQueryParameters', '_spec_utils')]
+    def _build_common_params(self) -> Dict[str, List[str]]:
+        type_definition = self.types[TypeName('CommonQueryParameters', '_spec_utils')]
         if not isinstance(type_definition, Interface):
             _logger.warning(f'CommonQueryParameters type kind [{type_definition.kind}] unprocessable')
             return {}
@@ -717,7 +701,8 @@ class Schema:
                 query_parameter.candidate_values(self.types))
         return common_parameters
 
-    def _filter_for_param_values(self, candidate_values):
+    @staticmethod
+    def _filter_for_param_values(candidate_values) -> List[str]:
         final_values = []
         for value in candidate_values:
             if value is True:
@@ -730,11 +715,13 @@ class Schema:
                 final_values.append(value)
         return final_values
 
-    def _request_has_common_query_parameters(self, request: Request):
+    @staticmethod
+    def _request_has_common_query_params(request: Request) -> bool:
         attached_behaviours = request.get_attached_behaviours()
         return attached_behaviours is not None and 'CommonQueryParameters' in attached_behaviours
 
-    def _get_query_parameter(self, param_name: str, request: TypeDefinition):
+    @staticmethod
+    def _get_query_parameter(param_name: str, request: TypeDefinition) -> Union[Variable, None]:
         query: Dict = request.get_query()
         if query is None:
             return None

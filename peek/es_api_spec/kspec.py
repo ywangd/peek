@@ -17,7 +17,7 @@ from peek.parser import ParserEvent, ParserEventType
 _logger = logging.getLogger(__name__)
 
 
-class KibanaSpecCompleter(ESApiCompleter):
+class KibanaSpecESApiCompleter(ESApiCompleter):
 
     def __init__(self, app, kibana_dir):
         self.app = app
