@@ -622,10 +622,3 @@ class Schema:
         if d is None:
             return None
         return Variable.from_dict(d)
-
-    @staticmethod
-    def _load_github(git_branch='main'):
-        import urllib.request
-        url = f'https://raw.githubusercontent.com/elastic/elasticsearch-specification/' \
-              f'{git_branch}/output/schema/schema.json'
-        return json.loads(urllib.request.urlopen(url).read())
