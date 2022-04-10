@@ -196,12 +196,13 @@ class PeekCompleter(Completer):
         has_newline_after_last_token = state_tracker.has_newline_after_last_token
 
         # Only option name/value completions are available when cursor is on whitespace char
-        if stmt_token.ttype is HttpMethod and not has_newline_after_last_token:
-            if last_event.type in (ParserEventType.ES_URL,
-                                   ParserEventType.AFTER_ES_URL_EXPR,
-                                   ParserEventType.AFTER_ES_OPTION_VALUE):
+        if stmt_token.ttype is HttpMethod:
+            # HTTP option name/value completion is only possible if they are at the same line as the HTTP method
+            if not has_newline_after_last_token and last_event.type in (ParserEventType.ES_URL,
+                                                                        ParserEventType.AFTER_ES_URL_EXPR,
+                                                                        ParserEventType.AFTER_ES_OPTION_VALUE):
                 return _ES_API_CALL_OPTION_NAME_COMPLETER.get_completions(document, complete_event)
-            elif last_event.type is ParserEventType.BEFORE_ES_OPTION_VALUE:
+            elif not has_newline_after_last_token and last_event.type is ParserEventType.BEFORE_ES_OPTION_VALUE:
                 return []  # TODO: ES option value
             elif last_event.type is ParserEventType.BEFORE_ES_PAYLOAD_INLINE:
                 if state_tracker.last_payload_event.type is ParserEventType.BEFORE_DICT_VALUE:

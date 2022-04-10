@@ -12,7 +12,7 @@ from prompt_toolkit.document import Document
 from pygments.token import String, Name
 
 from peek.es_api_spec.api_completer import can_match, ESApiCompleter
-from peek.lexers import Slash, PathPart, Assign, CurlyLeft, CurlyRight, DictKey, Colon, EOF, BracketLeft
+from peek.lexers import Slash, PathPart, Assign, CurlyLeft, CurlyRight, DictKey, Colon, EOF, BracketLeft, Comma
 from peek.parser import ParserEventType
 
 _logger = logging.getLogger(__name__)
@@ -129,12 +129,18 @@ class SchemaESApiCompleter(ESApiCompleter):
             last_payload_token = payload_tokens[-1]
             _logger.debug(f'The token after colon is: {token_after_colon}, last payload_token is: {last_payload_token}')
             if token_after_colon.ttype is BracketLeft:
-                # if token_after_colon is last_payload_token or (last_payload_token.ttype is Comma):
-                values = self._schema.candidate_values(method, ts, payload_keys, inside_array=True)
-                if last_payload_token.ttype in String:
-                    return [v for v in values if isinstance(v, str)]
-                else:
+                if last_payload_token.ttype is BracketLeft or last_payload_token.ttype is Comma:
+                    # no question asked, let's complete
+                    values = self._schema.candidate_values(method, ts, payload_keys, inside_array=True)
                     return [json.dumps(v) for v in values]
+                elif last_payload_token.ttype in String:
+                    try:
+                        ast.literal_eval(last_payload_token.value)
+                    except SyntaxError:
+                        # String is not complete, i.e. we are completing the string under cursor
+                        values = self._schema.candidate_values(method, ts, payload_keys, inside_array=True)
+                        return [v for v in values if isinstance(v, str)]
+
             elif token_after_colon.ttype in String and token_after_colon is last_payload_token:
                 return [v for v in self._schema.candidate_values(method, ts, payload_keys) if isinstance(v, str)]
             elif token_after_colon.ttype is Name and token_after_colon is last_payload_token:

@@ -243,6 +243,15 @@ def test_complete_payload_value_array_of_dict():
 def test_complete_payload_value():
     assert completions_has(
         get_completions(Document('''PUT _security/role/test
+{"cluster":[
+
+]}''', 37)),
+        Completion(text='"all"'),
+        Completion(text='"manage"'),
+    )
+
+    assert completions_has(
+        get_completions(Document('''PUT _security/role/test
 {"cluster":[""]}''', 37)),
         Completion(text='all'),
         Completion(text='manage'),
@@ -250,9 +259,51 @@ def test_complete_payload_value():
 
     assert completions_has(
         get_completions(Document('''PUT _security/role/test
-{"cluster":[]}''', 37)),
+{"cluster":["monitor", ""]}''', 48)),
+        Completion(text='all'),
+        Completion(text='manage'),
+    )
+
+    assert completions_has(
+        get_completions(Document('''PUT _security/role/test
+{"cluster":[]}''', 36)),
         Completion(text='"all"'),
         Completion(text='"manage"'),
+    )
+
+    assert completions_has(
+        get_completions(Document('''PUT _security/role/test
+{"cluster":["monitor", ]}''', 47)),
+        Completion(text='"all"'),
+        Completion(text='"manage"'),
+    )
+
+    assert completions_has(
+        get_completions(Document('''PUT _security/role/test
+{"cluster":[
+""
+]}''', 38)),
+        Completion(text='all'),
+        Completion(text='manage'),
+    )
+
+
+def test_complete_payload_value_array_should_not_work_outside_brackets():
+    assert no_completion(
+        get_completions(Document('''PUT _security/role/test
+{"cluster":[]}''', 37))
+    )
+
+    assert no_completion(
+        get_completions(Document('''PUT _security/role/test
+{"cluster":[] }''', 38))
+    )
+
+
+def test_complete_payload_value_array_should_not_make_input_invalid():
+    assert no_completion(
+        get_completions(Document('''PUT _security/role/test
+{"cluster":[ "all" ]}''', 43))
     )
 
 
