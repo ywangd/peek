@@ -42,7 +42,7 @@ class TypeDefinition:
     def candidate_values(self, types):
         return []
 
-    def candidate_keys(self, types):
+    def candidate_properties(self, types):
         return []
 
     def value_template(self, types):
@@ -97,8 +97,8 @@ class Alias(TypeDefinition):
     def candidate_values(self, types):
         return self.get_type().candidate_values(types)
 
-    def candidate_keys(self, types):
-        return self.get_type().candidate_keys(types)
+    def candidate_properties(self, types):
+        return self.get_type().candidate_properties(types)
 
     def value_template(self, types):
         return self.get_type().value_template(types)
@@ -113,7 +113,7 @@ class Interface(TypeDefinition):
     def candidate_values(self, types):
         return [{}]
 
-    def candidate_keys(self, types):
+    def candidate_properties(self, types):
         return self.get_properties()
 
     def value_template(self, types):
@@ -163,7 +163,7 @@ class Value:
     def candidate_values(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]]):
         return []
 
-    def candidate_keys(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]]):
+    def candidate_properties(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]]):
         return []
 
     def value_template(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]]):
@@ -199,8 +199,8 @@ class InstanceOf(Value):
     def candidate_values(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]]):
         return types[self.get_type_name()].candidate_values(types)
 
-    def candidate_keys(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]]):
-        return types[self.get_type_name()].candidate_keys(types)
+    def candidate_properties(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]]):
+        return types[self.get_type_name()].candidate_properties(types)
 
     def value_template(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]]):
         return types[self.get_type_name()].value_template(types)
@@ -234,7 +234,7 @@ class DictionaryOf(Value):
     def candidate_values(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]]):
         return [{}]
 
-    def candidate_keys(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]]):
+    def candidate_properties(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]]):
         # TODO: check key type is string?
         return [Wildcard(self.get_value())]
 
@@ -260,10 +260,10 @@ class UnionOf(Value):
             all_results += member.candidate_values(types)
         return all_results
 
-    def candidate_keys(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]]):
+    def candidate_properties(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]]):
         all_results = []
         for member in self.get_members():
-            all_results += member.candidate_keys(types)
+            all_results += member.candidate_properties(types)
         return all_results
 
     def value_template(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]]):
@@ -306,8 +306,8 @@ class Variable:
     def candidate_values(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]]):
         return self.value.candidate_values(types)
 
-    def candidate_keys(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]]):
-        return self.value.candidate_keys(types)
+    def candidate_properties(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]]):
+        return self.value.candidate_properties(types)
 
     def value_template(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]]):
         templates = self.value.value_template(types)
@@ -349,8 +349,8 @@ class Wildcard(Variable):
 class Body:
     data: Dict
 
-    def candidate_keys(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]],
-                       payload_keys: List[str]):
+    def candidate_properties(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]],
+                             payload_keys: List[str]):
         return {}
 
     def properties_for_keys(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]],
@@ -391,8 +391,8 @@ class PropertiesBody(Body):
     def get_properties(self):
         return [Variable.from_dict(prop) for prop in self.properties]
 
-    def candidate_keys(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]],
-                       payload_keys: List[str]) -> Dict[str, Any]:
+    def candidate_properties(self, types: Dict[TypeName, Union[Alias, Interface, Enum, Request]],
+                             payload_keys: List[str]) -> Dict[str, Any]:
         """
         For the given payload_keys, find properties that match the sequence, then return their sub-properties
         in the format of {property_name: property_template_value}.
@@ -405,9 +405,9 @@ class PropertiesBody(Body):
             for prop in matched_properties:
                 if isinstance(prop.value, ArrayOf):
                     # penetrate array
-                    all_sub_properties += prop.value.get_member().candidate_keys(types)
+                    all_sub_properties += prop.value.get_member().candidate_properties(types)
                 else:
-                    all_sub_properties += prop.candidate_keys(types)
+                    all_sub_properties += prop.candidate_properties(types)
 
         name_to_value = {}
         for sub_prop in all_sub_properties:
@@ -452,9 +452,9 @@ class PropertiesBody(Body):
             for matched_property in matched_properties:
                 if isinstance(matched_property.value, ArrayOf):
                     # penetrate array
-                    candidate_properties += matched_property.value.get_member().candidate_keys(types)
+                    candidate_properties += matched_property.value.get_member().candidate_properties(types)
                 else:
-                    candidate_properties += matched_property.candidate_keys(types)
+                    candidate_properties += matched_property.candidate_properties(types)
 
         return []  # should not reach here, but for safe
 
@@ -521,12 +521,12 @@ class Schema:
 
         return sorted(candidates)
 
-    def candidate_keys(self, method, ts: List[str], payload_keys: List[str]) -> Dict[str, Any]:
+    def candidate_properties(self, method, ts: List[str], payload_keys: List[str]) -> Dict[str, Any]:
         endpoint: Endpoint = self._matchable_endpoint(method, ts)
         if endpoint.request is None:
             return {}
         body = Body.from_dict(self.types[endpoint.request].body)
-        return body.candidate_keys(self.types, payload_keys)
+        return body.candidate_properties(self.types, payload_keys)
 
     def candidate_values(self, method, ts: List[str], payload_keys: List[str], inside_array=False) -> List[Any]:
         endpoint: Endpoint = self._matchable_endpoint(method, ts)
