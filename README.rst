@@ -26,8 +26,8 @@ or permanently by setting ``use_keyring = False`` in `peekrc <peek/peekrc>`_ fil
 
 Besides HTTP calls to Elasticsearch clusters, type ``help`` to see a list of builtin functions.
 To **enable auto-completions** for APIs, run the ``_download_api_specs`` builtin function
-(note the leading underscore) to download API spec files from the
-`Kibana project <https://github.com/elastic/kibana>`_.
+(note the leading underscore) to download API spec file from the
+`Elasticsearch Specification project <https://github.com/elastic/elasticsearch-specification>`_.
 
 Alternatively, peek can also be installed from source with:
 

@@ -8,15 +8,16 @@ from prompt_toolkit.document import Document
 from pygments.token import String, Name
 
 from peek.common import PeekToken
-from peek.es_api_spec.spec_js import build_js_specs
-from peek.es_api_spec.spec_json import load_json_specs
+from peek.es_api_spec.api_completer import ESApiCompleter
+from peek.es_api_spec.kspec_js import build_js_specs
+from peek.es_api_spec.kspec_json import load_json_specs
 from peek.lexers import Slash, PathPart, Assign, CurlyLeft, CurlyRight, DictKey, Colon, BracketLeft, EOF, Comma
 from peek.parser import ParserEvent, ParserEventType
 
 _logger = logging.getLogger(__name__)
 
 
-class ApiSpec:
+class KibanaSpecESApiCompleter(ESApiCompleter):
 
     def __init__(self, app, kibana_dir):
         self.app = app
@@ -70,7 +71,7 @@ class ApiSpec:
         return [Completion(c) for c in candidates]
 
     # TODO: refactor with parser state tracker
-    def complete_payload(self, document: Document, complete_event: CompleteEvent, method, path_tokens, payload_tokens):
+    def complete_payload(self, document, complete_event, method, path_tokens, payload_tokens, payload_events):
         _logger.debug(f'Completing for API payload: {method!r} {path_tokens!r} {payload_tokens!r}')
         rules = self._find_rules_for_method_and_url_path(method, path_tokens)
         if rules is None:

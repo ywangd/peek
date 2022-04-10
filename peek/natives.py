@@ -377,26 +377,42 @@ class DownloadApiSpecsFunc:
         if not os.path.exists(config_dir):
             raise FileNotFoundError(f'Config directory does not exist: {config_dir!r}. '
                                     f'Please create it before downloading API spec files')
-        existing_kibana_dirs = [os.path.join(config_dir, d) for d in os.listdir(config_dir) if d.startswith('kibana-')]
-        if existing_kibana_dirs:
-            raise RuntimeError(f'Existing {"directory" if len(existing_kibana_dirs) == 1 else "directories"} '
-                               f'found for API specs: {existing_kibana_dirs}. '
-                               f'Please remove {"it" if len(existing_kibana_dirs) == 1 else "them"} '
-                               f'before download new spec files.')
 
-        import urllib.request
-        import zipfile
-        import io
-        kibana_version = options.get('version', '7.9.1')
-        kibana_release_url = f'https://github.com/elastic/kibana/archive/v{kibana_version}.zip'
-        app.display.info(f'Downloading from {kibana_release_url} ... This may take a few minutes ...')
-        data = urllib.request.urlopen(kibana_release_url).read()
-        zf = zipfile.ZipFile(io.BytesIO(data))
-        for info in zf.infolist():
-            if 'spec_definitions' in info.filename:
-                zf.extract(info, path=config_dir)
-        app.completer.init_api_specs()
-        return f'Version {kibana_version} API spec files are ready'
+        if app.config.as_bool('prefer_elasticsearch_specification'):
+            schema_filepath = os.path.join(config_dir, 'schema.json')
+            if os.path.exists(schema_filepath):
+                raise RuntimeError(f'schema file already exists [{schema_filepath}]. Please remove it before download.')
+            git_branch = options.get('version', '8.2')
+            import urllib.request
+            url = f'https://raw.githubusercontent.com/elastic/elasticsearch-specification/' \
+                  f'{git_branch}/output/schema/schema.json'
+            data = urllib.request.urlopen(url).read()
+            with open(schema_filepath, 'wb') as outs:
+                outs.write(data)
+            app.completer.init_api_completer()
+            return f'Elasticsearch specification [{git_branch}] downloaded and initialized'
+        else:
+            existing_kibana_dirs = [os.path.join(config_dir, d)
+                                    for d in os.listdir(config_dir) if d.startswith('kibana-')]
+            if existing_kibana_dirs:
+                raise RuntimeError(f'Existing {"directory" if len(existing_kibana_dirs) == 1 else "directories"} '
+                                   f'found for API specs: {existing_kibana_dirs}. '
+                                   f'Please remove {"it" if len(existing_kibana_dirs) == 1 else "them"} '
+                                   f'before download new spec files.')
+
+            import urllib.request
+            import zipfile
+            import io
+            kibana_version = options.get('version', '7.9.1')
+            kibana_release_url = f'https://github.com/elastic/kibana/archive/v{kibana_version}.zip'
+            app.display.info(f'Downloading from {kibana_release_url} ... This may take a few minutes ...')
+            data = urllib.request.urlopen(kibana_release_url).read()
+            zf = zipfile.ZipFile(io.BytesIO(data))
+            for info in zf.infolist():
+                if 'spec_definitions' in info.filename:
+                    zf.extract(info, path=config_dir)
+            app.completer.init_api_completer()
+            return f'Version {kibana_version} API spec files are ready'
 
     @property
     def options(self):

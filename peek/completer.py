@@ -11,7 +11,6 @@ from pygments.token import Error, Literal, String, Name
 from peek.common import PeekToken, HTTP_METHODS
 from peek.completions import PayloadKeyCompletion
 from peek.config import config_location
-from peek.es_api_spec.spec import ApiSpec
 from peek.lexers import PeekLexer, UrlPathLexer, PathPart, ParamName, Ampersand, QuestionMark, Slash, HttpMethod, \
     FuncName, ShellOut, DictKey, EOF
 from peek.parser import PeekParser, ParserEvent, ParserEventType
@@ -131,22 +130,35 @@ class PeekCompleter(Completer):
         self.app = app
         self.lexer = PeekLexer()
         self.url_path_lexer = UrlPathLexer()
-        self.api_spec = self.init_api_specs()
+        self.api_completer = self.init_api_completer()
 
-    def init_api_specs(self):
+    def init_api_completer(self):
         from peek import __file__ as package_root
         package_root = os.path.dirname(package_root)
-        kibana_dir = self.app.config['kibana_dir']
-        if not kibana_dir:
-            config_dir = config_location()
-            if os.path.exists(config_dir):
-                kibana_dirs = [os.path.join(config_dir, d) for d in os.listdir(config_dir) if d.startswith('kibana-')]
-                if kibana_dirs:
-                    kibana_dir = kibana_dirs[0]
-        if not kibana_dir:
-            kibana_dir = os.path.join(package_root, 'specs', 'kibana-7.8.1')
-        _logger.info(f'Attempt to build Elasticsearch API specs from: {kibana_dir}')
-        return ApiSpec(self.app, kibana_dir)
+        if self.app.config.as_bool('prefer_elasticsearch_specification'):
+            _logger.info('Use elasticsearch-specification schema for autocompletion')
+            from peek.es_api_spec.api_completer import SchemaESApiCompleter
+            schema_filepath = os.path.join(config_location(), 'schema.json')
+            if not os.path.exists(schema_filepath):
+                schema_filepath = os.path.join(package_root, 'specs', 'schema.json')
+            if os.path.exists(schema_filepath):
+                return SchemaESApiCompleter(schema_filepath)
+            else:
+                from peek.es_api_spec.api_completer import NoopESApiCompleter
+                return NoopESApiCompleter()
+        else:
+            kibana_dir = self.app.config['kibana_dir']
+            if not kibana_dir:
+                config_dir = config_location()
+                if os.path.exists(config_dir):
+                    kibana_dirs = [os.path.join(config_dir, d) for d in os.listdir(config_dir) if d.startswith('kibana-')]
+                    if kibana_dirs:
+                        kibana_dir = kibana_dirs[0]
+            if not kibana_dir:
+                kibana_dir = os.path.join(package_root, 'specs', 'kibana-7.8.1')
+            _logger.info(f'Attempt to build Elasticsearch API specs from: {kibana_dir}')
+            from peek.es_api_spec.kspec import KibanaSpecESApiCompleter
+            return KibanaSpecESApiCompleter(self.app, kibana_dir)
 
     def get_completions(self, document: Document, complete_event: CompleteEvent) -> Iterable[Completion]:
         _logger.debug(f'Document: {document}, Event: {complete_event}')
@@ -191,12 +203,13 @@ class PeekCompleter(Completer):
         has_newline_after_last_token = state_tracker.has_newline_after_last_token
 
         # Only option name/value completions are available when cursor is on whitespace char
-        if stmt_token.ttype is HttpMethod and not has_newline_after_last_token:
-            if last_event.type in (ParserEventType.ES_URL,
-                                   ParserEventType.AFTER_ES_URL_EXPR,
-                                   ParserEventType.AFTER_ES_OPTION_VALUE):
+        if stmt_token.ttype is HttpMethod:
+            # HTTP option name/value completion is only possible if they are at the same line as the HTTP method
+            if not has_newline_after_last_token and last_event.type in (ParserEventType.ES_URL,
+                                                                        ParserEventType.AFTER_ES_URL_EXPR,
+                                                                        ParserEventType.AFTER_ES_OPTION_VALUE):
                 return _ES_API_CALL_OPTION_NAME_COMPLETER.get_completions(document, complete_event)
-            elif last_event.type is ParserEventType.BEFORE_ES_OPTION_VALUE:
+            elif not has_newline_after_last_token and last_event.type is ParserEventType.BEFORE_ES_OPTION_VALUE:
                 return []  # TODO: ES option value
             elif last_event.type is ParserEventType.BEFORE_ES_PAYLOAD_INLINE:
                 if state_tracker.last_payload_event.type is ParserEventType.BEFORE_DICT_VALUE:
@@ -304,11 +317,11 @@ class PeekCompleter(Completer):
             return []
         else:
             if cursor_token.ttype in (PathPart, Slash):
-                complete_func = self.api_spec.complete_url_path
+                complete_func = self.api_completer.complete_url_path
             elif cursor_token.ttype in (ParamName, QuestionMark, Ampersand):
-                complete_func = self.api_spec.complete_query_param_name
+                complete_func = self.api_completer.complete_query_param_name
             else:
-                complete_func = self.api_spec.complete_query_param_value
+                complete_func = self.api_completer.complete_query_param_value
             candidates = complete_func(document, complete_event, method, path_tokens)
             return FuzzyCompleter(ConstantCompleter(candidates)).get_completions(document, complete_event)
 
@@ -323,8 +336,9 @@ class PeekCompleter(Completer):
         path_tokens = list(self.url_path_lexer.get_tokens_unprocessed(path_token.value))
         last_event = state_tracker.last_event
         payload_tokens = tokens[tokens.index(last_event.token):]
-        candidates, rules = self.api_spec.complete_payload(
-            document, complete_event, method_token.value.upper(), path_tokens, payload_tokens)
+        candidates, rules = self.api_completer.complete_payload(
+            document, complete_event, method_token.value.upper(), path_tokens, payload_tokens,
+            state_tracker.payload_events)
         if not candidates:
             return []
         constant_completer = ConstantCompleter(candidates)
@@ -342,7 +356,7 @@ class PeekCompleter(Completer):
         method_token, path_token = tokens[0], tokens[1]
         path_tokens = list(self.url_path_lexer.get_tokens_unprocessed(path_token.value))
         last_event = state_tracker.last_event
-        candidates, rules = self.api_spec.complete_payload_value(
+        candidates, rules = self.api_completer.complete_payload_value(
             document, complete_event, method_token.value.upper(), path_tokens,
             tokens[tokens.index(last_event.token):], state_tracker.payload_events
         )
