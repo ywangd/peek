@@ -8,7 +8,7 @@ from prompt_toolkit.document import Document
 from pygments.token import String, Name
 
 from peek.common import PeekToken
-from peek.es_api_spec.api_completer import ESApiCompleter, can_match
+from peek.es_api_spec.api_completer import ESApiCompleter
 from peek.es_api_spec.kspec_js import build_js_specs
 from peek.es_api_spec.kspec_json import load_json_specs
 from peek.lexers import Slash, PathPart, Assign, CurlyLeft, CurlyRight, DictKey, Colon, BracketLeft, EOF, Comma
@@ -394,3 +394,18 @@ def matchable_specs(method: str, ts: List[str], specs: Dict, required_field='url
             break
         if matched:
             yield api_spec
+
+
+def can_match(ts, ps):
+    """
+    Test whether the input path (ts) can match the candidate path (ps).
+    The rule is basically a placeholder can match any string other than
+    the ones leading with underscore.
+    """
+    for t, p in zip(ts, ps):
+        if t != p:
+            if t.startswith('_'):
+                return False
+            if not (p.startswith('{') and p.endswith('}')):
+                return False
+    return True

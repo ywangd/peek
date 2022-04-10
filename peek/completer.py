@@ -135,7 +135,7 @@ class PeekCompleter(Completer):
     def init_api_completer(self):
         if self.app.config.as_bool('use_elasticsearch_specification'):
             _logger.info('Use elasticsearch-specification schema for autocompletion')
-            from peek.es_api_spec.schema import SchemaESApiCompleter
+            from peek.es_api_spec.api_completer import SchemaESApiCompleter
             return SchemaESApiCompleter()
         else:
             from peek import __file__ as package_root
