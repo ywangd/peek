@@ -767,6 +767,18 @@ def test_field_placeholder():
   },
 }''', 70)), Completion(text='fuzziness'), Completion(text='zero_terms_query'))
 
+    assert completions_has(get_completions(Document('''GET _search
+{
+  "query": {
+    "match": {
+      "field": {
+        "cutoff_frequency":
+      }
+    }
+  }
+}
+''', 86)), Completion(text='0'))
+
 
 def equivalent_completions(c0: Completion, c1: Completion):
     return c0.text == c1.text and c0.start_position == c1.start_position

@@ -103,8 +103,8 @@ class SchemaESApiCompleter(ESApiCompleter):
             payload_keys.pop()
 
         ts = [t.value for t in path_tokens if t.ttype is PathPart]
-        name_to_values = self._schema.candidate_properties(method, ts, payload_keys)
-        return [Completion(c) for c in sorted(name_to_values.keys())], name_to_values
+        key_to_values = self._schema.candidate_sub_key_values(method, ts, payload_keys)
+        return [Completion(c) for c in sorted(key_to_values.keys())], key_to_values
 
     def complete_payload_value(self, document, complete_event, method, path_tokens, payload_tokens, payload_events):
         _logger.debug(f'Completing for API payload value: {method!r} {path_tokens!r} {payload_tokens!r}')
