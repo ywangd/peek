@@ -7,7 +7,7 @@ from configobj import ConfigObj
 
 from peek import __version__
 from peek.common import DEFAULT_SAVE_NAME
-from peek.config import config_location
+from peek.config import config_location, get_global_config
 from peek.connection import ConnectFunc, EsClientManager
 from peek.display import PeekEncoder
 from peek.errors import PeekError
@@ -416,12 +416,18 @@ class DownloadApiSpecsFunc:
 
     @property
     def options(self):
-        return {'version': '7.9.1'}
+        if get_global_config().as_bool('prefer_elasticsearch_specification'):
+            return {'version': '8.2'}
+        else:
+            return {'version': '7.9.1'}
 
     @property
     def description(self):
-        return 'Download and reload Elasticsearch API spec files from the Kibana project. ' \
-               'It may takes a few minutes depending on the network speed.'
+        if get_global_config().as_bool('prefer_elasticsearch_specification'):
+            return 'Download and reload API spec file from the Elasticsearch Specification project.'
+        else:
+            return 'Download and reload Elasticsearch API spec files from the Kibana project. ' \
+                   'It may takes a few minutes depending on the network speed.'
 
 
 def consolidate_options(options, defaults):

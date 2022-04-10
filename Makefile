@@ -27,6 +27,10 @@ help:
 	@python -c "$$PRINT_HELP_PYSCRIPT" < $(MAKEFILE_LIST)
 
 get-specs:
+	mkdir -p peek/specs
+	curl -L https://raw.githubusercontent.com/elastic/elasticsearch-specification/8.2/output/schema/schema.json -o peek/specs/schema.json
+
+get-specs-legacy:
 	rm -rf $$TMPDIR/kibana-7.8.1.zip
 	curl -L https://github.com/elastic/kibana/archive/v7.8.1.zip -o $$TMPDIR/kibana-7.8.1.zip
 	mkdir -p peek/specs
