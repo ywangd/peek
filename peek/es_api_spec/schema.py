@@ -292,12 +292,7 @@ class Wildcard(Variable):
 class Body:
     data: Dict
 
-    def properties_for_keys(self, types: Types,
-                            payload_keys: List[str]) -> List[Variable]:
-        return []
-
-    def sub_properties_for_keys(self, types: Types,
-                                payload_keys: List[str]) -> List[Variable]:
+    def candidate_properties(self) -> List[Variable]:
         return []
 
     def __getattr__(self, item):
@@ -331,61 +326,8 @@ class ValueBody(Body):
 @dataclass(frozen=True)
 class PropertiesBody(Body):
 
-    def properties_for_keys(self, types: Types,
-                            payload_keys: List[str]) -> List[Variable]:
-        """
-        For the given payload_keys, find properties that match the sequence. The result is a list of property
-        because there could be more than one path that matches the key sequence.
-        """
-        if len(payload_keys) == 0:
-            raise ValueError('no payload keys to find for properties')
-
-        candidate_properties = [Variable.from_dict(prop) for prop in self.properties]
-        while len(payload_keys) > 0:
-            matched_properties = []
-            for candidate_property in candidate_properties:
-                if not isinstance(candidate_property, Variable):
-                    continue
-                if candidate_property.match_key(payload_keys[0]):
-                    matched_properties.append(candidate_property)
-
-            if len(matched_properties) == 0:  # No match is found
-                return []
-
-            # match is found
-            payload_keys.pop(0)
-            if len(payload_keys) == 0:
-                return [p for p in matched_properties if isinstance(p, Variable)]
-
-            # Prepare for the next round of key matching
-            candidate_properties = []
-            for matched_property in matched_properties:
-                candidate_properties.extend(self._sub_properties_for_property(types, matched_property))
-
-        return []  # should not reach here, but for safe
-
-    def sub_properties_for_keys(self, types: Types,
-                                payload_keys: List[str]) -> List[Variable]:
-        """
-        For the given payload_keys, find properties that match the sequence, then return their sub-properties.
-        """
-        if len(payload_keys) == 0:
-            return [Variable.from_dict(prop) for prop in self.properties]
-        else:
-            matched_properties = self.properties_for_keys(types, payload_keys)
-            sub_properties = []
-            for matched_property in matched_properties:
-                sub_properties.extend(self._sub_properties_for_property(types, matched_property))
-            return sub_properties
-
-    @staticmethod
-    def _sub_properties_for_property(types: Types,
-                                     matched_property: Variable):
-        if isinstance(matched_property.value, ArrayOf):
-            # penetrate array
-            return matched_property.value.get_member().candidate_properties(types)
-        else:
-            return matched_property.candidate_properties(types)
+    def candidate_properties(self) -> List[Variable]:
+        return [Variable.from_dict(prop) for prop in self.properties]
 
 
 class Schema:
@@ -454,8 +396,7 @@ class Schema:
         endpoint: Endpoint = self._matchable_endpoint(method, ts)
         if endpoint.request is None:
             return {}
-        body = Body.from_dict(self.types[endpoint.request].body)
-        sub_properties = body.sub_properties_for_keys(self.types, payload_keys)
+        sub_properties = self._sub_properties_for_keys(Body.from_dict(self.types[endpoint.request].body), payload_keys)
         key_to_values = {}
         for sub_prop in sub_properties:
             # Filter out wildcard to avoid showing '*' as a suggestion for dict keys
@@ -478,8 +419,7 @@ class Schema:
         endpoint: Endpoint = self._matchable_endpoint(method, ts)
         if endpoint.request is None:
             return []
-        body = Body.from_dict(self.types[endpoint.request].body)
-        properties = body.properties_for_keys(self.types, payload_keys)
+        properties = self._properties_for_keys(Body.from_dict(self.types[endpoint.request].body), payload_keys)
         values = []
         for prop in properties:
             if inside_array and isinstance(prop.value, ArrayOf):
@@ -514,6 +454,52 @@ class Schema:
             _logger.debug(f'No matching endpoint found for {method!r} {ts}')
             return None
 
+    def _properties_for_keys(self, body: Body, payload_keys: List[str]) -> List[Variable]:
+        """
+        For the given payload_keys, find properties that match the sequence. The result is a list of property
+        because there could be more than one path that matches the key sequence.
+        """
+        if len(payload_keys) == 0:
+            raise ValueError('no payload keys to find for properties')
+
+        candidate_properties = body.candidate_properties()
+        while len(payload_keys) > 0:
+            matched_properties = []
+            for candidate_property in candidate_properties:
+                if not isinstance(candidate_property, Variable):
+                    continue
+                if candidate_property.match_key(payload_keys[0]):
+                    matched_properties.append(candidate_property)
+
+            if len(matched_properties) == 0:  # No match is found
+                return []
+
+            # match is found
+            payload_keys.pop(0)
+            if len(payload_keys) == 0:
+                return [p for p in matched_properties if isinstance(p, Variable)]
+
+            # Prepare for the next round of key matching
+            candidate_properties = []
+            for matched_property in matched_properties:
+                candidate_properties.extend(self._sub_properties_for_property(self.types, matched_property))
+
+        return []  # should not reach here, but for safe
+
+    def _sub_properties_for_keys(self, body: Body,
+                                 payload_keys: List[str]) -> List[Variable]:
+        """
+        For the given payload_keys, find properties that match the sequence, then return their sub-properties.
+        """
+        if len(payload_keys) == 0:
+            return body.candidate_properties()
+        else:
+            matched_properties = self._properties_for_keys(body, payload_keys)
+            sub_properties = []
+            for matched_property in matched_properties:
+                sub_properties.extend(self._sub_properties_for_property(self.types, matched_property))
+            return sub_properties
+
     def _build_common_params(self) -> Dict[str, List[str]]:
         type_definition = self.types[TypeName('CommonQueryParameters', '_spec_utils')]
         if not isinstance(type_definition, Interface):
@@ -525,6 +511,15 @@ class Schema:
             common_parameters[query_parameter.name] = self._filter_for_param_values(
                 query_parameter.candidate_values(self.types))
         return common_parameters
+
+    @staticmethod
+    def _sub_properties_for_property(types: Types,
+                                     matched_property: Variable):
+        if isinstance(matched_property.value, ArrayOf):
+            # penetrate array
+            return matched_property.value.get_member().candidate_properties(types)
+        else:
+            return matched_property.candidate_properties(types)
 
     @staticmethod
     def _can_match(ts, ps):
