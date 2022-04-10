@@ -1,7 +1,7 @@
 import ast
 import json
 import logging
-from abc import ABCMeta, abstractmethod
+from abc import ABCMeta
 from typing import List, Tuple
 
 from prompt_toolkit.completion import Completion, CompleteEvent
@@ -17,42 +17,42 @@ _logger = logging.getLogger(__name__)
 
 
 class ESApiCompleter(metaclass=ABCMeta):
-    @abstractmethod
     def complete_url_path(self, document: Document, complete_event: CompleteEvent, method: str,
                           path_tokens: List[PeekToken]) -> List[Completion]:
-        pass
+        return []
 
-    @abstractmethod
     def complete_query_param_name(self, document: Document, complete_event: CompleteEvent, method: str,
                                   path_tokens: List[PeekToken]) -> List[Completion]:
-        pass
+        return []
 
-    @abstractmethod
     def complete_query_param_value(self, document: Document, complete_event: CompleteEvent, method: str,
                                    path_tokens: List[PeekToken]) -> List[Completion]:
-        pass
+        return []
 
-    @abstractmethod
     def complete_payload(self, document: Document, complete_event: CompleteEvent, method: str,
                          path_tokens: List[PeekToken],
                          payload_tokens: List[PeekToken],
                          payload_events: List[ParserEvent]) -> Tuple[List[Completion], dict]:
-        pass
+        return [], {}
 
-    @abstractmethod
     def complete_payload_value(self, document: Document, complete_event: CompleteEvent, method: str,
                                path_tokens: List[PeekToken],
                                payload_tokens: List[PeekToken],
                                payload_events: List[ParserEvent]) -> Tuple[List[Completion], dict]:
-        pass
+        return [], {}
+
+
+class NoopESApiCompleter(ESApiCompleter):
+    pass
 
 
 class SchemaESApiCompleter(ESApiCompleter):
 
-    def __init__(self):
-        self._schema = Schema()
+    def __init__(self, schema_filepath):
+        with open(schema_filepath) as ins:
+            self._schema = Schema(json.load(ins))
 
-    def complete_url_path(self, document: Document, complete_event: CompleteEvent, method, path_tokens):
+    def complete_url_path(self, document, complete_event, method, path_tokens):
         cursor_token = path_tokens[-1]
         _logger.debug(f'Completing URL path: {cursor_token}')
         token_stream = [t.value for t in path_tokens if t.ttype is not Slash]

@@ -11,14 +11,14 @@ from peek.completer import PeekCompleter
 from peek.natives import EXPORTS
 
 package_root = os.path.dirname(package_root)
-schema_file = os.path.join(package_root, 'es_api_spec', 'schema.json.zip')
+schema_file = os.path.join(package_root, 'specs', 'schema.json')
 
 mock_app = MagicMock(name='PeekApp')
 mock_app.vm.functions = {k: v for k, v in EXPORTS.items() if callable(v)}
 mock_app.config.as_bool.return_value = True
 mock_app.batch_mode = False
 config = {
-    'use_elasticsearch_specification': True,
+    'prefer_elasticsearch_specification': True,
 }
 mock_app.config = ConfigObj(config)
 

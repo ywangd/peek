@@ -58,6 +58,6 @@ mouse_support = False
 # Accept response in JSON format for cat APIs
 accept_json_for_cat = False
 
-# Use schema.json file from the elasticsearch-specification project for autocompletion
-# Default is false which means use Kibana API spec files for autocompletion.
-use_elasticsearch_specification = False
+# Prefer schema.json file from the elasticsearch-specification project for autocompletion
+# Default is True. If false, it means use Kibana API spec files instead.
+prefer_elasticsearch_specification = True

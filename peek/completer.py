@@ -133,13 +133,20 @@ class PeekCompleter(Completer):
         self.api_completer = self.init_api_completer()
 
     def init_api_completer(self):
-        if self.app.config.as_bool('use_elasticsearch_specification'):
+        from peek import __file__ as package_root
+        package_root = os.path.dirname(package_root)
+        if self.app.config.as_bool('prefer_elasticsearch_specification'):
             _logger.info('Use elasticsearch-specification schema for autocompletion')
             from peek.es_api_spec.api_completer import SchemaESApiCompleter
-            return SchemaESApiCompleter()
+            schema_filepath = os.path.join(config_location(), 'schema.json')
+            if not os.path.exists(schema_filepath):
+                schema_filepath = os.path.join(package_root, 'specs', 'schema.json')
+            if os.path.exists(schema_filepath):
+                return SchemaESApiCompleter(schema_filepath)
+            else:
+                from peek.es_api_spec.api_completer import NoopESApiCompleter
+                return NoopESApiCompleter()
         else:
-            from peek import __file__ as package_root
-            package_root = os.path.dirname(package_root)
             kibana_dir = self.app.config['kibana_dir']
             if not kibana_dir:
                 config_dir = config_location()

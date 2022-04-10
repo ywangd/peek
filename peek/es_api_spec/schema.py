@@ -1,8 +1,6 @@
 import json
 import logging
 import numbers
-import os.path
-import zipfile
 from dataclasses import dataclass
 from typing import List, Dict, Union, Any
 
@@ -463,8 +461,7 @@ class PropertiesBody(Body):
 
 class Schema:
 
-    def __init__(self):
-        data = self._load_bundled()
+    def __init__(self, data):
         self.endpoints = [Endpoint.from_dict(d) for d in data['endpoints']]
         self.types: Dict[TypeName, Union[Alias, Interface, Enum, Request]] = {
             b.name: b for b in [
@@ -625,11 +622,6 @@ class Schema:
         if d is None:
             return None
         return Variable.from_dict(d)
-
-    @staticmethod
-    def _load_bundled():
-        f = os.path.join(os.path.dirname(__file__), 'schema.json.zip')
-        return json.loads(zipfile.ZipFile(f).read('schema.json'))
 
     @staticmethod
     def _load_github(git_branch='main'):
