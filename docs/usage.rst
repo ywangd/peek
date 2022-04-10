@@ -135,23 +135,20 @@ multiple sessions can be saved and restored at will.
 
 Auto-Completion
 ---------------
-Peek's auto-completion feature for Elasticsearch APIs relies on API spec files published by the
-`Kibana project <https://github.com/elastic/kibana>`_.
-Peek however does not ship with these spec files.
-To access these files, you can use **one** of the following options:
+Peek's auto-completion feature for Elasticsearch APIs relies on API spec file published by the
+`Elasticsearch Specification project <https://github.com/elastic/elasticsearch-specification>`_.
+Peek however does not ship with the spec file. Use the builtin function, ``_download_api_specs``,
+to download and initialize the spec file from its GitHub official repository.
+The spec file is saved in Peek's config folder so you only need to run the function once.
 
-1. If you have cloned Kibana's GitHub repository, simply configure ``kibana_dir`` in
-   ``peekrc`` to point to the project root directory.
-2. Peek has a builtin function, ``_download_api_specs``, which downloads a release archive
-   of Kibana and extract the relevant spec files into it's own config directory.
+Legacy auto-completion with Kibana spec files
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Prior to v0.3.0, autocompletion uses API spec files published by the
+`Kibana project <https://github.com/elastic/kibana>`_. This is disabled by default.
+It can still be enabled (*NOT recommended*) by setting
+``prefer_elasticsearch_specification = False``. This also changes the behaviour of
+``_download_api_specs`` to download Kibana spec files instead.
 
-Kibana uses TypeScript to code the more advanced completion rules, e.g. Query DSL.
-Peek's parsing of TypeScript is rather hacky. It is tested and works with ``v7.8`` and
-``v7.9``. But it may become unstable for Kibana's future releases. Therefore, Peek
-by default caches the TypeScript completion rules in its own scripting format (look into
-``extended_specs.es`` in its config directory for details). To force Peek parse
-the TypeScript files again, please remove the cache file. This behaviour can also be
-turned off with ``cache_extended_api_specs = False`` in ``peekrc`` file.
 
 Functions
 ---------
