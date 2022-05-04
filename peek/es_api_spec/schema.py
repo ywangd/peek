@@ -394,7 +394,7 @@ class Schema:
 
     def candidate_sub_key_values(self, method, ts: List[str], payload_keys: List[str]) -> Dict[str, Any]:
         endpoint: Endpoint = self._matchable_endpoint(method, ts)
-        if endpoint.request is None:
+        if endpoint is None or endpoint.request is None:
             return {}
         sub_properties = self._sub_properties_for_keys(Body.from_dict(self.types[endpoint.request].body), payload_keys)
         key_to_values = {}
@@ -417,7 +417,7 @@ class Schema:
 
     def candidate_values(self, method, ts: List[str], payload_keys: List[str], inside_array=False) -> List[Any]:
         endpoint: Endpoint = self._matchable_endpoint(method, ts)
-        if endpoint.request is None:
+        if endpoint is None or endpoint.request is None:
             return []
         properties = self._properties_for_keys(Body.from_dict(self.types[endpoint.request].body), payload_keys)
         values = []
