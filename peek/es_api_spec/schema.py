@@ -546,8 +546,12 @@ class Schema:
                 final_values.append('false')
             elif value is None:
                 final_values.append('null')
-            elif isinstance(value, (str, numbers.Number)):
+            elif isinstance(value, numbers.Number):
+                final_values.append(str(value))
+            elif isinstance(value, str):
                 final_values.append(value)
+            else:
+                _logger.debug(f'non-usable query parameter value: {value!r}')
         return final_values
 
     @staticmethod
