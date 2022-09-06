@@ -174,10 +174,20 @@ class Value:
 class InstanceOf(Value):
 
     def candidate_values(self, types: Types):
-        yield from types[self.get_type_name()].candidate_values(types)
+        type_name = self.get_type_name()
+        if type_name in types:
+            yield from types[type_name].candidate_values(types)
+        else:
+            _logger.debug(f'type [{type_name}] does not exist')
+            yield from []
 
     def candidate_properties(self, types: Types):
-        return types[self.get_type_name()].candidate_properties(types)
+        type_name = self.get_type_name()
+        if type_name in types:
+            return types[type_name].candidate_properties(types)
+        else:
+            _logger.debug(f'type [{type_name}] does not exist')
+            yield from []
 
     def get_type_name(self) -> TypeName:
         return TypeName.from_dict(self.type)
@@ -515,11 +525,15 @@ class Schema:
     @staticmethod
     def _sub_properties_for_property(types: Types,
                                      matched_property: Variable):
-        if isinstance(matched_property.value, ArrayOf):
-            # penetrate array
-            return matched_property.value.get_member().candidate_properties(types)
-        else:
-            return matched_property.candidate_properties(types)
+        try:
+            if isinstance(matched_property.value, ArrayOf):
+                # penetrate array
+                return matched_property.value.get_member().candidate_properties(types)
+            else:
+                return matched_property.candidate_properties(types)
+        except KeyError as e:
+            _logger.debug(f'error in _sub_properties_for_property: {e}')
+            return []
 
     @staticmethod
     def _can_match(ts, ps):
