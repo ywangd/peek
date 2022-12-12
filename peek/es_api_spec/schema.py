@@ -187,7 +187,7 @@ class InstanceOf(Value):
             return types[type_name].candidate_properties(types)
         else:
             _logger.debug(f'type [{type_name}] does not exist')
-            yield from []
+            return []
 
     def get_type_name(self) -> TypeName:
         return TypeName.from_dict(self.type)

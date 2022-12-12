@@ -780,6 +780,15 @@ def test_field_placeholder():
 ''', 86)), Completion(text='0'))
 
 
+def test_query_types():
+    assert completions_has(get_completions(Document('''GET _search
+{
+  "query": {
+    ""
+  },
+}''', 32)), Completion(text='term'), Completion(text='range'))
+
+
 def equivalent_completions(c0: Completion, c1: Completion):
     return c0.text == c1.text and c0.start_position == c1.start_position
 
