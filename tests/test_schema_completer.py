@@ -786,7 +786,7 @@ def test_query_types():
   "query": {
     ""
   },
-}''', 32)), Completion(text='term'), Completion(text='range'))
+}''', 32)), Completion(text='term'), Completion(text='range21'))
 
 
 def equivalent_completions(c0: Completion, c1: Completion):

@@ -6,4 +6,5 @@ if [[ -n "$MULE_TOKEN" ]]; then
 
     curl -L --remote-name -H 'Accept: application/vnd.github.v3.raw' -H "Authorization: token $MULE_TOKEN" https://api.github.com/repos/ywangd/mule/contents/schema-8.2.tgz
     tar -C peek -zxvf schema-8.2.tgz
+    mv peek/specs/schema-8.2/schema.json peek/specs/.
 fi
