@@ -139,11 +139,15 @@ class PeekVM(Visitor):
         else:
             es_client = self.app.es_client_manager.current
         quiet = options.pop('quiet', False)
+        outfile = options.pop('out', None)
         if options:
             self.app.display.error(f'Unknown options: {options}')
             return
 
+        existing_capture = self.app.capture
         try:
+            if outfile is not None:
+                self.app.start_capture(outfile)
             with warnings.catch_warnings(record=True) as ws:
                 final_path = _maybe_encode_date_math(path)
                 final_headers = headers if headers else None
@@ -164,6 +168,8 @@ class PeekVM(Visitor):
             else:
                 self.app.display.error(e, header_text=self._get_header_text(conn, runas))
                 _logger.exception(f'Error on ES API call: {node!r}')
+        finally:
+            self.app.capture = existing_capture
 
     def visit_func_call_node(self, node: FuncCallNode):
         if isinstance(node.name_node, NameNode):
