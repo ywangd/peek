@@ -19,13 +19,9 @@ _logger = logging.getLogger(__name__)
 
 
 class ConfigFunc:
-
     def __call__(self, app, **options):
         if not options:
-            return {
-                'location': config_location(),
-                'config': app.config
-            }
+            return {'location': config_location(), 'config': app.config}
 
         extra_config = {}
         for key, value in options.items():
@@ -36,9 +32,11 @@ class ConfigFunc:
                 if child is None:
                     parent[key_component] = {}
                 elif not isinstance(child, dict):
-                    _logger.warning(f'Config key {key!r} conflicts. '
-                                    f'Value of {key_component!r} is not a dict, '
-                                    f'but {type(child)!r}')
+                    _logger.warning(
+                        f'Config key {key!r} conflicts. '
+                        f'Value of {key_component!r} is not a dict, '
+                        f'but {type(child)!r}'
+                    )
                     parent = None
                     break
                 parent = parent[key_component]
@@ -55,14 +53,16 @@ class ConfigFunc:
 
 
 class ConnectionFunc:
-
     def __call__(self, app, current=None, **options):
-        options = consolidate_options(options, {
-            'info': app.es_client_manager.index_current,
-            'remove': app.es_client_manager.index_current,
-            'keep': app.es_client_manager.index_current,
-            'wipe': True,
-        })
+        options = consolidate_options(
+            options,
+            {
+                'info': app.es_client_manager.index_current,
+                'remove': app.es_client_manager.index_current,
+                'keep': app.es_client_manager.index_current,
+                'wipe': True,
+            },
+        )
 
         current = current if current is not None else options.get('current', None)
         if current is not None:
@@ -97,8 +97,18 @@ class ConnectionFunc:
 
     @property
     def options(self):
-        return {'current': None, 'remove': None, 'move': None, 'rename': None, 'info': None, 'keep': None,
-                '@info': None, '@remove': None, '@keep': None, '@wipe': None}
+        return {
+            'current': None,
+            'remove': None,
+            'move': None,
+            'rename': None,
+            'info': None,
+            'keep': None,
+            '@info': None,
+            '@remove': None,
+            '@keep': None,
+            '@wipe': None,
+        }
 
     @property
     def description(self):
@@ -106,13 +116,15 @@ class ConnectionFunc:
 
 
 class SessionFunc:
-
     def __call__(self, app, **options):
-        options = consolidate_options(options, {
-            'load': DEFAULT_SAVE_NAME,
-            'save': DEFAULT_SAVE_NAME,
-            'clear': None,
-        })
+        options = consolidate_options(
+            options,
+            {
+                'load': DEFAULT_SAVE_NAME,
+                'save': DEFAULT_SAVE_NAME,
+                'clear': None,
+            },
+        )
 
         if not options:
             return app.history.list_sessions()
@@ -146,8 +158,14 @@ class SessionFunc:
 
     @property
     def options(self):
-        return {'save': None, 'load': None, 'remove': None,
-                '@save': DEFAULT_SAVE_NAME, '@load': DEFAULT_SAVE_NAME, '@clear': None}
+        return {
+            'save': None,
+            'load': None,
+            'remove': None,
+            '@save': DEFAULT_SAVE_NAME,
+            '@load': DEFAULT_SAVE_NAME,
+            '@clear': None,
+        }
 
     @property
     def description(self):
@@ -155,7 +173,6 @@ class SessionFunc:
 
 
 class RunFunc:
-
     def __call__(self, app, file, **options):
         should_echo = options.get('echo', True)
         is_capture = options.get('is_capture')
@@ -200,7 +217,6 @@ class RunFunc:
 
 
 class HistoryFunc:
-
     def __call__(self, app, index=None, **options):
         if index is None:
             history = []
@@ -223,7 +239,6 @@ class HistoryFunc:
 
 
 class RangeFunc:
-
     def __call__(self, app, start, stop, step=1):
         return list(range(start, stop, step))
 
@@ -233,7 +248,6 @@ class RangeFunc:
 
 
 class RandIntFunc:
-
     def __call__(self, app, min_value=None, max_value=None):
         if min_value is None and max_value is None:
             min_value = 0
@@ -249,7 +263,6 @@ class RandIntFunc:
 
 
 class EchoFunc:
-
     def __init__(self):
         self.builtin_lookup = {
             True: 'true',
@@ -284,7 +297,6 @@ class EchoFunc:
 
 
 class CaptureFunc:
-
     def __call__(self, app, f=None, **options):
         directives = options.get('@')
         if not directives:
@@ -315,12 +327,13 @@ class GetEnvFunc:
 
     @property
     def description(self):
-        return 'Get value of the environmental variable of the given name. ' \
-               'Returns an empty string if name does not exist'
+        return (
+            'Get value of the environmental variable of the given name. '
+            'Returns an empty string if name does not exist'
+        )
 
 
 class ResetFunc:
-
     def __call__(self, app, **options):
         app.reset()
 
@@ -330,7 +343,6 @@ class ResetFunc:
 
 
 class ExitFunc:
-
     def __call__(self, app):
         if not app.batch_mode:
             app.signal_exit()
@@ -341,7 +353,6 @@ class ExitFunc:
 
 
 class HelpFunc:
-
     def __call__(self, app, func=None, **options):
         if func is None:
             return '\n'.join(k for k in app.vm.functions.keys())
@@ -360,9 +371,9 @@ class HelpFunc:
 
 
 class VersionFunc:
-
     def __call__(self, app):
         import elasticsearch
+
         return f'"Peek (v{__version__})"\n"elasticsearch-py (v{elasticsearch.__versionstr__})"'
 
     @property
@@ -371,12 +382,13 @@ class VersionFunc:
 
 
 class DownloadApiSpecsFunc:
-
     def __call__(self, app, **options):
         config_dir = config_location()
         if not os.path.exists(config_dir):
-            raise FileNotFoundError(f'Config directory does not exist: {config_dir!r}. '
-                                    f'Please create it before downloading API spec files')
+            raise FileNotFoundError(
+                f'Config directory does not exist: {config_dir!r}. '
+                f'Please create it before downloading API spec files'
+            )
 
         if app.config.as_bool('prefer_elasticsearch_specification'):
             schema_filepath = os.path.join(config_dir, 'schema.json')
@@ -384,25 +396,32 @@ class DownloadApiSpecsFunc:
                 raise RuntimeError(f'schema file already exists [{schema_filepath}]. Please remove it before download.')
             git_branch = options.get('version', '8.2')
             import urllib.request
-            url = f'https://raw.githubusercontent.com/elastic/elasticsearch-specification/' \
-                  f'{git_branch}/output/schema/schema.json'
+
+            url = (
+                f'https://raw.githubusercontent.com/elastic/elasticsearch-specification/'
+                f'{git_branch}/output/schema/schema.json'
+            )
             data = urllib.request.urlopen(url).read()
             with open(schema_filepath, 'wb') as outs:
                 outs.write(data)
             app.completer.init_api_completer()
             return f'Elasticsearch specification [{git_branch}] downloaded and initialized'
         else:
-            existing_kibana_dirs = [os.path.join(config_dir, d)
-                                    for d in os.listdir(config_dir) if d.startswith('kibana-')]
+            existing_kibana_dirs = [
+                os.path.join(config_dir, d) for d in os.listdir(config_dir) if d.startswith('kibana-')
+            ]
             if existing_kibana_dirs:
-                raise RuntimeError(f'Existing {"directory" if len(existing_kibana_dirs) == 1 else "directories"} '
-                                   f'found for API specs: {existing_kibana_dirs}. '
-                                   f'Please remove {"it" if len(existing_kibana_dirs) == 1 else "them"} '
-                                   f'before download new spec files.')
+                raise RuntimeError(
+                    f'Existing {"directory" if len(existing_kibana_dirs) == 1 else "directories"} '
+                    f'found for API specs: {existing_kibana_dirs}. '
+                    f'Please remove {"it" if len(existing_kibana_dirs) == 1 else "them"} '
+                    f'before download new spec files.'
+                )
 
             import urllib.request
             import zipfile
             import io
+
             kibana_version = options.get('version', '7.9.1')
             kibana_release_url = f'https://github.com/elastic/kibana/archive/v{kibana_version}.zip'
             app.display.info(f'Downloading from {kibana_release_url} ... This may take a few minutes ...')
@@ -426,8 +445,10 @@ class DownloadApiSpecsFunc:
         if get_global_config().as_bool('prefer_elasticsearch_specification'):
             return 'Download and reload API spec file from the Elasticsearch Specification project.'
         else:
-            return 'Download and reload Elasticsearch API spec files from the Kibana project. ' \
-                   'It may takes a few minutes depending on the network speed.'
+            return (
+                'Download and reload Elasticsearch API spec files from the Kibana project. '
+                'It may takes a few minutes depending on the network speed.'
+            )
 
 
 def consolidate_options(options, defaults):

@@ -13,28 +13,30 @@ class PeekSyntaxError(PeekError):
         self.message = message
 
     def __str__(self):
-        text_before_error = self.text[:self.error_token.index]
+        text_before_error = self.text[: self.error_token.index]
         last_linesep = text_before_error.rfind(os.linesep)
         if last_linesep == -1:
             line = text_before_error
             line_index = 0
         else:
-            line = text_before_error[last_linesep + len(os.linesep):]
+            line = text_before_error[last_linesep + len(os.linesep) :]
             line_index = text_before_error.count(os.linesep)
         col_index = len(line)
 
-        text_since_error = self.text[self.error_token.index:]
+        text_since_error = self.text[self.error_token.index :]
         next_linesep = text_since_error.find(os.linesep)
         if next_linesep == -1:
             line += text_since_error
         else:
             line += text_since_error[:next_linesep]
 
-        return f'{self.title} at Line {line_index + 1}, Column {col_index + 1}:\n' \
-               f'{line}\n' \
-               f'{" " * col_index}' \
-               f'{"^" * len(self.error_token.value)}' \
-               f'{os.linesep + self.message if self.message else ""}'
+        return (
+            f'{self.title} at Line {line_index + 1}, Column {col_index + 1}:\n'
+            f'{line}\n'
+            f'{" " * col_index}'
+            f'{"^" * len(self.error_token.value)}'
+            f'{os.linesep + self.message if self.message else ""}'
+        )
 
 
 class InvalidEsApiCall(PeekError):

@@ -20,7 +20,6 @@ class _SamlExchange:
 
 
 class CallbackHTTPRequestHandler(BaseHTTPRequestHandler):
-
     def do_GET(self):
         pass
 
@@ -34,10 +33,7 @@ class CallbackHTTPRequestHandler(BaseHTTPRequestHandler):
         self.wfile.write(b'Callback received, you can now close the browser tab.')
 
     def log_message(self, fmt: str, *args: Any) -> None:
-        _logger.info("%s - - [%s] %s\n" %
-                     (self.address_string(),
-                      self.log_date_time_string(),
-                      fmt % args))
+        _logger.info("%s - - [%s] %s\n" % (self.address_string(), self.log_date_time_string(), fmt % args))
 
 
 def saml_authenticate(es_client: EsClient, realm: str, callback_port: str, callback_ssl: bool, name: Optional[str]):
@@ -62,7 +58,8 @@ def saml_authenticate(es_client: EsClient, realm: str, callback_port: str, callb
             auth_response['access_token'],
             auth_response['refresh_token'],
             auth_response['expires_in'],
-            name=name)
+            name=name,
+        )
     finally:
         _SamlExchange.callback_path = None
 
@@ -71,10 +68,12 @@ def _saml_prepare(es_client, realm: str):
     return es_client.perform_request(
         'POST',
         '/_security/saml/prepare',
-        json.dumps({
-            'realm': realm,
-        }),
-        deserialize_it=True
+        json.dumps(
+            {
+                'realm': realm,
+            }
+        ),
+        deserialize_it=True,
     )
 
 
@@ -82,29 +81,28 @@ def _saml_do_authenticate(es_client, realm: str, _id: str, content: str):
     response = es_client.perform_request(
         'POST',
         '/_security/saml/authenticate',
-        json.dumps({
-            'realm': realm,
-            'ids': [_id],
-            'content': content,
-        }),
-        deserialize_it=True
+        json.dumps(
+            {
+                'realm': realm,
+                'ids': [_id],
+                'content': content,
+            }
+        ),
+        deserialize_it=True,
     )
     return response
 
 
 def _saml_start_http_server(callback_port, callback_ssl):
     from peek import __file__ as package_root
+
     package_root = os.path.dirname(package_root)
     _SamlExchange.callback_path = Queue(maxsize=1)
     httpd = HTTPServer(('localhost', int(callback_port)), CallbackHTTPRequestHandler)
     if callback_ssl:
         keyfile = os.path.join(package_root, 'certs', 'key.pem')
         certfile = os.path.join(package_root, 'certs', 'cert.pem')
-        httpd.socket = ssl.wrap_socket(
-            httpd.socket,
-            keyfile=keyfile,
-            certfile=certfile,
-            server_side=True)
+        httpd.socket = ssl.wrap_socket(httpd.socket, keyfile=keyfile, certfile=certfile, server_side=True)
 
     t = Thread(target=httpd.serve_forever, daemon=True)
     t.start()

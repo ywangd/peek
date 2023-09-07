@@ -18,13 +18,11 @@ _logger = logging.getLogger(__name__)
 
 # Wrappers for adding request and response content type
 _wrapper_json = elasticsearch.client.utils.query_params(
-    request_mimetypes=["application/json"],
-    response_mimetypes=["application/json"]
+    request_mimetypes=["application/json"], response_mimetypes=["application/json"]
 )
 
 _wrapper_text = elasticsearch.client.utils.query_params(
-    request_mimetypes=["application/json"],
-    response_mimetypes=["text/plain", "application/json"]
+    request_mimetypes=["application/json"], response_mimetypes=["text/plain", "application/json"]
 )
 
 
@@ -40,30 +38,29 @@ noopDeserializer = NoopDeserializer()
 
 
 class BaseClient(metaclass=ABCMeta):
-
     @abstractmethod
     def perform_request(self, method, path, payload=None, deserialize_it=False, **kwargs):
         pass
 
 
 class EsClient(BaseClient):
-
-    def __init__(self,
-                 name=None,
-                 hosts=None,
-                 cloud_id=None,
-                 username=None,
-                 password=None,
-                 use_ssl=False,
-                 verify_certs=False,
-                 assert_hostname=False,
-                 ca_certs=None,
-                 client_cert=None,
-                 client_key=None,
-                 api_key=None,
-                 token=None,
-                 headers=None):
-
+    def __init__(
+        self,
+        name=None,
+        hosts=None,
+        cloud_id=None,
+        username=None,
+        password=None,
+        use_ssl=False,
+        verify_certs=False,
+        assert_hostname=False,
+        ca_certs=None,
+        client_cert=None,
+        client_key=None,
+        api_key=None,
+        token=None,
+        headers=None,
+    ):
         self.name = name
         self.hosts = hosts
         self.cloud_id = cloud_id
@@ -203,15 +200,7 @@ class EsClient(BaseClient):
 
 
 class RefreshingEsClient(BaseClient):
-
-    def __init__(self,
-                 parent: EsClient,
-                 username,
-                 access_token,
-                 refresh_token,
-                 expires_in,
-                 name=None):
-
+    def __init__(self, parent: EsClient, username, access_token, refresh_token, expires_in, name=None):
         self.parent = parent
         self.username = username
         self.access_token = access_token
@@ -229,12 +218,16 @@ class RefreshingEsClient(BaseClient):
         except AuthenticationException as e:
             if e.status_code == 401:
                 response = self.parent.perform_request(
-                    'POST', '/_security/oauth2/token',
-                    json.dumps({
-                        'grant_type': 'refresh_token',
-                        'refresh_token': self.refresh_token,
-                    }),
-                    deserialize_it=True)
+                    'POST',
+                    '/_security/oauth2/token',
+                    json.dumps(
+                        {
+                            'grant_type': 'refresh_token',
+                            'refresh_token': self.refresh_token,
+                        }
+                    ),
+                    deserialize_it=True,
+                )
                 self.access_token = response['access_token']
                 self.refresh_token = response['refresh_token']
                 self.expires_in = response['expires_in']
@@ -282,7 +275,6 @@ class RefreshingEsClient(BaseClient):
 
 
 class DelegatingListener:
-
     def __init__(self, on_add=None, on_set=None, on_remove=None):
         self._on_add = on_add
         self._on_set = on_set
@@ -299,7 +291,6 @@ class DelegatingListener:
 
 
 class EsClientManager:
-
     def __init__(self, listeners: Iterable[DelegatingListener] = ()):
         self._clients: List[EsClient] = []
         self._index_current = None
@@ -507,12 +498,13 @@ def _maybe_configure_smart_connect(app, options: dict):
             else:
                 last_request = app.vm.get_value('__')
                 urlpath = last_request['path']
-                if last_request['method'] in ('POST', 'PUT') and (urlpath.startswith('/_security/user/')
-                                                                  or urlpath.startswith('/_xpack/security/user/')):
+                if last_request['method'] in ('POST', 'PUT') and (
+                    urlpath.startswith('/_security/user/') or urlpath.startswith('/_xpack/security/user/')
+                ):
                     if urlpath.startswith('/_security/user/'):
-                        username = urlpath[len('/_security/user/'):]
+                        username = urlpath[len('/_security/user/') :]
                     else:
-                        username = urlpath[len('/_xpack/security/user/'):]
+                        username = urlpath[len('/_xpack/security/user/') :]
                     payload = json.loads(last_request['payload'])
                     password = payload.get('password', None)
                     _maybe_copy_current_client_options(app, smart_options)
@@ -641,6 +633,7 @@ def _keyring(service_name, key, value=None):
     global KEYRING
     if KEYRING is None:
         import importlib
+
         try:
             KEYRING = importlib.import_module("keyring")
         except ModuleNotFoundError as e:

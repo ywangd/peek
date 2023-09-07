@@ -31,7 +31,7 @@ class Endpoint:
             urls=data['urls'],
             request=TypeName.from_dict(data['request']) if data['request'] else None,
             description=data['description'],
-            doc_url=data['docUrl']
+            doc_url=data['docUrl'],
         )
 
 
@@ -69,7 +69,6 @@ class TypeDefinition:
 
 @dataclass(frozen=True)
 class Builtin(TypeDefinition):
-
     def candidate_values(self, types: Types):
         if self.name.name == 'boolean':
             yield from [True, False]
@@ -85,7 +84,6 @@ class Builtin(TypeDefinition):
 
 @dataclass(frozen=True)
 class Alias(TypeDefinition):
-
     def candidate_values(self, types: Types):
         yield from self.get_type().candidate_values(types)
 
@@ -98,7 +96,6 @@ class Alias(TypeDefinition):
 
 @dataclass(frozen=True)
 class Interface(TypeDefinition):
-
     def candidate_values(self, types: Types):
         yield from [{}]
 
@@ -108,7 +105,6 @@ class Interface(TypeDefinition):
 
 @dataclass(frozen=True)
 class Enum(TypeDefinition):
-
     def candidate_values(self, types: Types):
         yield from self.get_members()
 
@@ -118,7 +114,6 @@ class Enum(TypeDefinition):
 
 @dataclass(frozen=True)
 class Request(TypeDefinition):
-
     def get_query(self) -> Dict:
         query = self.query
         if query is not None:
@@ -172,7 +167,6 @@ class Value:
 
 @dataclass(frozen=True)
 class InstanceOf(Value):
-
     def candidate_values(self, types: Types):
         type_name = self.get_type_name()
         if type_name in types:
@@ -195,7 +189,6 @@ class InstanceOf(Value):
 
 @dataclass(frozen=True)
 class ArrayOf(Value):
-
     def candidate_values(self, types: Types):
         member_value = next(self.get_member().candidate_values(types))
         if member_value == {}:
@@ -209,7 +202,6 @@ class ArrayOf(Value):
 
 @dataclass(frozen=True)
 class DictionaryOf(Value):
-
     def candidate_values(self, types: Types):
         yield from [{}]
 
@@ -229,7 +221,6 @@ class DictionaryOf(Value):
 
 @dataclass(frozen=True)
 class UnionOf(Value):
-
     def candidate_values(self, types: Types):
         for member in self.get_members():
             yield from member.candidate_values(types)
@@ -246,7 +237,6 @@ class UnionOf(Value):
 
 @dataclass(frozen=True)
 class Literal(Value):
-
     def candidate_values(self, types: Types):
         yield from [self.get_value()]
 
@@ -281,16 +271,11 @@ class Variable:
 
     @staticmethod
     def from_dict(data):
-        return Variable(
-            name=data['name'],
-            aliases=data.get('aliases', []),
-            value=Value.from_dict(data['type'])
-        )
+        return Variable(name=data['name'], aliases=data.get('aliases', []), value=Value.from_dict(data['type']))
 
 
 @dataclass(frozen=True, init=False)
 class Wildcard(Variable):
-
     def __init__(self, value: Value):
         super(Wildcard, self).__init__(name='*', aliases=[], value=value)
 
@@ -328,30 +313,28 @@ class NoBody(Body):
 
 @dataclass(frozen=True)
 class ValueBody(Body):
-
     def get_value(self):
         return Value.of(self.value)
 
 
 @dataclass(frozen=True)
 class PropertiesBody(Body):
-
     def candidate_properties(self) -> List[Variable]:
         return [Variable.from_dict(prop) for prop in self.properties]
 
 
 class Schema:
-
     def __init__(self, data: Dict):
         self.endpoints = [Endpoint.from_dict(d) for d in data['endpoints']]
         self.types: Types = {
-            b.name: b for b in [
+            b.name: b
+            for b in [
                 Builtin(name=TypeName("binary", "_builtins"), data={}),
                 Builtin(name=TypeName("boolean", "_builtins"), data={}),
                 Builtin(name=TypeName("null", "_builtins"), data={}),
                 Builtin(name=TypeName("number", "_builtins"), data={}),
                 Builtin(name=TypeName("string", "_builtins"), data={}),
-                Builtin(name=TypeName("void", "_builtins"), data={})
+                Builtin(name=TypeName("void", "_builtins"), data={}),
             ]
         }
         for d in data['types']:
@@ -373,7 +356,7 @@ class Schema:
                     continue
                 if not self._can_match(ts, ps):
                     continue
-                candidate = '/'.join(ps[len(ts):])
+                candidate = '/'.join(ps[len(ts) :])
                 candidates.append(candidate)
         return sorted(candidates)
 
@@ -496,8 +479,7 @@ class Schema:
 
         return []  # should not reach here, but for safe
 
-    def _sub_properties_for_keys(self, body: Body,
-                                 payload_keys: List[str]) -> List[Variable]:
+    def _sub_properties_for_keys(self, body: Body, payload_keys: List[str]) -> List[Variable]:
         """
         For the given payload_keys, find properties that match the sequence, then return their sub-properties.
         """
@@ -519,12 +501,12 @@ class Schema:
         for prop in type_definition.properties:
             query_parameter = Variable.from_dict(prop)
             common_parameters[query_parameter.name] = self._filter_for_param_values(
-                query_parameter.candidate_values(self.types))
+                query_parameter.candidate_values(self.types)
+            )
         return common_parameters
 
     @staticmethod
-    def _sub_properties_for_property(types: Types,
-                                     matched_property: Variable):
+    def _sub_properties_for_property(types: Types, matched_property: Variable):
         try:
             if isinstance(matched_property.value, ArrayOf):
                 # penetrate array

@@ -7,8 +7,11 @@ from typing import Any
 import pygments
 from prompt_toolkit import print_formatted_text, HTML
 from prompt_toolkit.formatted_text import PygmentsTokens, FormattedText, to_formatted_text, merge_formatted_text
-from prompt_toolkit.styles import style_from_pygments_cls, ConditionalStyleTransformation, \
-    SwapLightAndDarkStyleTransformation
+from prompt_toolkit.styles import (
+    style_from_pygments_cls,
+    ConditionalStyleTransformation,
+    SwapLightAndDarkStyleTransformation,
+)
 from pygments.token import Token
 
 from peek.lexers import PeekStyle, PeekLexer, Heading, TipsMinor
@@ -17,13 +20,13 @@ _logger = logging.getLogger(__name__)
 
 
 class Display:
-
     def __init__(self, app):
         self.app = app
         self.payload_lexer = PeekLexer(stack=('value',))
         self.style = style_from_pygments_cls(PeekStyle)
         self.style_transformation = ConditionalStyleTransformation(
-            SwapLightAndDarkStyleTransformation(), self.app.config.as_bool('swap_colour'))
+            SwapLightAndDarkStyleTransformation(), self.app.config.as_bool('swap_colour')
+        )
 
     @property
     def pretty_print(self):
@@ -34,11 +37,9 @@ class Display:
             return
         if not self.app.batch_mode:
             self._tee_print(
-                FormattedText([
-                    (PeekStyle.styles[Heading], '=== '),
-                    (PeekStyle.styles[TipsMinor], header_text)
-                ]),
-                plain_source=f'=== {header_text}')
+                FormattedText([(PeekStyle.styles[Heading], '=== '), (PeekStyle.styles[TipsMinor], header_text)]),
+                plain_source=f'=== {header_text}',
+            )
         if isinstance(source, FormattedText):
             self._tee_print(source)
         else:
@@ -50,11 +51,14 @@ class Display:
             return
         if not self.app.batch_mode:
             self._tee_print(
-                merge_formatted_text([
-                    HTML('<ansired>--- </ansired>').formatted_text,
-                    FormattedText([(PeekStyle.styles[TipsMinor], header_text)])
-                ]),
-                plain_source=f'--- {header_text}')
+                merge_formatted_text(
+                    [
+                        HTML('<ansired>--- </ansired>').formatted_text,
+                        FormattedText([(PeekStyle.styles[TipsMinor], header_text)]),
+                    ]
+                ),
+                plain_source=f'--- {header_text}',
+            )
         if isinstance(source, FormattedText):
             self._tee_print(source)
         else:
@@ -67,10 +71,13 @@ class Display:
             self._tee_print(source)
         else:
             self._tee_print(
-                FormattedText([
-                    ('#ffdf5d', f'WARNING: {source}'),
-                ]),
-                plain_source=f'WARNING: {source}')
+                FormattedText(
+                    [
+                        ('#ffdf5d', f'WARNING: {source}'),
+                    ]
+                ),
+                plain_source=f'WARNING: {source}',
+            )
 
     def _try_jsonify(self, source):
         # If it is a string, first check whether it can be decoded as JSON
@@ -82,11 +89,7 @@ class Display:
 
         try:
             if not isinstance(source, str):
-                source = json.dumps(
-                    source,
-                    cls=PeekEncoder,
-                    app=self.app,
-                    indent=2 if self.pretty_print else None)
+                source = json.dumps(source, cls=PeekEncoder, app=self.app, indent=2 if self.pretty_print else None)
             tokens = []
             for t in pygments.lex(source, lexer=self.payload_lexer):
                 tokens.append(t)
@@ -112,7 +115,6 @@ class Display:
 
 
 class PeekEncoder(json.JSONEncoder):
-
     def __init__(self, app=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.app = app

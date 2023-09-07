@@ -37,8 +37,12 @@ def test_complete_http_method_and_func_name():
     )
 
     assert completions_has(
-        get_completions(Document('''get abc
-ge''')),
+        get_completions(
+            Document(
+                '''get abc
+ge'''
+            )
+        ),
         Completion(text='GET', start_position=-2),
     )
 
@@ -49,8 +53,12 @@ ge''')),
     )
 
     assert completions_has(
-        get_completions(Document('''config
-sa''')),
+        get_completions(
+            Document(
+                '''config
+sa'''
+            )
+        ),
         Completion(text='saml_authenticate', start_position=-2),
     )
 
@@ -63,8 +71,12 @@ def test_complete_func_option_name():
     )
 
     assert completions_has(
-        get_completions(Document('''connect
-session ''')),
+        get_completions(
+            Document(
+                '''connect
+session '''
+            )
+        ),
         Completion(text='save='),
         Completion(text='load='),
         Completion(text='remove='),
@@ -79,8 +91,12 @@ def test_complete_func_option_name_with_partial():
     )
 
     assert completions_has(
-        get_completions(Document('''config
-saml_authenticate r''')),
+        get_completions(
+            Document(
+                '''config
+saml_authenticate r'''
+            )
+        ),
         Completion(text='realm=', start_position=-1),
     )
 
@@ -89,28 +105,17 @@ saml_authenticate r''')),
         Completion(text='@save', start_position=-2),
     )
 
-    assert completions_has(
-        get_completions(Document('connection @r')),
-        Completion(text='@remove', start_position=-2)
-    )
+    assert completions_has(get_completions(Document('connection @r')), Completion(text='@remove', start_position=-2))
 
 
 def test_complete_option_name_will_not_be_in_value_place():
-    assert no_completion(
-        get_completions(Document('''connect hosts='''))
-    )
+    assert no_completion(get_completions(Document('''connect hosts=''')))
 
-    assert no_completion(
-        get_completions(Document('''connect hosts=h'''))
-    )
+    assert no_completion(get_completions(Document('''connect hosts=h''')))
 
-    assert no_completion(
-        get_completions(Document('''get _search runas='''))
-    )
+    assert no_completion(get_completions(Document('''get _search runas=''')))
 
-    assert no_completion(
-        get_completions(Document('''get _search runas=r'''))
-    )
+    assert no_completion(get_completions(Document('''get _search runas=r''')))
 
 
 def test_complete_http_path():
@@ -150,25 +155,20 @@ def test_complete_http_path():
     )
 
     assert completions_has(
-        get_completions(Document('''get _security/api_key
-post token''')),
+        get_completions(
+            Document(
+                '''get _security/api_key
+post token'''
+            )
+        ),
         Completion(text='_security/oauth2/token', start_position=-5),
     )
 
-    assert completions_has(
-        get_completions(Document('''GET _search?''')),
-        Completion(text='expand_wildcards')
-    )
+    assert completions_has(get_completions(Document('''GET _search?''')), Completion(text='expand_wildcards'))
 
-    assert completions_has(
-        get_completions(Document('''GET _search?expand_wildcards=''')),
-        Completion(text='all')
-    )
+    assert completions_has(get_completions(Document('''GET _search?expand_wildcards=''')), Completion(text='all'))
 
-    assert completions_has(
-        get_completions(Document('''GET _search?expand_wildcards=open,''')),
-        Completion(text='all')
-    )
+    assert completions_has(get_completions(Document('''GET _search?expand_wildcards=open,''')), Completion(text='all'))
 
 
 def test_complete_http_options():
@@ -184,105 +184,174 @@ def test_complete_http_options():
     )
 
     assert completions_has(
-        get_completions(Document('''get _search
-get _cluster/health c''')),
+        get_completions(
+            Document(
+                '''get _search
+get _cluster/health c'''
+            )
+        ),
         Completion(text='conn=', start_position=-1),
     )
 
 
 def test_complete_payload_key():
     assert completions_has(
-        get_completions(Document('''POST _security/api_key/grant
-    {""}''', 35)),
+        get_completions(
+            Document(
+                '''POST _security/api_key/grant
+    {""}''',
+                35,
+            )
+        ),
         Completion(text='username'),
-        Completion(text='grant_type')
+        Completion(text='grant_type'),
     )
 
     assert completions_has(
-        get_completions(Document('''put _security/role/test
-{""}''', 26)),
+        get_completions(
+            Document(
+                '''put _security/role/test
+{""}''',
+                26,
+            )
+        ),
         Completion(text='applications'),
     )
 
     assert completions_has(
-        get_completions(Document('''POST _security/api_key/grant
-        {"api_key": { "" } }''', 52)),
+        get_completions(
+            Document(
+                '''POST _security/api_key/grant
+        {"api_key": { "" } }''',
+                52,
+            )
+        ),
         Completion(text='role_descriptors'),
     )
 
 
 def test_complete_payload_inner_key():
     assert completions_has(
-        get_completions(Document('''PUT _security/role/name
-{"indices":[{ "" }]}''', 39)),
+        get_completions(
+            Document(
+                '''PUT _security/role/name
+{"indices":[{ "" }]}''',
+                39,
+            )
+        ),
         Completion(text='names'),
     )
 
 
 def test_complete_payload_value_metadata():
     assert no_completion(
-        get_completions(Document('''put _security/role/test
-{"metadata": {""}}''', 39))
+        get_completions(
+            Document(
+                '''put _security/role/test
+{"metadata": {""}}''',
+                39,
+            )
+        )
     )
 
 
 def test_complete_payload_value_array_of_dict():
     assert completions_has(
-        get_completions(Document('''PUT _security/role/test
-{"indices": }''', 36)),
+        get_completions(
+            Document(
+                '''PUT _security/role/test
+{"indices": }''',
+                36,
+            )
+        ),
         Completion(text='[{}]'),
     )
 
     assert completions_has(
-        get_completions(Document('''PUT _security/role/test
-{"indices": [  ] }''', 39)),
+        get_completions(
+            Document(
+                '''PUT _security/role/test
+{"indices": [  ] }''',
+                39,
+            )
+        ),
         Completion(text='{}'),
     )
 
 
 def test_complete_payload_value():
     assert completions_has(
-        get_completions(Document('''PUT _security/role/test
+        get_completions(
+            Document(
+                '''PUT _security/role/test
 {"cluster":[
 
-]}''', 37)),
+]}''',
+                37,
+            )
+        ),
         Completion(text='"all"'),
         Completion(text='"manage"'),
     )
 
     assert completions_has(
-        get_completions(Document('''PUT _security/role/test
-{"cluster":[""]}''', 37)),
+        get_completions(
+            Document(
+                '''PUT _security/role/test
+{"cluster":[""]}''',
+                37,
+            )
+        ),
         Completion(text='all'),
         Completion(text='manage'),
     )
 
     assert completions_has(
-        get_completions(Document('''PUT _security/role/test
-{"cluster":["monitor", ""]}''', 48)),
+        get_completions(
+            Document(
+                '''PUT _security/role/test
+{"cluster":["monitor", ""]}''',
+                48,
+            )
+        ),
         Completion(text='all'),
         Completion(text='manage'),
     )
 
     assert completions_has(
-        get_completions(Document('''PUT _security/role/test
-{"cluster":[]}''', 36)),
+        get_completions(
+            Document(
+                '''PUT _security/role/test
+{"cluster":[]}''',
+                36,
+            )
+        ),
         Completion(text='"all"'),
         Completion(text='"manage"'),
     )
 
     assert completions_has(
-        get_completions(Document('''PUT _security/role/test
-{"cluster":["monitor", ]}''', 47)),
+        get_completions(
+            Document(
+                '''PUT _security/role/test
+{"cluster":["monitor", ]}''',
+                47,
+            )
+        ),
         Completion(text='"all"'),
         Completion(text='"manage"'),
     )
 
     assert completions_has(
-        get_completions(Document('''PUT _security/role/test
+        get_completions(
+            Document(
+                '''PUT _security/role/test
 {"cluster":[
 ""
-]}''', 38)),
+]}''',
+                38,
+            )
+        ),
         Completion(text='all'),
         Completion(text='manage'),
     )
@@ -290,67 +359,120 @@ def test_complete_payload_value():
 
 def test_complete_payload_value_array_should_not_work_outside_brackets():
     assert no_completion(
-        get_completions(Document('''PUT _security/role/test
-{"cluster":[]}''', 37))
+        get_completions(
+            Document(
+                '''PUT _security/role/test
+{"cluster":[]}''',
+                37,
+            )
+        )
     )
 
     assert no_completion(
-        get_completions(Document('''PUT _security/role/test
-{"cluster":[] }''', 38))
+        get_completions(
+            Document(
+                '''PUT _security/role/test
+{"cluster":[] }''',
+                38,
+            )
+        )
     )
 
 
 def test_complete_payload_value_array_should_not_make_input_invalid():
     assert no_completion(
-        get_completions(Document('''PUT _security/role/test
-{"cluster":[ "all" ]}''', 43))
+        get_completions(
+            Document(
+                '''PUT _security/role/test
+{"cluster":[ "all" ]}''',
+                43,
+            )
+        )
     )
 
 
 def test_complete_payload_value_dict():
     assert completions_has(
-        get_completions(Document('''post _security/api_key
-{"role_descriptors": }''', 44)),
+        get_completions(
+            Document(
+                '''post _security/api_key
+{"role_descriptors": }''',
+                44,
+            )
+        ),
         Completion(text='{}'),
     )
 
 
 def test_complete_payload_key_alias():
     assert completions_has(
-        get_completions(Document('''GET /_search
-{ "" }''', 16)),
+        get_completions(
+            Document(
+                '''GET /_search
+{ "" }''',
+                16,
+            )
+        ),
         Completion(text='aggs'),
     )
 
 
 def test_not_complete_http_options():
-    assert len(list(get_completions(Document('''POST _security/oauth2/token
-''')))) == 0
+    assert (
+        len(
+            list(
+                get_completions(
+                    Document(
+                        '''POST _security/oauth2/token
+'''
+                    )
+                )
+            )
+        )
+        == 0
+    )
 
 
 def test_not_complete_http_path():
     assert no_completion(
-        get_completions(Document('''get
-''')))
+        get_completions(
+            Document(
+                '''get
+'''
+            )
+        )
+    )
 
 
 def test_payload_completion_000():
     assert completions_has(
-        get_completions(Document('''POST _security/api_key
-{""}''', 25)),
+        get_completions(
+            Document(
+                '''POST _security/api_key
+{""}''',
+                25,
+            )
+        ),
         Completion(text="role_descriptors"),
     )
 
     assert completions_has(
-        get_completions(Document('''POST _security/api_key?refresh=wait_for
-{""}''', 42)),
+        get_completions(
+            Document(
+                '''POST _security/api_key?refresh=wait_for
+{""}''',
+                42,
+            )
+        ),
         Completion(text="role_descriptors"),
     )
 
 
 def test_payload_completion_001():
     assert completions_has(
-        get_completions(Document('''POST _security/api_key
+        get_completions(
+            Document(
+                '''POST _security/api_key
 {
   "role_descriptors": {
     "role_name": {
@@ -359,14 +481,19 @@ def test_payload_completion_001():
       ]
     }
   }
-}''', 95)),
+}''',
+                95,
+            )
+        ),
         Completion(text="privileges"),
     )
 
 
 def test_payload_completion_002():
     assert completions_has(
-        get_completions(Document('''POST _security/api_key
+        get_completions(
+            Document(
+                '''POST _security/api_key
 {
   "role_descriptors": {
     "role_name": {
@@ -376,14 +503,19 @@ def test_payload_completion_002():
     }
   },
   "n"
-}''', 141)),
+}''',
+                141,
+            )
+        ),
         Completion(text="name", start_position=-1),
     )
 
 
 def test_payload_completion_003():
     assert completions_has(
-        get_completions(Document('''POST _security/api_key
+        get_completions(
+            Document(
+                '''POST _security/api_key
 {
   "role_descriptors": {
     "role_name": {
@@ -391,15 +523,23 @@ def test_payload_completion_003():
       ""
     }
   }
-}''', 97)),
+}''',
+                97,
+            )
+        ),
         Completion(text="index"),
     )
 
 
 def test_payload_completion_004():
     assert completions_has(
-        get_completions(Document('''POST _security/oauth2/token
-{""}''', 30)),
+        get_completions(
+            Document(
+                '''POST _security/oauth2/token
+{""}''',
+                30,
+            )
+        ),
         Completion(text="scope"),
     )
 
@@ -407,58 +547,86 @@ def test_payload_completion_004():
 def test_file_payload_completion():
     f = os.listdir('.')[0]
     assert completions_has(
-        get_completions(Document('''get /
-@''')),
-        Completion(text=f)
+        get_completions(
+            Document(
+                '''get /
+@'''
+            )
+        ),
+        Completion(text=f),
     )
 
 
 def test_option_completion_will_not_appear_inside_payload():
     assert no_completion(
-        get_completions(Document('''GET /
+        get_completions(
+            Document(
+                '''GET /
 {
 c
-}''', 9))
+}''',
+                9,
+            )
+        )
     )
 
 
 def test_payload_completion_will_not_appear_inside_option_value():
     assert no_completion(
-        get_completions(Document('''GET _search headers={ "" }
+        get_completions(
+            Document(
+                '''GET _search headers={ "" }
 {
 ""
-}''', 23))
+}''',
+                23,
+            )
+        )
     )
 
 
 def test_payload_completion_will_not_appear_inside_multi_line_option_value():
     assert no_completion(
-        get_completions(Document('''GET _search headers={
+        get_completions(
+            Document(
+                '''GET _search headers={
 ""
 }
 {
 ""
-}''', 23))
+}''',
+                23,
+            )
+        )
     )
 
 
 def test_payload_key_completion_will_not_appear_in_value_position():
-    completions = list(get_completions(Document('''PUT _security/api_key
+    completions = list(
+        get_completions(
+            Document(
+                '''PUT _security/api_key
 {
   "name":
-}''', 33)))
-    assert completions_has(
-        completions,
-        Completion('""')
+}''',
+                33,
+            )
+        )
     )
+    assert completions_has(completions, Completion('""'))
     assert completions_has_no(completions, Completion('name'))
 
 
 def test_payload_key_completion_works_within_array():
     assert completions_has(
-        get_completions(Document('''PUT _security/api_key
+        get_completions(
+            Document(
+                '''PUT _security/api_key
 {"role_descriptors":{"role_name":{"index":[{""}]}}}
-''', 68)),
+''',
+                68,
+            )
+        ),
         Completion(text='names'),
         Completion(text='privileges'),
     )
@@ -466,14 +634,19 @@ def test_payload_key_completion_works_within_array():
 
 def test_payload_key_completion_will_retry_with_global():
     assert completions_has(
-        get_completions(Document('''GET _search
+        get_completions(
+            Document(
+                '''GET _search
 {
   "aggs": {
     "NAME": {
       ""
     }
   },
-}''', 47)),
+}''',
+                47,
+            )
+        ),
         Completion(text='adjacency_matrix'),
         Completion(text='diversified_sampler'),
     )
@@ -493,19 +666,26 @@ def test_payload_key_completion_will_retry_with_global():
 
 def test_payload_key_completion_will_work_inside_template_but_not_override_existing_candidates():
     assert completions_equal(
-        get_completions(Document('''GET _security/user/_has_privileges
+        get_completions(
+            Document(
+                '''GET _security/user/_has_privileges
 {
   "application": {
     "app"
   },
-}''', 64)),
-        Completion(text='application', start_position=-3)
+}''',
+                64,
+            )
+        ),
+        Completion(text='application', start_position=-3),
     )
 
 
 def test_payload_key_completion_has_special_handling_for_empty_script_key():
     assert completions_has(
-        get_completions(Document('''GET _search
+        get_completions(
+            Document(
+                '''GET _search
 {
   "script_fields": {
     "FIELD": {
@@ -515,7 +695,10 @@ def test_payload_key_completion_has_special_handling_for_empty_script_key():
     }
   },
 }
-''', 77)),
+''',
+                77,
+            )
+        ),
         Completion('source'),
         Completion('id'),
         Completion('lang'),
@@ -525,10 +708,15 @@ def test_payload_key_completion_has_special_handling_for_empty_script_key():
 
 def test_payload_key_completion_will_work_with_relative_scope_link():
     assert completions_has(
-        get_completions(Document('''GET _search
+        get_completions(
+            Document(
+                '''GET _search
 {"query":{"bool":{"filter":[{"bool":{"filter":[{
   ""
-}]}}]}}}''', 64)),
+}]}}]}}}''',
+                64,
+            )
+        ),
         Completion(text='bool'),
         Completion(text='exists'),
         Completion(text='ids'),
@@ -537,11 +725,16 @@ def test_payload_key_completion_will_work_with_relative_scope_link():
     )
 
     assert completions_has(
-        get_completions(Document('''GET _search
+        get_completions(
+            Document(
+                '''GET _search
 {"query":{"span_near":{"clauses":[{
   ""
 }],"slop":12,"in_order":false}}}
-''', 51)),
+''',
+                51,
+            )
+        ),
         Completion(text='span_near'),
         Completion(text='span_first'),
         Completion(text='span_or'),
@@ -551,52 +744,75 @@ def test_payload_key_completion_will_work_with_relative_scope_link():
 
 def test_payload_value_completion_010():
     assert completions_has(
-        get_completions(Document('''PUT _security/api_key
+        get_completions(
+            Document(
+                '''PUT _security/api_key
 {
   "role_descriptors": {
     "role_name": \n},
-}''', 64)),
-        Completion(text='{}')
+}''',
+                64,
+            )
+        ),
+        Completion(text='{}'),
     )
 
     assert completions_has(
-        get_completions(Document('''PUT _security/api_key
+        get_completions(
+            Document(
+                '''PUT _security/api_key
 {
   "role_descriptors": {
     "role_name": \n},
-}''', 65)),
-        Completion(text='{}')
+}''',
+                65,
+            )
+        ),
+        Completion(text='{}'),
     )
 
 
 def test_payload_value_completion_050():
     assert completions_has(
-        get_completions(Document('''PUT _security/api_key
+        get_completions(
+            Document(
+                '''PUT _security/api_key
 {
   "role_descriptors": {
     "role_name": {
       "index":  ,
     },
   },
-}''', 82)),
-        Completion(text='[{}]')
+}''',
+                82,
+            )
+        ),
+        Completion(text='[{}]'),
     )
 
     # the completion does not work if it is after a newline
     assert completions_has(
-        get_completions(Document('''PUT _security/api_key
+        get_completions(
+            Document(
+                '''PUT _security/api_key
 {
   "role_descriptors": {
     "role_name": {
       "index": \n},
   },
-}''', 82)),
-        Completion(text='[{}]')
+}''',
+                82,
+            )
+        ),
+        Completion(text='[{}]'),
     )
 
 
 def test_payload_value_completion_100():
-    completions = list(get_completions(Document('''PUT my-index
+    completions = list(
+        get_completions(
+            Document(
+                '''PUT my-index
 {
   "mappings": {
     "properties": {
@@ -610,7 +826,11 @@ def test_payload_value_completion_100():
       }
     },
   },
-}''', 84)))
+}''',
+                84,
+            )
+        )
+    )
     assert completions_has(
         completions,
         Completion(text='text', start_position=-1),
@@ -622,7 +842,10 @@ def test_payload_value_completion_100():
 
 
 def test_payload_value_completion_110():
-    completions = list(get_completions(Document('''PUT my-index
+    completions = list(
+        get_completions(
+            Document(
+                '''PUT my-index
 {
   "mappings": {
     "properties": {
@@ -636,14 +859,21 @@ def test_payload_value_completion_110():
       }
     },
   },
-}''', 112)))
+}''',
+                112,
+            )
+        )
+    )
     assert completions_has(
         completions,
         Completion(text='true'),
         Completion(text='false'),
     )
 
-    completions = list(get_completions(Document('''PUT my-index
+    completions = list(
+        get_completions(
+            Document(
+                '''PUT my-index
 {
   "mappings": {
     "properties": {
@@ -657,7 +887,11 @@ def test_payload_value_completion_110():
       }
     },
   },
-}''', 113)))
+}''',
+                113,
+            )
+        )
+    )
     assert completions_has(
         completions,
         Completion(text='true', start_position=-1),
@@ -669,7 +903,10 @@ def test_payload_value_completion_110():
 
 
 def test_payload_value_completion_120():
-    completions = list(get_completions(Document('''PUT my-index
+    completions = list(
+        get_completions(
+            Document(
+                '''PUT my-index
 {
   "mappings": {
     "properties": {
@@ -683,7 +920,11 @@ def test_payload_value_completion_120():
       }
     },
   },
-}''', 195)))
+}''',
+                195,
+            )
+        )
+    )
     assert completions_has(
         completions,
         Completion(text='""'),
@@ -756,7 +997,10 @@ def test_payload_value_completion_120():
 
 
 def test_field_placeholder():
-    assert completions_has(get_completions(Document('''GET _search
+    assert completions_has(
+        get_completions(
+            Document(
+                '''GET _search
 {
   "query": {
     "match": {
@@ -765,9 +1009,18 @@ def test_field_placeholder():
       }
     },
   },
-}''', 70)), Completion(text='fuzziness'), Completion(text='zero_terms_query'))
+}''',
+                70,
+            )
+        ),
+        Completion(text='fuzziness'),
+        Completion(text='zero_terms_query'),
+    )
 
-    assert completions_has(get_completions(Document('''GET _search
+    assert completions_has(
+        get_completions(
+            Document(
+                '''GET _search
 {
   "query": {
     "match": {
@@ -777,16 +1030,30 @@ def test_field_placeholder():
     }
   }
 }
-''', 86)), Completion(text='0'))
+''',
+                86,
+            )
+        ),
+        Completion(text='0'),
+    )
 
 
 def test_query_types():
-    assert completions_has(get_completions(Document('''GET _search
+    assert completions_has(
+        get_completions(
+            Document(
+                '''GET _search
 {
   "query": {
     ""
   },
-}''', 32)), Completion(text='term'), Completion(text='range'))
+}''',
+                32,
+            )
+        ),
+        Completion(text='term'),
+        Completion(text='range'),
+    )
 
 
 def equivalent_completions(c0: Completion, c1: Completion):

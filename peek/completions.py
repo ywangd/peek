@@ -9,7 +9,6 @@ _logger = logging.getLogger(__name__)
 
 
 class PayloadKeyCompletion(Completion):
-
     def __init__(self, text: str, value, *args, **kwargs):
         super().__init__(text, *args, **kwargs)
         self.value = value
@@ -32,7 +31,7 @@ def proxy_new_text_and_position(self: CompletionState) -> Tuple[str, int]:
     _logger.debug(f'text_before_cursor: {original_text_before_cursor!r}')
     _logger.debug(f'start_position: {c.start_position!r}')
     end_position = len(original_text_before_cursor) if c.start_position == 0 else c.start_position
-    quote = original_text_before_cursor[end_position - 3:end_position]
+    quote = original_text_before_cursor[end_position - 3 : end_position]
     _logger.debug(f'quote: {quote!r}')
     if quote not in ('"""', "'''"):
         quote = quote[-1]

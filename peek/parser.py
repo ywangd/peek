@@ -6,14 +6,54 @@ from typing import Iterable, NamedTuple, Callable
 
 from pygments.token import Token, Whitespace, String, Comment, Literal, Number, Name, Error
 
-from peek.ast import NameNode, FuncCallNode, KeyValueNode, StringNode, NumberNode, TextNode, DictNode, \
-    ArrayNode, ShellOutNode, EsApiCallInlinePayloadNode, EsApiCallFilePayloadNode, BinOpNode, UnaryOpNode, GroupNode, \
-    SymbolNode, LetNode, ForInNode
+from peek.ast import (
+    NameNode,
+    FuncCallNode,
+    KeyValueNode,
+    StringNode,
+    NumberNode,
+    TextNode,
+    DictNode,
+    ArrayNode,
+    ShellOutNode,
+    EsApiCallInlinePayloadNode,
+    EsApiCallFilePayloadNode,
+    BinOpNode,
+    UnaryOpNode,
+    GroupNode,
+    SymbolNode,
+    LetNode,
+    ForInNode,
+)
 from peek.common import PeekToken, HTTP_METHODS
 from peek.errors import PeekSyntaxError
-from peek.lexers import PeekLexer, BlankLine, CurlyLeft, DictKey, Colon, \
-    CurlyRight, Comma, BracketLeft, BracketRight, TripleS, TripleD, EOF, FuncName, Assign, HttpMethod, OptionName, \
-    ShellOut, At, ParenLeft, ParenRight, UnaryOp, BinOp, Let, For, In
+from peek.lexers import (
+    PeekLexer,
+    BlankLine,
+    CurlyLeft,
+    DictKey,
+    Colon,
+    CurlyRight,
+    Comma,
+    BracketLeft,
+    BracketRight,
+    TripleS,
+    TripleD,
+    EOF,
+    FuncName,
+    Assign,
+    HttpMethod,
+    OptionName,
+    ShellOut,
+    At,
+    ParenLeft,
+    ParenRight,
+    UnaryOp,
+    BinOp,
+    Let,
+    For,
+    In,
+)
 
 _logger = logging.getLogger(__name__)
 
@@ -99,7 +139,7 @@ class PeekParser:
                     self.position = idx_last_stmt_token
 
             if fail_fast_on_error_token:
-                for token in self.tokens[self.position:]:
+                for token in self.tokens[self.position :]:
                     if token.ttype in Token.Error:
                         raise PeekSyntaxError(self.text, token, message='Found error token and fail fast is enabled')
 
@@ -137,10 +177,7 @@ class PeekParser:
         elif token.ttype is For:
             return self._parse_for_stmt()
         else:
-            raise PeekSyntaxError(
-                self.text, token,
-                title='Invalid token',
-                message='Expect beginning of a statement')
+            raise PeekSyntaxError(self.text, token, title='Invalid token', message='Expect beginning of a statement')
 
     def _parse_es_api_call(self):
         self._publish_event(ParserEventType.ES_METHOD)
@@ -148,9 +185,11 @@ class PeekParser:
         method_node = NameNode(method_token)
         if method_token.value.upper() not in HTTP_METHODS:
             raise PeekSyntaxError(
-                self.text, method_token,
+                self.text,
+                method_token,
                 title='Invalid HTTP method',
-                message=f'Expect HTTP method of value in {HTTP_METHODS!r}, got {method_token.value!r}')
+                message=f'Expect HTTP method of value in {HTTP_METHODS!r}, got {method_token.value!r}',
+            )
 
         if self._peek_token().ttype is Literal:
             self._publish_event(ParserEventType.ES_URL)
@@ -161,8 +200,10 @@ class PeekParser:
             self._publish_event(ParserEventType.AFTER_ES_URL_EXPR)
         else:
             raise PeekSyntaxError(
-                self.text, self._peek_token(),
-                message='HTTP path must be either text literal or an expression enclosed by parenthesis')
+                self.text,
+                self._peek_token(),
+                message='HTTP path must be either text literal or an expression enclosed by parenthesis',
+            )
 
         option_nodes = []
         while self._peek_token().ttype is OptionName:
@@ -177,7 +218,8 @@ class PeekParser:
             self._publish_event(ParserEventType.ES_PAYLOAD_FILE_AT)
             self._consume_token(At)
             return EsApiCallFilePayloadNode(
-                method_node, path_node, DictNode(option_nodes), SymbolNode(self._consume_token(Literal)))
+                method_node, path_node, DictNode(option_nodes), SymbolNode(self._consume_token(Literal))
+            )
         else:
             dict_nodes = []
             while self._peek_token().ttype is not EOF:
@@ -294,8 +336,10 @@ class PeekParser:
             elif self._peek_token().ttype is ParenRight:
                 if is_stmt:
                     raise PeekSyntaxError(
-                        self.text, self._peek_token(),
-                        message='Found function expression while parsing for function stmt')
+                        self.text,
+                        self._peek_token(),
+                        message='Found function expression while parsing for function stmt',
+                    )
                 else:
                     break
             elif self._peek_token().ttype is Name:
@@ -365,11 +409,7 @@ class PeekParser:
                     symbol_nodes, arg_nodes, kwarg_nodes = self._parse_func_call_args(is_stmt=False)
                     self._consume_token(ParenRight)
                     n = FuncCallNode(
-                        n,
-                        ArrayNode(symbol_nodes),
-                        ArrayNode(arg_nodes),
-                        DictNode(kwarg_nodes),
-                        is_stmt=False
+                        n, ArrayNode(symbol_nodes), ArrayNode(arg_nodes), DictNode(kwarg_nodes), is_stmt=False
                     )
                     n = n if unary_op_token is None else UnaryOpNode(unary_op_token, n)
             else:
@@ -385,11 +425,9 @@ class PeekParser:
         token = self._peek_token()
         self.position += 1
         if token.ttype is not ttype:
-            raise PeekSyntaxError(self.text, token,
-                                  message=f'Expect token of type {ttype!r}, got {token.ttype!r}')
+            raise PeekSyntaxError(self.text, token, message=f'Expect token of type {ttype!r}, got {token.ttype!r}')
         if value and (token.value != value or token.value not in value):
-            raise PeekSyntaxError(self.text, token,
-                                  message=f'Expect token of value {value!r}, got {token.value!r}')
+            raise PeekSyntaxError(self.text, token, message=f'Expect token of value {value!r}, got {token.value!r}')
         self._publish_event(ParserEventType.AFTER_TOKEN, token)
         return token
 
@@ -417,8 +455,7 @@ def process_tokens(tokens: Iterable[PeekToken]):
                 current_token = None
         elif token.ttype in String or token.ttype is BlankLine or token.ttype is Error:
             if current_token is not None and current_token.ttype is token.ttype:
-                current_token = PeekToken(
-                    current_token.index, current_token.ttype, current_token.value + token.value)
+                current_token = PeekToken(current_token.index, current_token.ttype, current_token.value + token.value)
             else:
                 # two consecutive strings with different quotes should not be merged
                 if current_token is not None:

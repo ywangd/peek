@@ -18,7 +18,6 @@ class _OidcExchange:
 
 
 class CallbackHTTPRequestHandler(BaseHTTPRequestHandler):
-
     def do_GET(self):
         _logger.debug(f'Path is: {self.path}')
         _OidcExchange.callback_path.put(self.path)
@@ -30,10 +29,7 @@ class CallbackHTTPRequestHandler(BaseHTTPRequestHandler):
         pass
 
     def log_message(self, fmt: str, *args: Any) -> None:
-        _logger.info("%s - - [%s] %s\n" %
-                     (self.address_string(),
-                      self.log_date_time_string(),
-                      fmt % args))
+        _logger.info("%s - - [%s] %s\n" % (self.address_string(), self.log_date_time_string(), fmt % args))
 
 
 def oidc_authenticate(es_client: EsClient, realm: str, callback_port: str, callback_ssl: bool, name: Optional[str]):
@@ -47,15 +43,17 @@ def oidc_authenticate(es_client: EsClient, realm: str, callback_port: str, callb
         callback_path = callback_path.decode('utf-8')
     try:
         httpd.shutdown()
-        auth_response = _oidc_do_authenticate(es_client, realm, prepare_response['state'], prepare_response['nonce'],
-                                              callback_path)
+        auth_response = _oidc_do_authenticate(
+            es_client, realm, prepare_response['state'], prepare_response['nonce'], callback_path
+        )
         return RefreshingEsClient(
             es_client,
             auth_response['username'],
             auth_response['access_token'],
             auth_response['refresh_token'],
             auth_response['expires_in'],
-            name=name)
+            name=name,
+        )
     finally:
         _OidcExchange.callback_path = None
 
@@ -64,10 +62,12 @@ def _oidc_prepare(es_client, realm: str):
     return es_client.perform_request(
         'POST',
         '/_security/oidc/prepare',
-        json.dumps({
-            'realm': realm,
-        }),
-        deserialize_it=True
+        json.dumps(
+            {
+                'realm': realm,
+            }
+        ),
+        deserialize_it=True,
     )
 
 
@@ -75,30 +75,29 @@ def _oidc_do_authenticate(es_client, realm: str, state: str, nonce: str, redirec
     response = es_client.perform_request(
         'POST',
         '/_security/oidc/authenticate',
-        json.dumps({
-            'realm': realm,
-            'state': state,
-            'nonce': nonce,
-            'redirect_uri': redirect_uri,
-        }),
-        deserialize_it=True
+        json.dumps(
+            {
+                'realm': realm,
+                'state': state,
+                'nonce': nonce,
+                'redirect_uri': redirect_uri,
+            }
+        ),
+        deserialize_it=True,
     )
     return response
 
 
 def _oidc_start_http_server(callback_port, callback_ssl):
     from peek import __file__ as package_root
+
     package_root = os.path.dirname(package_root)
     _OidcExchange.callback_path = Queue(maxsize=1)
     httpd = HTTPServer(('localhost', int(callback_port)), CallbackHTTPRequestHandler)
     if callback_ssl:
         keyfile = os.path.join(package_root, 'certs', 'key.pem')
         certfile = os.path.join(package_root, 'certs', 'cert.pem')
-        httpd.socket = ssl.wrap_socket(
-            httpd.socket,
-            keyfile=keyfile,
-            certfile=certfile,
-            server_side=True)
+        httpd.socket = ssl.wrap_socket(httpd.socket, keyfile=keyfile, certfile=certfile, server_side=True)
 
     t = Thread(target=httpd.serve_forever, daemon=True)
     t.start()

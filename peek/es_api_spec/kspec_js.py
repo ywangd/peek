@@ -16,8 +16,9 @@ from peek.visitors import Ref
 from peek.vm import PeekVM, _BIN_OP_FUNCS
 
 _CONST_SIMPLE_PATTERN = re.compile(r'^(export )?const (?P<name>\w+)[^=]* = (?P<rest>{[^;]*);?')
-_CONST_COMPLEX_PATTERN = re.compile(r'^(export )?const (?P<name>\w+)[^=]* = '
-                                    r'\(specService: SpecDefinitionsService\) => (?P<rest>{[^;]*);?')
+_CONST_COMPLEX_PATTERN = re.compile(
+    r'^(export )?const (?P<name>\w+)[^=]* = ' r'\(specService: SpecDefinitionsService\) => (?P<rest>{[^;]*);?'
+)
 _CONST_MULTI_PATTERN = re.compile(r'^(export )?const {(?P<names>[^}]*)} = (?P<value>.+);')
 _RECORD_MEMBER_PATTERN = re.compile(r'(?P<assign>^\w+\.\w+ = {[^;]*);?')
 _FUNCTION_PATTERN = re.compile(r'function \((?P<args>[^)]*)\) { *;?]')
@@ -27,6 +28,7 @@ _logger = logging.getLogger(__name__)
 
 
 # TODO: ingest.ts is parsed but processors seem to be ignored. Also don't know how it is referenced.
+
 
 def build_js_specs(kibana_dir, use_cache_file):
     # Cache is not for efficiency, but rather because the spec building from TypeScript
@@ -49,7 +51,6 @@ def build_js_specs(kibana_dir, use_cache_file):
 
 
 class JsSpecParser:
-
     def __init__(self, kibana_dir, source=None):
         self.kibana_dir = kibana_dir
         self.source = source
@@ -219,10 +220,10 @@ class JsSpecParser:
             return False
 
     def load_ts_specs(self, kibana_dir):
-        oss_path = os.path.join(
-            kibana_dir, 'src', 'plugins', 'console', 'server', 'lib', 'spec_definitions', 'js')
+        oss_path = os.path.join(kibana_dir, 'src', 'plugins', 'console', 'server', 'lib', 'spec_definitions', 'js')
         xpack_path = os.path.join(
-            kibana_dir, 'x-pack', 'plugins', 'console_extensions', 'server', 'lib', 'spec_definitions', 'js')
+            kibana_dir, 'x-pack', 'plugins', 'console_extensions', 'server', 'lib', 'spec_definitions', 'js'
+        )
 
         spec_file_contents = self._load_ts_specs(oss_path)
         spec_file_contents.update(self._load_ts_specs(xpack_path))
@@ -238,7 +239,7 @@ class JsSpecParser:
                 if f in ('shared.ts', 'index.ts'):  # TODO: skip
                     continue
                 with open(os.path.join(root, f)) as ins:
-                    file_key = os.path.join('/', prefix, root[len(base_dir) + 1:], f[:-3])
+                    file_key = os.path.join('/', prefix, root[len(base_dir) + 1 :], f[:-3])
                     spec_file_contents[f'{file_key}'] = ins.read()
 
         return spec_file_contents
@@ -248,15 +249,16 @@ class JsSpecParser:
 
 
 mock_app = MagicMock()
-ConfigObj({
-    'load_extension': False,
-})
+ConfigObj(
+    {
+        'load_extension': False,
+    }
+)
 mock_app.display = MagicMock()
 mock_app.parser = PeekParser()
 
 
 class JsSpecEvaluator(PeekVM):
-
     def __init__(self):
         def flexible_dot(left_operand, right_operand):
             if isinstance(left_operand, list) and right_operand == 'sort':
@@ -273,10 +275,12 @@ class JsSpecEvaluator(PeekVM):
                 return _BIN_OP_FUNCS['%'](left_operand, right_operand)
 
         bin_op_funcs = dict(_BIN_OP_FUNCS)
-        bin_op_funcs.update({
-            '.': flexible_dot,
-            '%': flexible_mod,
-        })
+        bin_op_funcs.update(
+            {
+                '.': flexible_dot,
+                '%': flexible_mod,
+            }
+        )
 
         super().__init__(mock_app, bin_op_funcs=bin_op_funcs)
         mock_app.vm = self
@@ -293,9 +297,7 @@ class JsSpecEvaluator(PeekVM):
             'addEndpointDescription': add_endpoint_description,
         }
         self.context = {
-            'BOOLEAN': {
-                "__one_of": [True, False]
-            },
+            'BOOLEAN': {"__one_of": [True, False]},
             'GLOBAL': {},
         }
 

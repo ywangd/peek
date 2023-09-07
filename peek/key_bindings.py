@@ -10,8 +10,17 @@ from prompt_toolkit.key_binding.key_processor import KeyPressEvent
 
 from peek.common import HTTP_METHODS
 from peek.errors import PeekSyntaxError, PeekError
-from peek.lexers import PeekLexer, TripleD, TripleS, ParenLeft, BracketLeft, CurlyLeft, ParenRight, BracketRight, \
-    CurlyRight
+from peek.lexers import (
+    PeekLexer,
+    TripleD,
+    TripleS,
+    ParenLeft,
+    BracketLeft,
+    CurlyLeft,
+    ParenRight,
+    BracketRight,
+    CurlyRight,
+)
 from peek.parser import process_tokens
 from peek.visitors import FormattingVisitor
 
@@ -246,7 +255,7 @@ def buffer_should_be_handled(app):
                     text = remainder + document.text_after_cursor
                     marker = '"""' if last_token.ttype is TripleD else "'''"
                     for i in range(min(len(remainder), 3)):
-                        if text[i:i + 3] == marker:
+                        if text[i : i + 3] == marker:
                             return True
                     _logger.debug('Cursor is inside triple quotes')
                     return False

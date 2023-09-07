@@ -11,8 +11,20 @@ from pygments.token import Error, Literal, String, Name
 from peek.common import PeekToken, HTTP_METHODS
 from peek.completions import PayloadKeyCompletion
 from peek.config import config_location
-from peek.lexers import PeekLexer, UrlPathLexer, PathPart, ParamName, Ampersand, QuestionMark, Slash, HttpMethod, \
-    FuncName, ShellOut, DictKey, EOF
+from peek.lexers import (
+    PeekLexer,
+    UrlPathLexer,
+    PathPart,
+    ParamName,
+    Ampersand,
+    QuestionMark,
+    Slash,
+    HttpMethod,
+    FuncName,
+    ShellOut,
+    DictKey,
+    EOF,
+)
 from peek.parser import PeekParser, ParserEvent, ParserEventType
 
 _logger = logging.getLogger(__name__)
@@ -20,20 +32,22 @@ _logger = logging.getLogger(__name__)
 _HTTP_METHOD_COMPLETER = WordCompleter([m.upper() for m in HTTP_METHODS], ignore_case=True)
 
 _ES_API_CALL_OPTION_NAME_COMPLETER = WordCompleter(
-    [w + '=' for w in sorted(['conn', 'runas', 'headers', 'xoid', 'quiet', 'out'])])
+    [w + '=' for w in sorted(['conn', 'runas', 'headers', 'xoid', 'quiet', 'out'])]
+)
 
 _PATH_COMPLETER = PathCompleter(expanduser=True)
 _SYSTEM_COMPLETER = SystemCompleter()
 
 _DICT_EVENT_TYPES = (
     ParserEventType.DICT_KEY,
-    ParserEventType.BEFORE_DICT_KEY_EXPR, ParserEventType.AFTER_DICT_KEY_EXPR,
-    ParserEventType.BEFORE_DICT_VALUE, ParserEventType.AFTER_DICT_VALUE,
+    ParserEventType.BEFORE_DICT_KEY_EXPR,
+    ParserEventType.AFTER_DICT_KEY_EXPR,
+    ParserEventType.BEFORE_DICT_VALUE,
+    ParserEventType.AFTER_DICT_VALUE,
 )
 
 
 class ParserStateTracker:
-
     def __init__(self, text: str):
         self.text = text
         self._events: List[ParserEvent] = []
@@ -44,7 +58,6 @@ class ParserStateTracker:
         if event.type is ParserEventType.AFTER_TOKEN:
             self._tokens.append(event.token)
         elif event.type in _DICT_EVENT_TYPES:
-
             if self.last_event.type is ParserEventType.BEFORE_ES_PAYLOAD_INLINE:
                 self._payload_events.append(event)
             else:
@@ -80,7 +93,7 @@ class ParserStateTracker:
         last_token = self.last_token
         if last_token is None:
             return False
-        if self.text[last_token.index:].rstrip() == last_token.value:
+        if self.text[last_token.index :].rstrip() == last_token.value:
             return True
         else:
             return False
@@ -116,16 +129,16 @@ class ParserStateTracker:
         if last_payload_event is None:
             return False
         return last_payload_event.type is ParserEventType.BEFORE_DICT_VALUE or (
-            last_payload_event.type is ParserEventType.AFTER_DICT_VALUE and last_payload_event.token.ttype is EOF)
+            last_payload_event.type is ParserEventType.AFTER_DICT_VALUE and last_payload_event.token.ttype is EOF
+        )
 
     @property
     def has_newline_after_last_token(self):
         last_token = self.tokens[-1]
-        return '\n' in self.text[last_token.index:]
+        return '\n' in self.text[last_token.index :]
 
 
 class PeekCompleter(Completer):
-
     def __init__(self, app):
         self.app = app
         self.lexer = PeekLexer()
@@ -134,10 +147,12 @@ class PeekCompleter(Completer):
 
     def init_api_completer(self):
         from peek import __file__ as package_root
+
         package_root = os.path.dirname(package_root)
         if self.app.config.as_bool('prefer_elasticsearch_specification'):
             _logger.info('Use elasticsearch-specification schema for autocompletion')
             from peek.es_api_spec.api_completer import SchemaESApiCompleter
+
             schema_filepath = os.path.join(config_location(), 'schema.json')
             if not os.path.exists(schema_filepath):
                 schema_filepath = os.path.join(package_root, 'specs', 'schema.json')
@@ -145,19 +160,23 @@ class PeekCompleter(Completer):
                 return SchemaESApiCompleter(schema_filepath)
             else:
                 from peek.es_api_spec.api_completer import NoopESApiCompleter
+
                 return NoopESApiCompleter()
         else:
             kibana_dir = self.app.config['kibana_dir']
             if not kibana_dir:
                 config_dir = config_location()
                 if os.path.exists(config_dir):
-                    kibana_dirs = [os.path.join(config_dir, d) for d in os.listdir(config_dir) if d.startswith('kibana-')]
+                    kibana_dirs = [
+                        os.path.join(config_dir, d) for d in os.listdir(config_dir) if d.startswith('kibana-')
+                    ]
                     if kibana_dirs:
                         kibana_dir = kibana_dirs[0]
             if not kibana_dir:
                 kibana_dir = os.path.join(package_root, 'specs', 'kibana-7.8.1')
             _logger.info(f'Attempt to build Elasticsearch API specs from: {kibana_dir}')
             from peek.es_api_spec.kspec import KibanaSpecESApiCompleter
+
             return KibanaSpecESApiCompleter(self.app, kibana_dir)
 
     def get_completions(self, document: Document, complete_event: CompleteEvent) -> Iterable[Completion]:
@@ -170,10 +189,9 @@ class PeekCompleter(Completer):
 
         state_tracker = ParserStateTracker(text_before_cursor)
         try:
-            PeekParser((state_tracker,)).parse(text_before_cursor,
-                                               fail_fast_on_error_token=True,
-                                               last_stmt_only=True,
-                                               log_level='WARNING')
+            PeekParser((state_tracker,)).parse(
+                text_before_cursor, fail_fast_on_error_token=True, last_stmt_only=True, log_level='WARNING'
+            )
         except Exception:
             pass
 
@@ -185,7 +203,8 @@ class PeekCompleter(Completer):
         if stmt_token.ttype is ShellOut:
             _logger.debug('Completing for shell out')
             return _SYSTEM_COMPLETER.get_completions(
-                Document(text_before_cursor[stmt_token.index + 1:]), complete_event)
+                Document(text_before_cursor[stmt_token.index + 1 :]), complete_event
+            )
 
         if state_tracker.is_cursor_on_whitespace:
             return self._get_completions_for_whitespace(document, complete_event, state_tracker)
@@ -193,8 +212,9 @@ class PeekCompleter(Completer):
         else:
             return self._get_completions_for_non_white(document, complete_event, state_tracker)
 
-    def _get_completions_for_whitespace(self, document: Document, complete_event: CompleteEvent,
-                                        state_tracker: ParserStateTracker) -> Iterable[Completion]:
+    def _get_completions_for_whitespace(
+        self, document: Document, complete_event: CompleteEvent, state_tracker: ParserStateTracker
+    ) -> Iterable[Completion]:
         _logger.debug('Cursor is on a whitespace')
         stmt_token = state_tracker.stmt_token
         last_token = state_tracker.last_token
@@ -205,9 +225,11 @@ class PeekCompleter(Completer):
         # Only option name/value completions are available when cursor is on whitespace char
         if stmt_token.ttype is HttpMethod:
             # HTTP option name/value completion is only possible if they are at the same line as the HTTP method
-            if not has_newline_after_last_token and last_event.type in (ParserEventType.ES_URL,
-                                                                        ParserEventType.AFTER_ES_URL_EXPR,
-                                                                        ParserEventType.AFTER_ES_OPTION_VALUE):
+            if not has_newline_after_last_token and last_event.type in (
+                ParserEventType.ES_URL,
+                ParserEventType.AFTER_ES_URL_EXPR,
+                ParserEventType.AFTER_ES_OPTION_VALUE,
+            ):
                 return _ES_API_CALL_OPTION_NAME_COMPLETER.get_completions(document, complete_event)
             elif not has_newline_after_last_token and last_event.type is ParserEventType.BEFORE_ES_OPTION_VALUE:
                 return []  # TODO: ES option value
@@ -225,8 +247,9 @@ class PeekCompleter(Completer):
 
         return []
 
-    def _get_completions_for_non_white(self, document: Document, complete_event: CompleteEvent,
-                                       state_tracker: ParserStateTracker) -> Iterable[Completion]:
+    def _get_completions_for_non_white(
+        self, document: Document, complete_event: CompleteEvent, state_tracker: ParserStateTracker
+    ) -> Iterable[Completion]:
         _logger.debug('Cursor is on an non-white char')
         stmt_token = state_tracker.stmt_token
         last_token = state_tracker.last_token
@@ -238,7 +261,7 @@ class PeekCompleter(Completer):
             return itertools.chain(
                 _HTTP_METHOD_COMPLETER.get_completions(document, complete_event),
                 WordCompleter(['for', 'let']).get_completions(document, complete_event),
-                WordCompleter(self.app.vm.functions.keys()).get_completions(document, complete_event)
+                WordCompleter(self.app.vm.functions.keys()).get_completions(document, complete_event),
             )
 
         elif stmt_token.ttype is HttpMethod:
@@ -251,7 +274,8 @@ class PeekCompleter(Completer):
                 return []  # TODO: ES option value
             elif last_event.type is ParserEventType.ES_PAYLOAD_FILE_AT:
                 return _PATH_COMPLETER.get_completions(
-                    Document(state_tracker.text[last_event.token.index + 1:]), complete_event)
+                    Document(state_tracker.text[last_event.token.index + 1 :]), complete_event
+                )
             elif last_event.type is ParserEventType.BEFORE_ES_PAYLOAD_INLINE:
                 _logger.debug(f'Last payload event: {state_tracker.last_payload_event}')
                 if last_token.ttype is DictKey:
@@ -273,11 +297,13 @@ class PeekCompleter(Completer):
         return []
 
     def _function_option_name_can_appear(self, last_event: ParserEvent, last_token: PeekToken) -> bool:
-        return (last_event.type is ParserEventType.AFTER_FUNC_ARGS and last_token.ttype in (Literal, Name)) \
-               or last_event.type is ParserEventType.BEFORE_FUNC_SYMBOL_ARG
+        return (
+            last_event.type is ParserEventType.AFTER_FUNC_ARGS and last_token.ttype in (Literal, Name)
+        ) or last_event.type is ParserEventType.BEFORE_FUNC_SYMBOL_ARG
 
-    def _maybe_complete_func_option_name(self, document: Document, complete_event: CompleteEvent,
-                                         state_tracker: ParserStateTracker) -> Iterable[Completion]:
+    def _maybe_complete_func_option_name(
+        self, document: Document, complete_event: CompleteEvent, state_tracker: ParserStateTracker
+    ) -> Iterable[Completion]:
         stmt_token = state_tracker.stmt_token
         func = self.app.vm.functions.get(stmt_token.value)
         if func is None or not getattr(func, 'options', None):
@@ -285,8 +311,9 @@ class PeekCompleter(Completer):
         options = sorted([n if n.startswith('@') else (n + '=') for n in func.options.keys()])
         return WordCompleter(options, WORD=True).get_completions(document, complete_event)
 
-    def _maybe_complete_special_for_run_func_file_path(self, document: Document, complete_event: CompleteEvent,
-                                                       state_tracker: ParserStateTracker):
+    def _maybe_complete_special_for_run_func_file_path(
+        self, document: Document, complete_event: CompleteEvent, state_tracker: ParserStateTracker
+    ):
         if len(state_tracker.tokens) == 2 and state_tracker.tokens[-1].ttype in String:
             last_token = state_tracker.last_token
             if last_token.ttype in (String.Single, String.Double):
@@ -298,8 +325,9 @@ class PeekCompleter(Completer):
         else:
             return []
 
-    def _maybe_complete_http_path(self, document: Document, complete_event: CompleteEvent,
-                                  state_tracker: ParserStateTracker) -> Iterable[Completion]:
+    def _maybe_complete_http_path(
+        self, document: Document, complete_event: CompleteEvent, state_tracker: ParserStateTracker
+    ) -> Iterable[Completion]:
         tokens = state_tracker.tokens
         method_token, path_token = tokens[-2], tokens[-1]
         method = method_token.value.upper()
@@ -325,8 +353,9 @@ class PeekCompleter(Completer):
             candidates = complete_func(document, complete_event, method, path_tokens)
             return FuzzyCompleter(ConstantCompleter(candidates)).get_completions(document, complete_event)
 
-    def _maybe_complete_payload(self, document: Document, complete_event: CompleteEvent,
-                                state_tracker: ParserStateTracker) -> Iterable[Completion]:
+    def _maybe_complete_payload(
+        self, document: Document, complete_event: CompleteEvent, state_tracker: ParserStateTracker
+    ) -> Iterable[Completion]:
         tokens = state_tracker.tokens
         _logger.debug(f'Completing for payload with tokens: {tokens}')
         path_event = state_tracker.events[1]
@@ -335,19 +364,26 @@ class PeekCompleter(Completer):
         method_token, path_token = tokens[0], tokens[1]
         path_tokens = list(self.url_path_lexer.get_tokens_unprocessed(path_token.value))
         last_event = state_tracker.last_event
-        payload_tokens = tokens[tokens.index(last_event.token):]
+        payload_tokens = tokens[tokens.index(last_event.token) :]
         candidates, rules = self.api_completer.complete_payload(
-            document, complete_event, method_token.value.upper(), path_tokens, payload_tokens,
-            state_tracker.payload_events)
+            document,
+            complete_event,
+            method_token.value.upper(),
+            path_tokens,
+            payload_tokens,
+            state_tracker.payload_events,
+        )
         if not candidates:
             return []
         constant_completer = ConstantCompleter(candidates)
         for c in FuzzyCompleter(constant_completer).get_completions(document, complete_event):
-            yield PayloadKeyCompletion(c.text, rules[c.text],
-                                       c.start_position, c.display, c.display_meta, c.style, c.selected_style)
+            yield PayloadKeyCompletion(
+                c.text, rules[c.text], c.start_position, c.display, c.display_meta, c.style, c.selected_style
+            )
 
-    def _maybe_complete_payload_value(self, document: Document, complete_event: CompleteEvent,
-                                      state_tracker: ParserStateTracker) -> Iterable[Completion]:
+    def _maybe_complete_payload_value(
+        self, document: Document, complete_event: CompleteEvent, state_tracker: ParserStateTracker
+    ) -> Iterable[Completion]:
         tokens = state_tracker.tokens
         _logger.debug(f'Completing for payload value with tokens: {tokens}')
         path_event = state_tracker.events[1]
@@ -357,8 +393,12 @@ class PeekCompleter(Completer):
         path_tokens = list(self.url_path_lexer.get_tokens_unprocessed(path_token.value))
         last_event = state_tracker.last_event
         candidates, rules = self.api_completer.complete_payload_value(
-            document, complete_event, method_token.value.upper(), path_tokens,
-            tokens[tokens.index(last_event.token):], state_tracker.payload_events
+            document,
+            complete_event,
+            method_token.value.upper(),
+            path_tokens,
+            tokens[tokens.index(last_event.token) :],
+            state_tracker.payload_events,
         )
         if not candidates:
             return []
@@ -367,7 +407,6 @@ class PeekCompleter(Completer):
 
 
 class ConstantCompleter(Completer):
-
     def __init__(self, candidates):
         self.candidates = candidates
 

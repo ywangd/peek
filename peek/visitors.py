@@ -1,15 +1,32 @@
 import functools
 import logging
 
-from peek.ast import Visitor, EsApiCallNode, DictNode, KeyValueNode, ArrayNode, NumberNode, \
-    StringNode, FuncCallNode, NameNode, TextNode, ShellOutNode, EsApiCallInlinePayloadNode, EsApiCallFilePayloadNode, \
-    BinOpNode, UnaryOpNode, GroupNode, SymbolNode, LetNode, ForInNode
+from peek.ast import (
+    Visitor,
+    EsApiCallNode,
+    DictNode,
+    KeyValueNode,
+    ArrayNode,
+    NumberNode,
+    StringNode,
+    FuncCallNode,
+    NameNode,
+    TextNode,
+    ShellOutNode,
+    EsApiCallInlinePayloadNode,
+    EsApiCallFilePayloadNode,
+    BinOpNode,
+    UnaryOpNode,
+    GroupNode,
+    SymbolNode,
+    LetNode,
+    ForInNode,
+)
 
 _logger = logging.getLogger(__name__)
 
 
 class Ref:
-
     def __init__(self, init_value=None):
         self._value = init_value
 
@@ -229,7 +246,6 @@ class FormattingVisitor(Visitor):
 
 
 class TreeFormattingVisitor(Visitor):
-
     def __init__(self, indent_chars='  '):
         super().__init__()
         self.indent_chars = indent_chars

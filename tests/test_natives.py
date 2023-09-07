@@ -16,6 +16,7 @@ MockHistory = MagicMock(return_value=mock_history)
 @pytest.fixture
 def peek_app():
     from peek import __file__ as package_root
+
     package_root = os.path.dirname(package_root)
     package_config_file = os.path.join(package_root, 'peekrc')
     config_obj = ConfigObj(package_config_file)
@@ -25,15 +26,14 @@ def peek_app():
         return config_obj
 
     class MockCliNs:
-
         def __init__(self):
             self.username = 'foo'
             self.password = 'password'
             self.zero_connection = False
 
-    with patch('peek.peekapp.PromptSession', MagicMock()), \
-         patch('peek.peekapp.get_config', get_config), \
-         patch('peek.peekapp.SqLiteHistory', MockHistory):
+    with patch('peek.peekapp.PromptSession', MagicMock()), patch('peek.peekapp.get_config', get_config), patch(
+        'peek.peekapp.SqLiteHistory', MockHistory
+    ):
         return PeekApp(extra_config_options=('log_level=None', 'use_keyring=False'), cli_ns=MockCliNs())
 
 
@@ -41,68 +41,101 @@ def peek_app():
 def test_connection_related_funcs(peek_app):
     connect_f = ConnectFunc()
     assert '*  [1] bar @ https://localhost:9200' in connect_f(
-        peek_app, username='bar', password='password', use_ssl=True)
-    assert '*  [2] K-id @ http://example.com:9200' in connect_f(
-        peek_app, api_key='id:key', hosts='example.com:9200')
-    assert '*  [3] token-auth' in connect_f(
-        peek_app, token='access_token', name='token-auth')
+        peek_app, username='bar', password='password', use_ssl=True
+    )
+    assert '*  [2] K-id @ http://example.com:9200' in connect_f(peek_app, api_key='id:key', hosts='example.com:9200')
+    assert '*  [3] token-auth' in connect_f(peek_app, token='access_token', name='token-auth')
 
     connection_f = ConnectionFunc()
-    assert connection_f(peek_app) == '''   [0] foo @ http://localhost:9200
+    assert (
+        connection_f(peek_app)
+        == '''   [0] foo @ http://localhost:9200
    [1] bar @ https://localhost:9200
    [2] K-id @ http://example.com:9200
 *  [3] token-auth'''
+    )
 
-    assert connection_f(peek_app, 1) == '''   [0] foo @ http://localhost:9200
+    assert (
+        connection_f(peek_app, 1)
+        == '''   [0] foo @ http://localhost:9200
 *  [1] bar @ https://localhost:9200
    [2] K-id @ http://example.com:9200
    [3] token-auth'''
+    )
 
     session_f = SessionFunc()
     assert "Session save as: '__default__'" == session_f(peek_app, **{'@': ['save']})
     mock_history.save_session.assert_called_with('__default__', json.dumps(peek_app.es_client_manager.to_dict()))
     mock_history.load_session = MagicMock(return_value=json.dumps(peek_app.es_client_manager.to_dict()))
 
-    assert connection_f(peek_app, rename='local-bar') == '''   [0] foo @ http://localhost:9200
+    assert (
+        connection_f(peek_app, rename='local-bar')
+        == '''   [0] foo @ http://localhost:9200
 *  [1] local-bar
    [2] K-id @ http://example.com:9200
    [3] token-auth'''
+    )
 
     assert connection_f(peek_app, **{'@': ['info']}) == {
-        'name': 'local-bar', 'hosts': 'localhost:9200',
-        'cloud_id': None, 'auth': 'Username bar', 'use_ssl': True,
-        'verify_certs': False, 'ca_certs': None, 'client_cert': None,
-        'client_key': None, 'headers': None}
+        'name': 'local-bar',
+        'hosts': 'localhost:9200',
+        'cloud_id': None,
+        'auth': 'Username bar',
+        'use_ssl': True,
+        'verify_certs': False,
+        'ca_certs': None,
+        'client_cert': None,
+        'client_key': None,
+        'headers': None,
+    }
 
-    assert connection_f(peek_app, remove=0) == '''*  [0] local-bar
+    assert (
+        connection_f(peek_app, remove=0)
+        == '''*  [0] local-bar
    [1] K-id @ http://example.com:9200
    [2] token-auth'''
+    )
 
-    assert connection_f(peek_app, 'token-auth') == '''   [0] local-bar
+    assert (
+        connection_f(peek_app, 'token-auth')
+        == '''   [0] local-bar
    [1] K-id @ http://example.com:9200
 *  [2] token-auth'''
+    )
 
     assert connection_f(peek_app, keep=1) == '''*  [0] K-id @ http://example.com:9200'''
 
-    assert session_f(peek_app, **{'@': ['load']}) == '''   [0] foo @ http://localhost:9200
+    assert (
+        session_f(peek_app, **{'@': ['load']})
+        == '''   [0] foo @ http://localhost:9200
 *  [1] bar @ https://localhost:9200
    [2] K-id @ http://example.com:9200
    [3] token-auth'''
+    )
 
-    assert connection_f(peek_app, move=0) == '''*  [0] bar @ https://localhost:9200
+    assert (
+        connection_f(peek_app, move=0)
+        == '''*  [0] bar @ https://localhost:9200
    [1] foo @ http://localhost:9200
    [2] K-id @ http://example.com:9200
    [3] token-auth'''
+    )
 
-    assert connection_f(peek_app, move=3) == '''   [0] foo @ http://localhost:9200
+    assert (
+        connection_f(peek_app, move=3)
+        == '''   [0] foo @ http://localhost:9200
    [1] K-id @ http://example.com:9200
    [2] token-auth
 *  [3] bar @ https://localhost:9200'''
+    )
 
-    assert connection_f(peek_app, move=3) == '''   [0] foo @ http://localhost:9200
+    assert (
+        connection_f(peek_app, move=3)
+        == '''   [0] foo @ http://localhost:9200
    [1] K-id @ http://example.com:9200
    [2] token-auth
 *  [3] bar @ https://localhost:9200'''
+    )
 
 
 def test_connect_with_failed_test_will_not_be_added(peek_app):
@@ -134,8 +167,10 @@ def test_echo(peek_app):
     assert echo_f(peek_app, None) == 'null'
     assert echo_f(peek_app, 'hello') == '"hello"'
     assert echo_f(peek_app, echo_f) == '"<PeekFunction echo>"'
-    assert echo_f(peek_app, {'foo': [True, False, None, 'bar', echo_f]}) == \
-           '{"foo":[true,false,null,"bar","<PeekFunction echo>"]}'
+    assert (
+        echo_f(peek_app, {'foo': [True, False, None, 'bar', echo_f]})
+        == '{"foo":[true,false,null,"bar","<PeekFunction echo>"]}'
+    )
     assert echo_f(peek_app, {}, [], 42) == '{} [] 42'
 
 
@@ -190,5 +225,6 @@ def test_version(peek_app):
     value = peek_app.vm.get_value('v')
     assert 'Peek' in value
     from peek import __version__
+
     assert f'v{__version__}' in value
     assert 'elasticsearch-py' in value

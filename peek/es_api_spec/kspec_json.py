@@ -6,10 +6,10 @@ _logger = logging.getLogger(__name__)
 
 
 def load_json_specs(kibana_dir):
-    oss_path = os.path.join(
-        kibana_dir, 'src', 'plugins', 'console', 'server', 'lib', 'spec_definitions')
+    oss_path = os.path.join(kibana_dir, 'src', 'plugins', 'console', 'server', 'lib', 'spec_definitions')
     xpack_path = os.path.join(
-        kibana_dir, 'x-pack', 'plugins', 'console_extensions', 'server', 'lib', 'spec_definitions')
+        kibana_dir, 'x-pack', 'plugins', 'console_extensions', 'server', 'lib', 'spec_definitions'
+    )
     specs = _do_load_json_specs(os.path.join(oss_path, 'json'))
     specs.update(_do_load_json_specs(os.path.join(xpack_path, 'json')))
     return specs

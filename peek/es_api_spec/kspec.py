@@ -18,7 +18,6 @@ _logger = logging.getLogger(__name__)
 
 
 class KibanaSpecESApiCompleter(ESApiCompleter):
-
     def __init__(self, app, kibana_dir):
         self.app = app
         self.kibana_dir = kibana_dir
@@ -43,7 +42,7 @@ class KibanaSpecESApiCompleter(ESApiCompleter):
                     continue
                 if not can_match(token_stream, ps):
                     continue
-                candidate = '/'.join(ps[len(token_stream):])
+                candidate = '/'.join(ps[len(token_stream) :])
                 candidates.append(Completion(candidate))
         return candidates
 
@@ -129,9 +128,15 @@ class KibanaSpecESApiCompleter(ESApiCompleter):
 
         return candidates, rules
 
-    def complete_payload_value(self, document: Document, complete_event: CompleteEvent, method: str,
-                               path_tokens: List[PeekToken],
-                               payload_tokens: List[PeekToken], payload_events: List[ParserEvent]):
+    def complete_payload_value(
+        self,
+        document: Document,
+        complete_event: CompleteEvent,
+        method: str,
+        path_tokens: List[PeekToken],
+        payload_tokens: List[PeekToken],
+        payload_events: List[ParserEvent],
+    ):
         _logger.debug(f'Completing for API payload value: {method!r} {path_tokens!r} {payload_tokens!r}')
         rules = self._find_rules_for_method_and_url_path(method, path_tokens)
         if rules is None:
@@ -173,8 +178,7 @@ class KibanaSpecESApiCompleter(ESApiCompleter):
             # The simpler case when value position has nothing yet
             if isinstance(rules, dict):
                 if '__one_of' in rules:
-                    return [Completion('""' if isinstance(c, str) else json.dumps(c))
-                            for c in rules['__one_of']], rules
+                    return [Completion('""' if isinstance(c, str) else json.dumps(c)) for c in rules['__one_of']], rules
                 else:
                     return [Completion('{}')], rules
             elif isinstance(rules, list):
@@ -210,8 +214,7 @@ class KibanaSpecESApiCompleter(ESApiCompleter):
     def _find_rules_for_method_and_url_path(self, method: str, path_tokens: List[PeekToken]):
         token_stream = [t.value for t in path_tokens if t.ttype is PathPart]
         try:
-            api_spec = next(matchable_specs(method, token_stream, self.specs,
-                                            required_field='data_autocomplete_rules'))
+            api_spec = next(matchable_specs(method, token_stream, self.specs, required_field='data_autocomplete_rules'))
             _logger.debug(f'Found API spec for {method!r} {path_tokens}')
         except StopIteration:
             _logger.debug(f'No matching API spec found for {method!r} {path_tokens}')
@@ -222,14 +225,16 @@ class KibanaSpecESApiCompleter(ESApiCompleter):
         return rules
 
     def _resolve_rules_for_keys(self, rules, payload_keys, unwrap_value_for_last_key=True):
-        rules = self._do_resolve_rules_for_keys(rules, payload_keys,
-                                                unwrap_value_for_last_key=unwrap_value_for_last_key)
+        rules = self._do_resolve_rules_for_keys(
+            rules, payload_keys, unwrap_value_for_last_key=unwrap_value_for_last_key
+        )
 
         # If the first key lookup did not get anything, try with the GLOBAL space
         if rules is None and payload_keys[0] in self.specs['GLOBAL']:
             _logger.debug('Retry key with GLOBAL')
-            rules = self._do_resolve_rules_for_keys(self.specs['GLOBAL'], payload_keys,
-                                                    unwrap_value_for_last_key=unwrap_value_for_last_key)
+            rules = self._do_resolve_rules_for_keys(
+                self.specs['GLOBAL'], payload_keys, unwrap_value_for_last_key=unwrap_value_for_last_key
+            )
         return rules
 
     def _do_resolve_rules_for_keys(self, rules, payload_keys, unwrap_value_for_last_key=True):

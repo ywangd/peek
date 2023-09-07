@@ -78,7 +78,6 @@ def test_app_will_not_auto_load_session_if_connection_is_specified_on_cli(config
         return config_obj
 
     class MockCliNs:
-
         def __init__(self):
             self.username = 'foo'
             self.password = 'password'
@@ -97,12 +96,16 @@ def test_app_will_not_auto_load_session_if_connection_is_specified_in_rcfile(con
     MockHistory = MagicMock(return_value=mock_history)
 
     def get_config(_, extra_config):
-        config_obj.merge(ConfigObj({
-            'connection': {
-                'username': 'foo',
-                'password': 'password',
-            }
-        }))
+        config_obj.merge(
+            ConfigObj(
+                {
+                    'connection': {
+                        'username': 'foo',
+                        'password': 'password',
+                    }
+                }
+            )
+        )
         config_obj.merge(ConfigObj(extra_config))
         return config_obj
 
@@ -116,8 +119,11 @@ def test_app_will_not_auto_load_session_if_connection_is_specified_in_rcfile(con
 def test_app_will_auto_load_session_if_nothing_is_overriding_it(config_obj):
     config_obj['auto_load_session'] = True
     mock_history = MagicMock()
-    mock_history.load_session = MagicMock(return_value=json.dumps(
-        {'_index_current': 0, '_clients': [{'username': 'foo', 'password': 'bar', 'hosts': 'localhost:9200'}]}))
+    mock_history.load_session = MagicMock(
+        return_value=json.dumps(
+            {'_index_current': 0, '_clients': [{'username': 'foo', 'password': 'bar', 'hosts': 'localhost:9200'}]}
+        )
+    )
     MockHistory = MagicMock(return_value=mock_history)
 
     def get_config(_, extra_config):
@@ -177,8 +183,9 @@ def test_app_will_respect_on_connection_add_callback(config_obj):
         config_obj.merge(ConfigObj(extra_config))
         return config_obj
 
-    with patch('peek.peekapp.get_config', get_config), patch('peek.peekapp.SqLiteHistory', MockHistory), \
-         patch('peek.peekapp.Display', MockDisplay):
+    with patch('peek.peekapp.get_config', get_config), patch('peek.peekapp.SqLiteHistory', MockHistory), patch(
+        'peek.peekapp.Display', MockDisplay
+    ):
         app = PeekApp(extra_config_options=('log_level=None', 'use_keyring=False'))
         mock_display.info.assert_called_with('"on_connection_add"')
         app.config['on_connection_add'] = 'echo "second_time"'
@@ -196,7 +203,6 @@ def test_app_can_start_with_no_connection(config_obj):
         return config_obj
 
     class MockCliNs:
-
         def __init__(self):
             self.zero_connection = True
 
@@ -219,8 +225,9 @@ def test_app_will_call_on_startup(config_obj):
         config_obj.merge(ConfigObj(extra_config))
         return config_obj
 
-    with patch('peek.peekapp.get_config', get_config), patch('peek.peekapp.SqLiteHistory', MockHistory), \
-         patch('peek.peekapp.Display', MockDisplay):
+    with patch('peek.peekapp.get_config', get_config), patch('peek.peekapp.SqLiteHistory', MockHistory), patch(
+        'peek.peekapp.Display', MockDisplay
+    ):
         app = PeekApp(extra_config_options=('log_level=None', 'use_keyring=False'))
         app.reset()
         mock_display.info.assert_has_calls([call('"on_startup"'), call('"on_startup"')])
@@ -229,6 +236,7 @@ def test_app_will_call_on_startup(config_obj):
 @pytest.fixture
 def config_obj():
     from peek import __file__ as package_root
+
     package_root = os.path.dirname(package_root)
     package_config_file = os.path.join(package_root, 'peekrc')
     return ConfigObj(package_config_file)

@@ -11,6 +11,7 @@ _logger = logging.getLogger(__name__)
 
 def config_location():
     from peek import __package__ as package_name
+
     if 'XDG_CONFIG_HOME' in os.environ:
         return f'%s/{package_name}/' % expanduser(os.environ['XDG_CONFIG_HOME'])
     elif platform.system() == 'Windows':
@@ -24,8 +25,7 @@ def ensure_dir_exists(path):
     os.makedirs(parent_dir, exist_ok=True)
 
 
-def load_config(package_config_file: str,
-                config_file: str = None, extra_config_options: Iterable[str] = None):
+def load_config(package_config_file: str, config_file: str = None, extra_config_options: Iterable[str] = None):
     config = ConfigObj(package_config_file)
     if config_file is not None:
         config.merge(ConfigObj(config_file))
@@ -41,9 +41,11 @@ def load_config(package_config_file: str,
                 if child is None:
                     parent[key_component] = {}
                 elif not isinstance(child, dict):
-                    _logger.warning(f'Config key [{key}] conflicts. '
-                                    f'Value of [{key_component}] is not a [dict], '
-                                    f'but [{type(child)}]')
+                    _logger.warning(
+                        f'Config key [{key}] conflicts. '
+                        f'Value of [{key_component}] is not a [dict], '
+                        f'but [{type(child)}]'
+                    )
                     parent = None
                     break
                 parent = parent[key_component]
@@ -61,6 +63,7 @@ _CONFIG = None
 
 def get_config(config_file: str = None, extra_config_options: Iterable[str] = None):
     from peek import __file__ as package_root
+
     package_root = os.path.dirname(package_root)
     package_config_file = os.path.join(package_root, 'peekrc')
     default_config_file = expanduser(config_location() + 'peekrc')

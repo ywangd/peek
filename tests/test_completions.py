@@ -44,9 +44,12 @@ def test_complete_array_of_dict():
     completion_state.complete_index = 0
     completion_state.completions = [PayloadKeyCompletion('key', [{'foo': 'bar'}])]
     completion_state.original_document = Document('{ ""', cursor_position=3)
-    assert proxy_new_text_and_position(completion_state) == ('''{ "key": [
+    assert proxy_new_text_and_position(completion_state) == (
+        '''{ "key": [
   {}
-], ''', 14)
+], ''',
+        14,
+    )
 
 
 def test_complete_one_of():
@@ -62,23 +65,30 @@ def test_complete_template():
     completion_state.complete_index = 0
     completion_state.completions = [PayloadKeyCompletion('key', {'__template': {'foo': [], 'bar': 'hello'}})]
     completion_state.original_document = Document('{ ""', cursor_position=3)
-    assert proxy_new_text_and_position(completion_state) == ('''{ "key": {
+    assert proxy_new_text_and_position(completion_state) == (
+        '''{ "key": {
   "foo": [],
   "bar": "hello"
-}, ''', 21)
+}, ''',
+        21,
+    )
 
 
 def test_complete_template_indent():
     completion_state = MagicMock()
     completion_state.complete_index = 0
     completion_state.completions = [PayloadKeyCompletion('key', {'__template': {'foo': {'bar': 42}, 'fizz': 'hello'}})]
-    completion_state.original_document = Document('''{
+    completion_state.original_document = Document(
+        '''{
   'foo': {
     ''
   }
-}''', cursor_position=18)
+}''',
+        cursor_position=18,
+    )
     # TODO: the cursor position is not really right.it's inside "bar".
-    assert proxy_new_text_and_position(completion_state) == ('''{
+    assert proxy_new_text_and_position(completion_state) == (
+        '''{
   'foo': {
     "key": {
       "foo": {
@@ -86,4 +96,6 @@ def test_complete_template_indent():
       },
       "fizz": "hello"
     }, \n  }
-}''', 50)
+}''',
+        50,
+    )

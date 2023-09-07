@@ -13,6 +13,7 @@ def krb_authenticate(es_client: EsClient, service=None, username=None, name=None
     if service is None:
         raise PeekError('Service is required for kerberos authentication')
     import kerberos
+
     result, context = kerberos.authGSSClientInit(service, principal=username)
     kerberos.authGSSClientStep(context, '')
     ticket = kerberos.authGSSClientResponse(context)
@@ -20,11 +21,14 @@ def krb_authenticate(es_client: EsClient, service=None, username=None, name=None
     auth_response = es_client.perform_request(
         'POST',
         '/_security/oauth2/token',
-        json.dumps({
-            'grant_type': '_kerberos',
-            'kerberos_ticket': ticket,
-        }),
-        deserialize_it=True)
+        json.dumps(
+            {
+                'grant_type': '_kerberos',
+                'kerberos_ticket': ticket,
+            }
+        ),
+        deserialize_it=True,
+    )
     _logger.debug(f'Kerberos Token auth response: {auth_response}')
 
     return RefreshingEsClient(
@@ -33,7 +37,8 @@ def krb_authenticate(es_client: EsClient, service=None, username=None, name=None
         auth_response['access_token'],
         auth_response['refresh_token'],
         auth_response['expires_in'],
-        name=name)
+        name=name,
+    )
 
 
 class KrbAuthenticateFunc:
@@ -51,7 +56,7 @@ class KrbAuthenticateFunc:
             app.es_client_manager.current if conn is None else app.es_client_manager.get_client(conn),
             service,
             options.get('username', None),
-            options.get('name', None)
+            options.get('name', None),
         )
         app.es_client_manager.add(krb_es_client)
         return app.es_client_manager.current.perform_request('GET', '/_security/_authenticate')

@@ -2,7 +2,6 @@ from abc import ABCMeta
 
 
 class Capture(metaclass=ABCMeta):
-
     def stop(self):
         pass
 
@@ -14,13 +13,11 @@ class Capture(metaclass=ABCMeta):
 
 
 class NoOpCapture(Capture):
-
     def status(self):
         return 'No capture is running'
 
 
 class FileCapture(Capture):
-
     def __init__(self, f):
         self.f = f
         self.outs = open(self.f, 'w')

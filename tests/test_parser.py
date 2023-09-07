@@ -13,19 +13,34 @@ def parser():
 
 
 def test_process_tokens():
-    tokens = [PeekToken(*t) for t in (
-        (0, String.Double, '"'), (1, String.Double, 'str'), (4, String.Double, '"'),
-        (5, CurlyLeft, '{'), (6, CurlyLeft, '{'), (7, Whitespace, '  '),
-        (10, CurlyRight, '}'), (11, Whitespace, ' '), (12, CurlyRight, '}'),
-        (13, String.Double, '"'), (14, String.Double, 'd'), (15, String.Double, '"'),
-        (16, String.Single, "'"), (17, String.Single, 's'), (18, String.Single, "'"),
-        (19, Comment.Single, "# comment")
-    )]
+    tokens = [
+        PeekToken(*t)
+        for t in (
+            (0, String.Double, '"'),
+            (1, String.Double, 'str'),
+            (4, String.Double, '"'),
+            (5, CurlyLeft, '{'),
+            (6, CurlyLeft, '{'),
+            (7, Whitespace, '  '),
+            (10, CurlyRight, '}'),
+            (11, Whitespace, ' '),
+            (12, CurlyRight, '}'),
+            (13, String.Double, '"'),
+            (14, String.Double, 'd'),
+            (15, String.Double, '"'),
+            (16, String.Single, "'"),
+            (17, String.Single, 's'),
+            (18, String.Single, "'"),
+            (19, Comment.Single, "# comment"),
+        )
+    ]
     processed_tokens = process_tokens(tokens)
     assert processed_tokens == [
         (0, String.Double, '"str"'),
-        (5, CurlyLeft, '{'), (6, CurlyLeft, '{'),
-        (10, CurlyRight, '}'), (12, CurlyRight, '}'),
+        (5, CurlyLeft, '{'),
+        (6, CurlyLeft, '{'),
+        (10, CurlyRight, '}'),
+        (12, CurlyRight, '}'),
         (13, String.Double, '"d"'),
         (16, String.Single, "'s'"),
     ]
@@ -35,7 +50,7 @@ def test_find_last_stmt_token():
     tokens = [
         PeekToken(index=0, ttype=HttpMethod, value='get'),
         PeekToken(index=4, ttype=Literal, value='abc'),
-        PeekToken(index=8, ttype=FuncName, value='ge')
+        PeekToken(index=8, ttype=FuncName, value='ge'),
     ]
     i = find_last_stmt_token(tokens)
     assert i == 2
@@ -43,7 +58,7 @@ def test_find_last_stmt_token():
     tokens = [
         PeekToken(index=0, ttype=FuncName, value='connect'),
         PeekToken(index=7, ttype=BlankLine, value='\n'),
-        PeekToken(index=8, ttype=FuncName, value='session')
+        PeekToken(index=8, ttype=FuncName, value='session'),
     ]
     i = find_last_stmt_token(tokens)
     assert i == 2
@@ -143,9 +158,12 @@ def test_parser_normal_payload(parser):
     assert isinstance(n, EsApiCallNode)
     assert n.method == 'PUT'
     assert n.path == '/somewhere'
-    assert str(n) == r"""pUt /somewhere {}
+    assert (
+        str(n)
+        == r"""pUt /somewhere {}
 {"foo":"bar","hello":1.0,"world":[2.0,true,null,false],"nested":{"this is it":"orly?","the end":[42,'the','end','of','it']}}
 """
+    )
 
 
 def test_parser_file_payload(parser):
@@ -172,9 +190,12 @@ def test_parser_string_escapes(parser):
     assert len(nodes) == 1
     n = nodes[0]
     assert isinstance(n, EsApiCallNode)
-    assert str(n) == r"""geT out {}
+    assert (
+        str(n)
+        == r"""geT out {}
 {"'hello\tworld'":'"hello\tworld"',"foo\\\t\nbar":'foo\\\t\nbar',"magic\\'\"":'magic\\"\''}
 """
+    )
 
 
 def test_parser_tdqs(parser):
@@ -190,11 +211,14 @@ world\"""",
     assert len(nodes) == 1
     n = nodes[0]
     assert isinstance(n, EsApiCallNode)
-    assert str(n) == r'''post /away {}
+    assert (
+        str(n)
+        == r'''post /away {}
 {"'hello\tworld'":""""hello\t
 world\"""","foo\\\t\nbar":"""foo\\
 \t\nbar""","magic\\'\"":"""magic\\"\''"""}
 '''
+    )
 
 
 def test_parser_tsqs(parser):
@@ -210,11 +234,14 @@ world\'''',
     assert len(nodes) == 1
     n = nodes[0]
     assert isinstance(n, EsApiCallNode)
-    assert str(n) == r"""delete it {}
+    assert (
+        str(n)
+        == r"""delete it {}
 {"'hello\tworld'":''''hello\t
 world\'''',"foo\\\t\nbar":'''foo\\
 \t\nbar''',"magic\\'\"":'''magic\\"\'"'''}
 """
+    )
 
 
 def test_parser_bulk_index(parser):
@@ -233,7 +260,9 @@ def test_parser_bulk_index(parser):
     n = nodes[0]
     assert isinstance(n, EsApiCallNode)
     print(n)
-    assert str(n) == r'''PUT _bulk {}
+    assert (
+        str(n)
+        == r'''PUT _bulk {}
 {"index":{"_index":"test","_id":"1"}}
 {"field1":"value1"}
 {"delete":{"_index":"test","_id":"2"}}
@@ -242,6 +271,7 @@ def test_parser_bulk_index(parser):
 {"update":{"_id":"1","_index":"test"}}
 {"doc":{"field2":"value2"}}
 '''
+    )
 
 
 def test_parser_invalid_missing_comma(parser):
@@ -313,10 +343,13 @@ def test_payload_file(parser):
 {'category': 'click', 'tag': 2}'''
     nodes = parser.parse(text, payload_only=True)
     assert len(nodes) == 4
-    assert '\n'.join(str(n) for n in nodes) == '''{'index':{'_index':'index','_id':'1'}}
+    assert (
+        '\n'.join(str(n) for n in nodes)
+        == '''{'index':{'_index':'index','_id':'1'}}
 {'category':'click','tag':1}
 {'index':{'_index':'index','_id':'2'}}
 {'category':'click','tag':2}'''
+    )
 
 
 def test_parser_events_000(parser):

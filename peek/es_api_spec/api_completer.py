@@ -17,28 +17,41 @@ _logger = logging.getLogger(__name__)
 
 
 class ESApiCompleter(metaclass=ABCMeta):
-    def complete_url_path(self, document: Document, complete_event: CompleteEvent, method: str,
-                          path_tokens: List[PeekToken]) -> List[Completion]:
+    def complete_url_path(
+        self, document: Document, complete_event: CompleteEvent, method: str, path_tokens: List[PeekToken]
+    ) -> List[Completion]:
         return []
 
-    def complete_query_param_name(self, document: Document, complete_event: CompleteEvent, method: str,
-                                  path_tokens: List[PeekToken]) -> List[Completion]:
+    def complete_query_param_name(
+        self, document: Document, complete_event: CompleteEvent, method: str, path_tokens: List[PeekToken]
+    ) -> List[Completion]:
         return []
 
-    def complete_query_param_value(self, document: Document, complete_event: CompleteEvent, method: str,
-                                   path_tokens: List[PeekToken]) -> List[Completion]:
+    def complete_query_param_value(
+        self, document: Document, complete_event: CompleteEvent, method: str, path_tokens: List[PeekToken]
+    ) -> List[Completion]:
         return []
 
-    def complete_payload(self, document: Document, complete_event: CompleteEvent, method: str,
-                         path_tokens: List[PeekToken],
-                         payload_tokens: List[PeekToken],
-                         payload_events: List[ParserEvent]) -> Tuple[List[Completion], dict]:
+    def complete_payload(
+        self,
+        document: Document,
+        complete_event: CompleteEvent,
+        method: str,
+        path_tokens: List[PeekToken],
+        payload_tokens: List[PeekToken],
+        payload_events: List[ParserEvent],
+    ) -> Tuple[List[Completion], dict]:
         return [], {}
 
-    def complete_payload_value(self, document: Document, complete_event: CompleteEvent, method: str,
-                               path_tokens: List[PeekToken],
-                               payload_tokens: List[PeekToken],
-                               payload_events: List[ParserEvent]) -> Tuple[List[Completion], dict]:
+    def complete_payload_value(
+        self,
+        document: Document,
+        complete_event: CompleteEvent,
+        method: str,
+        path_tokens: List[PeekToken],
+        payload_tokens: List[PeekToken],
+        payload_events: List[ParserEvent],
+    ) -> Tuple[List[Completion], dict]:
         return [], {}
 
 
@@ -47,7 +60,6 @@ class NoopESApiCompleter(ESApiCompleter):
 
 
 class SchemaESApiCompleter(ESApiCompleter):
-
     def __init__(self, schema_filepath):
         with open(schema_filepath) as ins:
             self._schema = Schema(json.load(ins))
@@ -58,22 +70,18 @@ class SchemaESApiCompleter(ESApiCompleter):
         token_stream = [t.value for t in path_tokens if t.ttype is not Slash]
         if cursor_token.ttype is PathPart:
             token_stream.pop()
-        return [Completion(c)
-                for c in self._schema.candidate_urls(method, token_stream)]
+        return [Completion(c) for c in self._schema.candidate_urls(method, token_stream)]
 
     def complete_query_param_name(self, document, complete_event, method, path_tokens):
         _logger.debug(f'Completing URL query param name: {path_tokens[-1]}')
         token_stream = [t.value for t in path_tokens if t.ttype is PathPart]
-        return [Completion(c)
-                for c in self._schema.candidate_query_param_names(method, token_stream)]
+        return [Completion(c) for c in self._schema.candidate_query_param_names(method, token_stream)]
 
     def complete_query_param_value(self, document, complete_event, method, path_tokens):
         _logger.debug(f'Completing URL query param value: {path_tokens[-1]}')
         param_name_token = path_tokens[-2] if path_tokens[-1].ttype is Assign else path_tokens[-3]
         ts = [t.value for t in path_tokens if t.ttype is PathPart]
-        return [Completion(c)
-                for c in
-                self._schema.candidate_query_param_values(method, ts, param_name_token.value)]
+        return [Completion(c) for c in self._schema.candidate_query_param_values(method, ts, param_name_token.value)]
 
     def complete_payload(self, document, complete_event, method, path_tokens, payload_tokens, payload_events):
         _logger.debug(f'Completing for API payload: {method!r} {path_tokens!r} {payload_tokens!r}')
@@ -108,8 +116,9 @@ class SchemaESApiCompleter(ESApiCompleter):
 
     def complete_payload_value(self, document, complete_event, method, path_tokens, payload_tokens, payload_events):
         _logger.debug(f'Completing for API payload value: {method!r} {path_tokens!r} {payload_tokens!r}')
-        completions = self._do_complete_payload_value(document, complete_event, method, path_tokens,
-                                                      payload_tokens, payload_events)
+        completions = self._do_complete_payload_value(
+            document, complete_event, method, path_tokens, payload_tokens, payload_events
+        )
         return [Completion(c) for c in sorted(set(completions))], {}
 
     def _do_complete_payload_value(self, document, complete_event, method, path_tokens, payload_tokens, payload_events):
@@ -163,7 +172,10 @@ class SchemaESApiCompleter(ESApiCompleter):
             elif token_after_colon.ttype in String and token_after_colon is last_payload_token:
                 return [v for v in self._schema.candidate_values(method, ts, payload_keys) if isinstance(v, str)]
             elif token_after_colon.ttype is Name and token_after_colon is last_payload_token:
-                return [json.dumps(v)
-                        for v in self._schema.candidate_values(method, ts, payload_keys) if v in (True, False, None)]
+                return [
+                    json.dumps(v)
+                    for v in self._schema.candidate_values(method, ts, payload_keys)
+                    if v in (True, False, None)
+                ]
 
         return []  # catch all

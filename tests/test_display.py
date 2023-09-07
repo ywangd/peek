@@ -41,21 +41,18 @@ def test_display_will_tokenize():
 
         display.info('"foo"')
         print_formatted_text.assert_called_with(
-            _PygmentsToken(),
-            style=display.style,
-            style_transformation=display.style_transformation)
+            _PygmentsToken(), style=display.style, style_transformation=display.style_transformation
+        )
 
         display.info('"foo" 42 "bar"')
         print_formatted_text.assert_called_with(
-            _PygmentsToken(),
-            style=display.style,
-            style_transformation=display.style_transformation)
+            _PygmentsToken(), style=display.style, style_transformation=display.style_transformation
+        )
 
         display.info({"foo": "bar"})
         print_formatted_text.assert_called_with(
-            _PygmentsToken(),
-            style=display.style,
-            style_transformation=display.style_transformation)
+            _PygmentsToken(), style=display.style, style_transformation=display.style_transformation
+        )
 
 
 def test_display_will_print_plain_when_tokenize_is_impossible():
@@ -66,9 +63,8 @@ def test_display_will_print_plain_when_tokenize_is_impossible():
         mock_app.capture.file = MagicMock(return_value=capture_outs)
         display.info('[0]  http://localhost:9200')
         print_formatted_text.assert_called_with(
-            '[0]  http://localhost:9200',
-            style=display.style,
-            style_transformation=display.style_transformation)
+            '[0]  http://localhost:9200', style=display.style, style_transformation=display.style_transformation
+        )
 
         capture_outs.seek(0)
         assert capture_outs.read() == '=== \n[0]  http://localhost:9200\n'
@@ -82,9 +78,8 @@ def test_display_will_error():
         error = RuntimeError('This is an error')
         display.error(error)
         print_formatted_text.assert_called_with(
-            error,
-            style=display.style,
-            style_transformation=display.style_transformation)
+            error, style=display.style, style_transformation=display.style_transformation
+        )
 
 
 def test_display_will_not_print_header_when_in_batch_mode():
@@ -109,15 +104,16 @@ def test_display_will_support_formatted_text():
         source_message = FormattedText()
         display.info(source_message)
         print_formatted_text.assert_called_with(
-            source_message, style=display.style, style_transformation=display.style_transformation)
+            source_message, style=display.style, style_transformation=display.style_transformation
+        )
         source_error = FormattedText()
         display.error(source_error)
         print_formatted_text.assert_called_with(
-            source_error, style=display.style, style_transformation=display.style_transformation)
+            source_error, style=display.style, style_transformation=display.style_transformation
+        )
 
 
 class _PygmentsToken:
-
     def __eq__(self, other):
         return type(other) is PygmentsTokens
 

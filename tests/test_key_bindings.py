@@ -101,10 +101,12 @@ def test_single_line_func_stmt_will_be_handled_if_cursor_is_not_within_quotes_or
 
 @patch('peek.key_bindings.get_app', get_app)
 def test_multi_line_buffer_will_be_handled_if_cursor_line_and_all_lines_after_are_blank():
-    buffer.document = Document('''echo "foo"
+    buffer.document = Document(
+        '''echo "foo"
 get /
 
-''')
+'''
+    )
     assert buffer_should_be_handled(mock_app)() is True
 
     buffer.document = Document('''echo "foo"\nget /\n   ''', cursor_position=18)

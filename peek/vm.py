@@ -13,9 +13,28 @@ from subprocess import Popen
 import elasticsearch
 from pygments.token import Name
 
-from peek.ast import Visitor, EsApiCallNode, DictNode, KeyValueNode, ArrayNode, NumberNode, \
-    StringNode, Node, FuncCallNode, NameNode, TextNode, ShellOutNode, EsApiCallInlinePayloadNode, \
-    EsApiCallFilePayloadNode, GroupNode, BinOpNode, UnaryOpNode, SymbolNode, LetNode, ForInNode
+from peek.ast import (
+    Visitor,
+    EsApiCallNode,
+    DictNode,
+    KeyValueNode,
+    ArrayNode,
+    NumberNode,
+    StringNode,
+    Node,
+    FuncCallNode,
+    NameNode,
+    TextNode,
+    ShellOutNode,
+    EsApiCallInlinePayloadNode,
+    EsApiCallFilePayloadNode,
+    GroupNode,
+    BinOpNode,
+    UnaryOpNode,
+    SymbolNode,
+    LetNode,
+    ForInNode,
+)
 from peek.errors import PeekError
 from peek.natives import EXPORTS
 from peek.visitors import Ref
@@ -65,7 +84,6 @@ _UNARY_OP_FUNCS = {
 
 
 class PeekVM(Visitor):
-
     def __init__(self, app, bin_op_funcs=None, unary_op_funcs=None):
         super().__init__()
         self.app = app
@@ -151,10 +169,13 @@ class PeekVM(Visitor):
             with warnings.catch_warnings(record=True) as ws:
                 final_path = _maybe_encode_date_math(path)
                 final_headers = headers if headers else None
-                self.context['__'] = {'method': node.method, 'path': final_path, 'payload': payload,
-                                      'headers': final_headers}
-                response = es_client.perform_request(node.method, final_path,
-                                                     payload, headers=final_headers)
+                self.context['__'] = {
+                    'method': node.method,
+                    'path': final_path,
+                    'payload': payload,
+                    'headers': final_headers,
+                }
+                response = es_client.perform_request(node.method, final_path, payload, headers=final_headers)
             for w in ws:
                 if not quiet and self._should_show_warnings(w):
                     self.app.display.warn(str(w.message))
@@ -381,6 +402,7 @@ class PeekVM(Visitor):
     def _load_one_extension(self, p):
         _logger.info(f'Loading extension: {p!r}')
         import importlib
+
         fields = os.path.splitext(p)
         if len(fields) != 2 or fields[1] != '.py':
             _logger.warning(f'Extension must be python files, got: {p!r}')
@@ -413,6 +435,7 @@ class PeekVM(Visitor):
     def _should_show_warnings(self, w):
         if warnings_available and self.app.config.as_bool('show_warnings'):
             from elasticsearch.exceptions import ElasticsearchDeprecationWarning
+
             return w.category == ElasticsearchDeprecationWarning
         else:
             return False

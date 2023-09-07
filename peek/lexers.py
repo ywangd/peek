@@ -3,8 +3,20 @@ from typing import Iterable
 
 from pygments.lexer import RegexLexer, words, include, bygroups, default
 from pygments.style import Style
-from pygments.token import Keyword, Literal, String, Number, Punctuation, Name, Comment, Whitespace, Generic, Error, \
-    Operator, Text
+from pygments.token import (
+    Keyword,
+    Literal,
+    String,
+    Number,
+    Punctuation,
+    Name,
+    Comment,
+    Whitespace,
+    Generic,
+    Error,
+    Operator,
+    Text,
+)
 
 from peek.common import PeekToken, HTTP_METHODS
 from peek.errors import PeekSyntaxError
@@ -84,6 +96,7 @@ W = r'[ \t\r\f\v]'
 # If there is a signature pattern to signal a #pop, use it and it's ok to consume whitespace. Otherwise,
 # default to pop and do not allow consuming whitespace standalone.
 
+
 class PeekLexer(RegexLexer):
     name = 'ES'
     aliases = ['es']
@@ -93,18 +106,18 @@ class PeekLexer(RegexLexer):
         'root': [
             (r'(!)(.*)', bygroups(ShellOut, Literal)),
             (r'//.*', Comment.Single),
-            (r'(?i)(' + '|'.join(m.upper() for m in HTTP_METHODS) + r')\b(' + W + '*)',
-             bygroups(HttpMethod, Whitespace), 'api_path'),
+            (
+                r'(?i)(' + '|'.join(m.upper() for m in HTTP_METHODS) + r')\b(' + W + '*)',
+                bygroups(HttpMethod, Whitespace),
+                'api_path',
+            ),
             # TODO: more keywords
             (r'(let)\b(' + W + '*)', bygroups(Let, Whitespace), 'let_args'),
             (r'(for)\b(' + W + '*)', bygroups(For, Whitespace), 'for_name'),
             (VARIABLE_PATTERN, FuncName, 'func_stmt_args'),
             (r'\s+', Whitespace),
         ],
-        'stmts': [
-            include('root'),
-            default('#pop')
-        ],
+        'stmts': [include('root'), default('#pop')],
         'let_args': [
             (r'\n', BlankLine, '#pop'),
             (r'//.*', Comment.Single),
@@ -115,8 +128,7 @@ class PeekLexer(RegexLexer):
         ],
         'for_in': [
             (W + r'+', Whitespace),
-            (r'(in)\b(' + W + r'*)',
-             bygroups(In, Whitespace), ('#pop', 'for_body_start', 'value')),
+            (r'(in)\b(' + W + r'*)', bygroups(In, Whitespace), ('#pop', 'for_body_start', 'value')),
         ],
         'for_body_start': [
             (r'(' + W + r'*)(\{)', bygroups(Whitespace, CurlyLeft), ('#pop', 'for_body_stop', 'stmts')),
@@ -246,7 +258,6 @@ class PeekLexer(RegexLexer):
             (W + r'+', Whitespace),
             (r'(\()(\s*)', bygroups(ParenLeft, Whitespace), 'func_expr_args'),
             (r'\)', ParenRight, '#pop'),
-
         ],
         'func_expr_args': [
             (r'//.*', Comment.Single),
@@ -262,9 +273,8 @@ class PeekLexer(RegexLexer):
             (r'([-+*/%])(\s*)', bygroups(BinOp, Whitespace), 'trailing_value'),
             (r'(\.)(\s*)', bygroups(BinOp, Whitespace), 'trailing_dotable_value'),
             (r'(' + W + r'*)(?=\()', Whitespace, 'func_expr'),
-            default('#pop')  # pop out when no operators are seen
+            default('#pop'),  # pop out when no operators are seen
         ],
-
         'trailing_value': [
             (r'(\s*)(//.*)(\s*)', bygroups(Whitespace, Comment.Single, Whitespace)),
             (r'\s+', Whitespace),
@@ -374,11 +384,7 @@ class UrlPathLexer(RegexLexer):
     aliases = ['url_path']
 
     tokens = {
-        'root': [
-            (r'/', Slash),
-            (r'[^/?\s]+', PathPart),
-            (r'\?', QuestionMark, 'query')
-        ],
+        'root': [(r'/', Slash), (r'[^/?\s]+', PathPart), (r'\?', QuestionMark, 'query')],
         'query': [
             (r'&', Ampersand),
             (r'([^=&\s]+)(=)?([^&#\s]+)?', bygroups(ParamName, Assign, ParamValue)),

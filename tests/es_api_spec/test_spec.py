@@ -19,5 +19,4 @@ def test_load_specs():
 
     next(matchable_specs('POST', ['_security', 'api_key'], specs))
 
-    next(matchable_specs('POST', ['_security', 'oauth2', 'token'], specs,
-                         required_field='data_autocomplete_rules'))
+    next(matchable_specs('POST', ['_security', 'oauth2', 'token'], specs, required_field='data_autocomplete_rules'))

@@ -37,10 +37,11 @@ def test_build_js_spec_will_respect_cache_config():
     cache_io = io.StringIO("source")
     use_cache_file = random.choice((True, False))
     cache_file_exists = random.choice((True, False))
-    with patch('os.path.exists', MagicMock(return_value=cache_file_exists)), \
-         patch('builtins.open', MagicMock(return_value=cache_io)), \
-         patch('peek.es_api_spec.kspec_js.JsSpecParser', mock_parser_cls), \
-         patch('peek.es_api_spec.kspec_js.JsSpecEvaluator', mock_evaluator):
+    with patch('os.path.exists', MagicMock(return_value=cache_file_exists)), patch(
+        'builtins.open', MagicMock(return_value=cache_io)
+    ), patch('peek.es_api_spec.kspec_js.JsSpecParser', mock_parser_cls), patch(
+        'peek.es_api_spec.kspec_js.JsSpecEvaluator', mock_evaluator
+    ):
         build_js_specs(kibana_dir, use_cache_file)
 
         if not use_cache_file:

@@ -11,17 +11,20 @@ HIST_MAX = 10_000
 
 
 class SqLiteHistory(History):
-
     def __init__(self, history_max=HIST_MAX):
         super().__init__()
         self.history_max = history_max
         db_file = expanduser(config_location() + 'history')
         ensure_dir_exists(db_file)
         self.conn = sqlite3.connect(db_file)
-        self.conn.execute('CREATE TABLE IF NOT EXISTS history '
-                          '(id INTEGER PRIMARY KEY AUTOINCREMENT, content TEXT NOT NULL, timestamp INTEGER NOT NULL)')
-        self.conn.execute('CREATE TABLE IF NOT EXISTS connection '
-                          '(name TEXT PRIMARY KEY, data TEXT NOT NULL, timestamp INTEGER NOT NULL)')
+        self.conn.execute(
+            'CREATE TABLE IF NOT EXISTS history '
+            '(id INTEGER PRIMARY KEY AUTOINCREMENT, content TEXT NOT NULL, timestamp INTEGER NOT NULL)'
+        )
+        self.conn.execute(
+            'CREATE TABLE IF NOT EXISTS connection '
+            '(name TEXT PRIMARY KEY, data TEXT NOT NULL, timestamp INTEGER NOT NULL)'
+        )
         self._maintain_size()
         self.conn.commit()
 
@@ -33,8 +36,9 @@ class SqLiteHistory(History):
         res = c.execute('SELECT COUNT(*) from history').fetchone()
         if res is None or res[0] < self.history_max:
             return
-        c.execute('DELETE FROM history where id in (SELECT id FROM history ORDER BY id limit ?)',
-                  (res[0] - self.history_max,))
+        c.execute(
+            'DELETE FROM history where id in (SELECT id FROM history ORDER BY id limit ?)', (res[0] - self.history_max,)
+        )
 
     def load_history_strings(self) -> Iterable[str]:
         strings: List[str] = []
@@ -59,8 +63,9 @@ class SqLiteHistory(History):
             else:
                 return None
         elif index < 0:
-            for row in self.conn.execute('select * from history where id = (select max(id) from history) + ?',
-                                         (index,)):
+            for row in self.conn.execute(
+                'select * from history where id = (select max(id) from history) + ?', (index,)
+            ):
                 return row[0], row[1]
             else:
                 return None
@@ -68,9 +73,11 @@ class SqLiteHistory(History):
             return None
 
     def save_session(self, name, data):
-        self.conn.execute("INSERT INTO connection(name, data, timestamp) VALUES(?, ?, ?) "
-                          "ON CONFLICT (name) DO UPDATE SET data=excluded.data, timestamp=excluded.timestamp",
-                          (name, data, datetime.datetime.now()))
+        self.conn.execute(
+            "INSERT INTO connection(name, data, timestamp) VALUES(?, ?, ?) "
+            "ON CONFLICT (name) DO UPDATE SET data=excluded.data, timestamp=excluded.timestamp",
+            (name, data, datetime.datetime.now()),
+        )
         self.conn.commit()
 
     def load_session(self, name):

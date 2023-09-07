@@ -6,7 +6,6 @@ from peek.common import PeekToken
 
 
 class Visitor(metaclass=ABCMeta):
-
     def __init__(self):
         self._consumers = []
 
@@ -81,7 +80,6 @@ class Visitor(metaclass=ABCMeta):
 
 
 class Node(metaclass=ABCMeta):
-
     @abstractmethod
     def accept(self, visitor: Visitor):
         pass
@@ -98,7 +96,6 @@ class Node(metaclass=ABCMeta):
 
 
 class NameNode(Node):
-
     def __init__(self, token: PeekToken):
         self.token = token
 
@@ -110,7 +107,6 @@ class NameNode(Node):
 
 
 class TextNode(Node):
-
     def __init__(self, token: PeekToken):
         self.token = token
 
@@ -122,7 +118,6 @@ class TextNode(Node):
 
 
 class SymbolNode(Node):
-
     def __init__(self, token: PeekToken):
         self.token = token
 
@@ -134,7 +129,6 @@ class SymbolNode(Node):
 
 
 class KeyValueNode(Node):
-
     def __init__(self, key_node: Node, value_node: Node):
         self.key_node = key_node
         self.value_node = value_node
@@ -150,7 +144,6 @@ class KeyValueNode(Node):
 
 
 class DictNode(Node):
-
     def __init__(self, kv_nodes: List[KeyValueNode]):
         self.kv_nodes = kv_nodes
 
@@ -174,7 +167,6 @@ class DictNode(Node):
 
 
 class ArrayNode(Node):
-
     def __init__(self, value_nodes: List[Node]):
         self.value_nodes = value_nodes
 
@@ -198,7 +190,6 @@ class ArrayNode(Node):
 
 
 class StringNode(Node):
-
     def __init__(self, token: PeekToken):
         self.token = token
 
@@ -210,7 +201,6 @@ class StringNode(Node):
 
 
 class NumberNode(Node):
-
     def __init__(self, token: PeekToken):
         self.token = token
 
@@ -222,7 +212,6 @@ class NumberNode(Node):
 
 
 class UnaryOpNode(Node):
-
     def __init__(self, op_token: PeekToken, operand_node: Node):
         self.op_token = op_token
         self.operand_node = operand_node
@@ -237,7 +226,6 @@ class UnaryOpNode(Node):
 
 
 class BinOpNode(Node):
-
     def __init__(self, op_token: PeekToken, left_node: Node, right_node: Node):
         self.op_token = op_token
         self.left_node = left_node
@@ -280,7 +268,6 @@ class GroupNode(Node):
 
 
 class EsApiCallNode(Node, metaclass=ABCMeta):
-
     def __init__(self, method_node: NameNode, path_node: Union[TextNode, GroupNode], options_node: DictNode):
         self.method_node = method_node
         self.path_node = path_node
@@ -308,9 +295,13 @@ class EsApiCallNode(Node, metaclass=ABCMeta):
 
 
 class EsApiCallInlinePayloadNode(EsApiCallNode):
-
-    def __init__(self, method_node: NameNode, path_node: Union[TextNode, GroupNode], options_node: DictNode,
-                 dict_nodes: List[DictNode]):
+    def __init__(
+        self,
+        method_node: NameNode,
+        path_node: Union[TextNode, GroupNode],
+        options_node: DictNode,
+        dict_nodes: List[DictNode],
+    ):
         super().__init__(method_node, path_node, options_node)
         self.dict_nodes = dict_nodes
 
@@ -329,9 +320,13 @@ class EsApiCallInlinePayloadNode(EsApiCallNode):
 
 
 class EsApiCallFilePayloadNode(EsApiCallNode):
-
-    def __init__(self, method_node: NameNode, path_node: Union[TextNode, GroupNode], options_node: DictNode,
-                 file_node: SymbolNode):
+    def __init__(
+        self,
+        method_node: NameNode,
+        path_node: Union[TextNode, GroupNode],
+        options_node: DictNode,
+        file_node: SymbolNode,
+    ):
         super().__init__(method_node, path_node, options_node)
         self.file_node = file_node
 
@@ -341,15 +336,24 @@ class EsApiCallFilePayloadNode(EsApiCallNode):
         return tokens
 
     def __str__(self):
-        parts = [str(self.method_node), ' ', str(self.path_node), ' ', str(self.options_node), '\n',
-                 '@', str(self.file_node), '\n']
+        parts = [
+            str(self.method_node),
+            ' ',
+            str(self.path_node),
+            ' ',
+            str(self.options_node),
+            '\n',
+            '@',
+            str(self.file_node),
+            '\n',
+        ]
         return ''.join(parts)
 
 
 class FuncCallNode(Node):
-
-    def __init__(self, name_node: Node, symbols_node: ArrayNode, args_node: ArrayNode,
-                 kwargs_node: DictNode, is_stmt=True):
+    def __init__(
+        self, name_node: Node, symbols_node: ArrayNode, args_node: ArrayNode, kwargs_node: DictNode, is_stmt=True
+    ):
         self.name_node = name_node
         self.symbols_node = symbols_node
         self.args_node = args_node
@@ -367,15 +371,20 @@ class FuncCallNode(Node):
         return tokens
 
     def __str__(self):
-        parts = [str(self.name_node), ' ',
-                 str(self.symbols_node), ' ',
-                 str(self.args_node), ' ',
-                 str(self.kwargs_node), '\n' if self.is_stmt else '']
+        parts = [
+            str(self.name_node),
+            ' ',
+            str(self.symbols_node),
+            ' ',
+            str(self.args_node),
+            ' ',
+            str(self.kwargs_node),
+            '\n' if self.is_stmt else '',
+        ]
         return ''.join(parts)
 
 
 class LetNode(Node):
-
     def __init__(self, assignments_node: DictNode):
         self.assignments_node = assignments_node
 
@@ -386,13 +395,11 @@ class LetNode(Node):
         return self.assignments_node.tokens()
 
     def __str__(self):
-        parts = ['let', ' ',
-                 str(self.assignments_node), '\n']
+        parts = ['let', ' ', str(self.assignments_node), '\n']
         return ''.join(parts)
 
 
 class ForInNode(Node):
-
     def __init__(self, item: NameNode, items: Node, suite: List[Node]):
         self.item = item
         self.items = items
@@ -408,13 +415,7 @@ class ForInNode(Node):
         return tokens
 
     def __str__(self):
-        parts = [
-            'for ',
-            self.item.token.value,
-            ' in ',
-            str(self.items),
-            '{\n'
-        ]
+        parts = ['for ', self.item.token.value, ' in ', str(self.items), '{\n']
         for node in self.suite:
             parts.append(str(node))
         parts.append('}\n')
@@ -422,7 +423,6 @@ class ForInNode(Node):
 
 
 class ShellOutNode(Node):
-
     def __init__(self, text_node: TextNode):
         self.text_node = text_node
 
@@ -437,6 +437,5 @@ class ShellOutNode(Node):
         return self.text_node.tokens()
 
     def __str__(self):
-        parts = ['!', ' ',
-                 str(self.text_node), '\n']
+        parts = ['!', ' ', str(self.text_node), '\n']
         return ''.join(parts)

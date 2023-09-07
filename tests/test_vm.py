@@ -16,6 +16,7 @@ def peek_vm():
     vm = PeekVM(mock_app)
     mock_app.vm = vm
     from peek import __file__ as package_root
+
     package_root = os.path.dirname(package_root)
     package_config_file = os.path.join(package_root, 'peekrc')
 
@@ -67,15 +68,17 @@ def test_peek_vm_func(peek_vm, parser):
 def test_peek_vm_es_api_call(peek_vm, parser):
     peek_vm.execute_node(parser.parse('GET /')[0])
     peek_vm.app.display.info.assert_called_with(
-        '{"foo": [1, 2, 3, 4], "bar": {"hello": [42, "world"]}}', header_text='')
+        '{"foo": [1, 2, 3, 4], "bar": {"hello": [42, "world"]}}', header_text=''
+    )
     assert peek_vm.get_value('_') == {'foo': [1, 2, 3, 4], 'bar': {'hello': [42, 'world']}}
     peek_vm.execute_node(parser.parse('debug _."bar".@hello.1')[0])
     assert_called_with(peek_vm, 'world')
     peek_vm.execute_node(parser.parse('GET ("foo" + "/" + 42)')[0])
     peek_vm.app.es_client_manager.current.perform_request.assert_called_with('GET', '/foo/42', None, headers=None)
     peek_vm.execute_node(parser.parse('PUT /<my-index-{now/d}>')[0])
-    peek_vm.app.es_client_manager.current.perform_request.assert_called_with('PUT', '/%3Cmy-index-%7Bnow%2Fd%7D%3E',
-                                                                             None, headers=None)
+    peek_vm.app.es_client_manager.current.perform_request.assert_called_with(
+        'PUT', '/%3Cmy-index-%7Bnow%2Fd%7D%3E', None, headers=None
+    )
 
 
 def test_es_api_call_quiet(peek_vm, parser):
@@ -105,26 +108,39 @@ def test_invalid_let(peek_vm, parser):
 
 
 def test_for_in(peek_vm, parser):
-    peek_vm.execute_node(parser.parse('''for x in [1, 2, 3] {
+    peek_vm.execute_node(
+        parser.parse(
+            '''for x in [1, 2, 3] {
     let y = x
     debug x
-}''')[0])
+}'''
+        )[0]
+    )
 
     assert peek_vm.get_value('y') == 3
-    peek_vm.context['debug'].assert_has_calls(
-        [call(peek_vm.app, 1), call(peek_vm.app, 2), call(peek_vm.app, 3)])
+    peek_vm.context['debug'].assert_has_calls([call(peek_vm.app, 1), call(peek_vm.app, 2), call(peek_vm.app, 3)])
 
 
 def test_payload_file(peek_vm, parser):
-    peek_vm.execute_node(parser.parse('''let data = {
+    peek_vm.execute_node(
+        parser.parse(
+            '''let data = {
     "category": "click",
     "tags": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
-}''')[0])
+}'''
+        )[0]
+    )
 
     payload_file = os.path.join(os.path.dirname(__file__), 'payload.json')
 
-    peek_vm.execute_node(parser.parse('''PUT _bulk
-@{}'''.format(payload_file))[0])
+    peek_vm.execute_node(
+        parser.parse(
+            '''PUT _bulk
+@{}'''.format(
+                payload_file
+            )
+        )[0]
+    )
 
     peek_vm.app.es_client_manager.current.perform_request.assert_called_with(
         'PUT',
@@ -155,6 +171,7 @@ def test_payload_file(peek_vm, parser):
 
 def test_warning_header(peek_vm, parser):
     import elasticsearch
+
     if elasticsearch.__version__ < (7, 7, 0):
         return
 
@@ -177,6 +194,7 @@ def test_warning_header(peek_vm, parser):
 
 def test_maybe_encode_date_math():
     assert _maybe_encode_date_math('/<my-index-{now/d}>') == '/%3Cmy-index-%7Bnow%2Fd%7D%3E'
-    assert (_maybe_encode_date_math(
-        '/<logstash-{now/d-2d}>,<logstash-{now/d-1d}>,<logstash-{now/d}>/_search') ==
-            '/%3Clogstash-%7Bnow%2Fd-2d%7D%3E,%3Clogstash-%7Bnow%2Fd-1d%7D%3E,%3Clogstash-%7Bnow%2Fd%7D%3E/_search')
+    assert (
+        _maybe_encode_date_math('/<logstash-{now/d-2d}>,<logstash-{now/d-1d}>,<logstash-{now/d}>/_search')
+        == '/%3Clogstash-%7Bnow%2Fd-2d%7D%3E,%3Clogstash-%7Bnow%2Fd-1d%7D%3E,%3Clogstash-%7Bnow%2Fd%7D%3E/_search'
+    )

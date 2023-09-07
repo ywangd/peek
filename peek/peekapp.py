@@ -32,12 +32,9 @@ _logger = logging.getLogger(__name__)
 
 
 class PeekApp:
-
-    def __init__(self,
-                 batch_mode=False,
-                 config_file: str = None,
-                 extra_config_options: Iterable[str] = None,
-                 cli_ns=NONE_NS):
+    def __init__(
+        self, batch_mode=False, config_file: str = None, extra_config_options: Iterable[str] = None, cli_ns=NONE_NS
+    ):
         self._should_exit = False
         self._preserved_text = ''
         self.capture = NoOpCapture()
@@ -143,18 +140,22 @@ class PeekApp:
     def _get_message(self):
         idx = self.es_client_manager.index_current
         if idx is None:
-            return FormattedText([
-                (PeekStyle.styles[Heading], '>>>'),
-                (PeekStyle.styles[TipsMinor], ' No Connection\n'),
-            ])
+            return FormattedText(
+                [
+                    (PeekStyle.styles[Heading], '>>>'),
+                    (PeekStyle.styles[TipsMinor], ' No Connection\n'),
+                ]
+            )
         else:
             info_line = f' [{idx}] {self.es_client_manager.current}'
             if len(info_line) > 100:
                 info_line = info_line[:97] + '...'
-            return FormattedText([
-                (PeekStyle.styles[Heading], '>>>'),
-                (PeekStyle.styles[TipsMinor], info_line + '\n'),
-            ])
+            return FormattedText(
+                [
+                    (PeekStyle.styles[Heading], '>>>'),
+                    (PeekStyle.styles[TipsMinor], info_line + '\n'),
+                ]
+            )
 
     def _get_default_text(self):
         text = self.preserved_text
@@ -173,14 +174,13 @@ class PeekApp:
             handler = logging.StreamHandler(sys.stdout)
         else:
             handler = logging.handlers.RotatingFileHandler(
-                config_location() + log_file,
-                maxBytes=10 * 1024 * 1024, backupCount=5)
+                config_location() + log_file, maxBytes=10 * 1024 * 1024, backupCount=5
+            )
 
         log_level = getattr(logging, log_level, logging.WARNING)
 
         formatter = logging.Formatter(
-            '%(asctime)s (%(process)d/%(threadName)s) '
-            '%(name)s %(levelname)s - %(message)s'
+            '%(asctime)s (%(process)d/%(threadName)s) ' '%(name)s %(levelname)s - %(message)s'
         )
         handler.setFormatter(formatter)
 
@@ -194,6 +194,7 @@ class PeekApp:
         else:
             try:
                 from prompt_toolkit.clipboard.pyperclip import PyperclipClipboard
+
                 clipboard = PyperclipClipboard()
             except ImportError:
                 _logger.info('pyperclip not available, disable clipboard integration')
@@ -285,10 +286,12 @@ class PeekApp:
         * running in interactive mode
         * No explicit connection parameters are specified (include those specified in connection section of rc file)
         """
-        return (self.config.as_bool('auto_load_session') and
-                not self.batch_mode and
-                not options and
-                self.config.get('connection') is None)
+        return (
+            self.config.as_bool('auto_load_session')
+            and not self.batch_mode
+            and not options
+            and self.config.get('connection') is None
+        )
 
     def _should_support_mouse(self) -> bool:
         return self.config.as_bool('mouse_support')
