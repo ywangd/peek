@@ -107,7 +107,9 @@ class EsClient(BaseClient):
                 # Avoid deserializing the response since we parse it with the main loop for syntax highlighting
                 self.es.transport.deserializer = noopDeserializer
             _wrapper = self._get_wrapper(path)
-            return _wrapper(functools.partial(self.es.transport.perform_request, method, path))(body=payload, **kwargs)
+            return _wrapper(functools.partial(self.es.transport.perform_request, method, self.wrap_path(path)))(
+                body=payload, **kwargs
+            )
         finally:
             if not deserialize_it:
                 self.es.transport.deserializer = deserializer
@@ -122,6 +124,9 @@ class EsClient(BaseClient):
                 return _wrapper_text
         else:
             return _wrapper_json
+
+    def wrap_path(self, path):
+        return path
 
     def info(self):
         if self.api_key:
@@ -502,9 +507,9 @@ def _maybe_configure_smart_connect(app, options: dict):
                     urlpath.startswith('/_security/user/') or urlpath.startswith('/_xpack/security/user/')
                 ):
                     if urlpath.startswith('/_security/user/'):
-                        username = urlpath[len('/_security/user/') :]
+                        username = urlpath[len('/_security/user/'):]
                     else:
-                        username = urlpath[len('/_xpack/security/user/') :]
+                        username = urlpath[len('/_xpack/security/user/'):]
                     payload = json.loads(last_request['payload'])
                     password = payload.get('password', None)
                     _maybe_copy_current_client_options(app, smart_options)
