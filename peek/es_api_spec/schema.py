@@ -363,6 +363,8 @@ class Schema:
     def candidate_query_param_names(self, method: str, ts: List[str]) -> List[str]:
         candidates = set()
         for endpoint in self._matchable_endpoints(method, ts):
+            if endpoint.request is None:
+                continue
             request: Request = self.types[endpoint.request]
             if self._request_has_common_query_params(request):
                 candidates.update(self._common_parameters.keys())
@@ -375,6 +377,8 @@ class Schema:
     def candidate_query_param_values(self, method: str, ts: List[str], param_name: str) -> List[str]:
         candidates = set()
         for endpoint in self._matchable_endpoints(method, ts):
+            if endpoint.request is None:
+                continue
             request: Request = self.types[endpoint.request]
             if self._request_has_common_query_params(request) and param_name in self._common_parameters.keys():
                 candidates.update(self._common_parameters[param_name])
