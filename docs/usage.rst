@@ -208,7 +208,7 @@ instance. More sophisticated interactions are made possible with it:
 .. code-block:: python
 
   class HealthFunc:
-      def __call__(self, app, **options)
+      def __call__(self, app, **options):
           import json
           conn = options.get('conn', None)
           app.process_input(f'GET /_cluster/health conn={json.dumps(conn)}')
