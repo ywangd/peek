@@ -507,9 +507,9 @@ def _maybe_configure_smart_connect(app, options: dict):
                     urlpath.startswith('/_security/user/') or urlpath.startswith('/_xpack/security/user/')
                 ):
                     if urlpath.startswith('/_security/user/'):
-                        username = urlpath[len('/_security/user/'):]
+                        username = urlpath[len('/_security/user/') :]
                     else:
-                        username = urlpath[len('/_xpack/security/user/'):]
+                        username = urlpath[len('/_xpack/security/user/') :]
                     payload = json.loads(last_request['payload'])
                     password = payload.get('password', None)
                     _maybe_copy_current_client_options(app, smart_options)
