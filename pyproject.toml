@@ -56,6 +56,9 @@ include = [
     "/peek",
 ]
 
+[tool.hatch.build.targets.wheel]
+packages = ["peek"]
+
 [tool.hatch.envs.default]
 dependencies = [
     "coverage[toml]>=6.5",
@@ -86,6 +89,9 @@ all = [
     "style",
     "typing",
 ]
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.black]
 target-version = ["py38"]
