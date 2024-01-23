@@ -1,40 +1,31 @@
 import base64
-import functools
 import json
 import logging
 import os
 from abc import ABCMeta, abstractmethod
 from typing import List, Iterable
 
-import elasticsearch.client.utils
+import elastic_transport.client_utils
 from configobj import Section
-from elasticsearch import Elasticsearch, AuthenticationException
-from urllib3 import Timeout
+from elasticsearch import AuthenticationException
 
-from peek.config import get_global_config
 from peek.errors import PeekError
 
 _logger = logging.getLogger(__name__)
 
-# Wrappers for adding request and response content type
-_wrapper_json = elasticsearch.client.utils.query_params(
-    request_mimetypes=["application/json"], response_mimetypes=["application/json"]
-)
-
-_wrapper_text = elasticsearch.client.utils.query_params(
-    request_mimetypes=["application/json"], response_mimetypes=["text/plain", "application/json"]
-)
-
 
 class NoopDeserializer:
-    def __init__(self):
-        pass
+    def __init__(self, delegate):
+        self._delegate = delegate
+
+    def dumps(self, *args, **kwargs):
+        return self._delegate.dumps(*args, **kwargs)
 
     def loads(self, s, *args, **kwargs):
         return s
 
-
-noopDeserializer = NoopDeserializer()
+    def get_serializer(self, *args, **kwargs):
+        return self._delegate.get_serializer(*args, **kwargs)
 
 
 class BaseClient(metaclass=ABCMeta):
@@ -73,60 +64,81 @@ class EsClient(BaseClient):
         self.client_key = client_key
         self.api_key = api_key
         self.token = token
-        self.headers = dict(headers) if headers is not None else None
-        if token:
-            token_header = {'Authorization': f'Bearer {token}'}
-            if headers:
-                headers.update(token_header)
-            else:
-                headers = token_header
+        self.assert_fingerprint = None  # TODO: fill this in
+        self.ssl_show_warn = None  # TODO: fill this in as well
 
-        self.es = Elasticsearch(
-            hosts=self.hosts.split(',') if self.hosts else None,
-            cloud_id=cloud_id,
-            http_auth=self.auth,
-            use_ssl=use_ssl,
-            verify_certs=verify_certs,
-            ca_certs=ca_certs,
-            client_cert=client_cert,
-            client_key=client_key,
-            ssl_show_warn=False,
-            timeout=Timeout(connect=None, read=None),
-            api_key=api_key,
-            headers=headers,
-            ssl_assert_hostname=assert_hostname,
-        )
-        # skip product verification because it requires deserialization of payload
-        self.es.transport._verified_elasticsearch = True
+        headers = {} if headers is None else headers
+        self.headers = dict(headers)
 
-    def perform_request(self, method, path, payload=None, deserialize_it=False, **kwargs):
+        # The order of authentication scheme is API key, token then basic auth.
+        # We add them in reverse order so that later ones overwrite the earlier ones
+        # TODO: use basic_auth_to_header utility method from the transport lib
+        if self.auth:
+            headers.update({'Authorization': 'Basic ' + base64.b64encode(self.auth.encode('utf-8')).decode()})
+
+        if self.token:
+            headers.update({'Authorization': f'Bearer {self.token}'})
+
+        if self.api_key:
+            headers.update(
+                {'Authorization': 'ApiKey ' + base64.b64encode(':'.join(self.api_key).encode('utf-8')).decode()}
+            )
+
+        hosts = []
+        if self.hosts:
+            for host in self.hosts.split(','):
+                if host.startswith('http://') or host.startswith('https://'):
+                    hosts.append(host)
+                else:
+                    hosts.append(f'http://{host}')
+        else:
+            raise ValueError('No hosts specified')
+
+        node_configs = []
+        for host in hosts:
+            node_config = elastic_transport.client_utils.url_to_node_config(host)
+            replacements = {'headers': dict(node_config.headers)}
+            replacements['headers'].update(headers)
+            if node_config.scheme == 'https':
+                if self.ca_certs:
+                    replacements['ca_certs'] = self.ca_certs
+                if self.client_cert:
+                    replacements['client_cert'] = self.client_cert
+                if self.client_key:
+                    replacements['client_key'] = self.client_key
+                if self.assert_hostname:
+                    replacements['ssl_assert_hostname'] = self.assert_hostname
+                if self.assert_fingerprint:
+                    replacements['ssl_assert_fingerprint'] = self.assert_fingerprint
+                if self.ssl_show_warn:
+                    replacements['ssl_show_warn'] = self.ssl_show_warn
+
+            node_configs.append(node_config.replace(**replacements))
+
+        self.transport = elastic_transport.Transport(node_configs, max_retries=0, retry_on_timeout=False)
+        # TODO: timeout is now handled at perform_request time
+
+    def perform_request(self, method, path, payload=None, deserialize_it=False, headers=None, **kwargs):
         _logger.debug(f'Performing request: {method!r}, {path!r}, {payload!r}')
-        deserializer = self.es.transport.deserializer
+        serializers = self.transport.serializers
         try:
             if not deserialize_it:
                 # Avoid deserializing the response since we parse it with the main loop for syntax highlighting
-                self.es.transport.deserializer = noopDeserializer
-            _wrapper = self._get_wrapper(path)
-            return _wrapper(functools.partial(self.es.transport.perform_request, method, self.wrap_path(path)))(
-                body=payload, **kwargs
+                self.transport.serializers = NoopDeserializer(serializers)
+
+            http_headers = elastic_transport.HttpHeaders(headers)
+
+            if payload is not None and 'content-type' not in http_headers:
+                http_headers['content-type'] = 'application/json'
+
+            response = self.transport.perform_request(
+                method, path, body=payload, request_timeout=None, headers=http_headers, **kwargs
             )
+            # TODO: process meta
+            return response.body.decode('utf-8')
         finally:
             if not deserialize_it:
-                self.es.transport.deserializer = deserializer
-
-    def _get_wrapper(self, path):
-        if path == '/_nodes/hot_threads':
-            return _wrapper_text
-        elif path.startswith("/_cat/"):
-            if get_global_config().as_bool('accept_json_for_cat'):
-                return _wrapper_json
-            else:
-                return _wrapper_text
-        else:
-            return _wrapper_json
-
-    def wrap_path(self, path):
-        return path
+                self.transport.serializers = serializers
 
     def info(self):
         if self.api_key:
