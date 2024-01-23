@@ -116,6 +116,11 @@ class EsClient(BaseClient):
                 if self.ssl_show_warn is not None:
                     replacements['ssl_show_warn'] = self.ssl_show_warn
 
+                # By default verify_certs is false. If client cert and key are explicitly passed,
+                # verify_certs must be true as well, otherwise Python won't send the client materials at all
+                if 'client_cert' in replacements or 'client_key' in replacements:
+                    replacements['verify_certs'] = True
+
             node_configs.append(node_config.replace(**replacements))
 
         if self.cloud_id:
