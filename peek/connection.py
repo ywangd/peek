@@ -67,7 +67,7 @@ class EsClient(BaseClient):
         self.api_key = api_key
         self.token = token
         self.assert_fingerprint = None  # TODO: fill this in
-        self.ssl_show_warn = None  # TODO: fill this in as well
+        self.ssl_show_warn = False  # TODO: fill this in as well
 
         self.headers = headers
         request_headers = {} if self.headers is None else dict(self.headers)
@@ -92,7 +92,7 @@ class EsClient(BaseClient):
                 if host.startswith('http://') or host.startswith('https://'):
                     hosts.append(host)
                 else:
-                    hosts.append(f'http://{host}')
+                    hosts.append(f'{"https" if self.use_ssl else "http"}://{host}')
 
         node_configs = []
         for host in hosts:
@@ -106,11 +106,13 @@ class EsClient(BaseClient):
                     replacements['client_cert'] = self.client_cert
                 if self.client_key:
                     replacements['client_key'] = self.client_key
-                if self.assert_hostname:
+                if self.verify_certs is not None:
+                    replacements['verify_certs'] = self.verify_certs
+                if self.assert_hostname is not None:
                     replacements['ssl_assert_hostname'] = self.assert_hostname
-                if self.assert_fingerprint:
+                if self.assert_fingerprint is not None:
                     replacements['ssl_assert_fingerprint'] = self.assert_fingerprint
-                if self.ssl_show_warn:
+                if self.ssl_show_warn is not None:
                     replacements['ssl_show_warn'] = self.ssl_show_warn
 
             node_configs.append(node_config.replace(**replacements))
