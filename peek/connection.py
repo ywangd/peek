@@ -69,20 +69,20 @@ class EsClient(BaseClient):
         self.assert_fingerprint = None  # TODO: fill this in
         self.ssl_show_warn = None  # TODO: fill this in as well
 
-        headers = {} if headers is None else headers
-        self.headers = dict(headers)
+        self.headers = headers
+        request_headers = {} if self.headers is None else dict(self.headers)
 
         # The order of authentication scheme is API key, token then basic auth.
         # We add them in reverse order so that later ones overwrite the earlier ones
         # TODO: use basic_auth_to_header utility method from the transport lib
         if self.auth:
-            headers.update({'Authorization': 'Basic ' + base64.b64encode(self.auth.encode('utf-8')).decode()})
+            request_headers.update({'Authorization': 'Basic ' + base64.b64encode(self.auth.encode('utf-8')).decode()})
 
         if self.token:
-            headers.update({'Authorization': f'Bearer {self.token}'})
+            request_headers.update({'Authorization': f'Bearer {self.token}'})
 
         if self.api_key:
-            headers.update(
+            request_headers.update(
                 {'Authorization': 'ApiKey ' + base64.b64encode(':'.join(self.api_key).encode('utf-8')).decode()}
             )
 
@@ -98,7 +98,7 @@ class EsClient(BaseClient):
         for host in hosts:
             node_config = elastic_transport.client_utils.url_to_node_config(host)
             replacements = {'headers': dict(node_config.headers)}
-            replacements['headers'].update(headers)
+            replacements['headers'].update(request_headers)
             if node_config.scheme == 'https':
                 if self.ca_certs:
                     replacements['ca_certs'] = self.ca_certs
@@ -211,7 +211,7 @@ class EsClient(BaseClient):
                 else:
                     hosts.append(('https://' if self.use_ssl else 'http://') + host)
         else:
-            hosts.append(self.cloud_id.split(':')[0])
+            hosts.append(self.cloud_id.split(':')[0] + "@Cloud")
 
         hosts = ','.join(hosts)
         if self.api_key:

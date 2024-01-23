@@ -141,16 +141,16 @@ def test_connection_related_funcs(peek_app):
 def test_connect_with_failed_test_will_not_be_added(peek_app):
     peek_app.display = MagicMock()
     peek_app.display.error = MagicMock()
-    mock_es = MagicMock()
+    mock_transport = MagicMock()
 
     error = RuntimeError('Should fail')
 
     def mock_perform_request(*args, **kwargs):
         raise error
 
-    mock_es.transport.perform_request = MagicMock(side_effect=mock_perform_request)
-    MockEs = MagicMock(return_value=mock_es)
-    with patch('peek.connection.Elasticsearch', MockEs):
+    mock_transport.perform_request = MagicMock(side_effect=mock_perform_request)
+    MockTransport = MagicMock(return_value=mock_transport)
+    with patch('peek.connection.Transport', MockTransport):
         connect_f = ConnectFunc()
         assert connect_f(peek_app, username=None, test=True) is None
         peek_app.display.error.assert_called_with(error)

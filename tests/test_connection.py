@@ -142,7 +142,7 @@ def test_connect_will_prefer_cloud_id():
             },
         )
 
-    assert str(client) == 'foo @ my-cloud-id'
+    assert str(client) == 'foo @ my-cloud-id@Cloud'
     assert client.hosts is None
 
 
@@ -151,12 +151,7 @@ def test_es_client_to_and_from_dict():
     mock_app.config.as_bool = MagicMock(return_value=False)
     client = connect(
         mock_app,
-        **{
-            'username': 'foo',
-            'password': 'password',
-            'hosts': 'example.com:9200',
-            'use_ssl': True,
-        },
+        **{'username': 'foo', 'password': 'password', 'hosts': 'example.com:9200'},
     )
 
     d = client.to_dict()
