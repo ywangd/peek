@@ -237,6 +237,7 @@ class PeekApp:
             'use_ssl',
             'verify_certs',
             'assert_hostname',
+            'assert_fingerprint',
             'ca_certs',
             'client_cert',
             'client_key',

@@ -46,7 +46,8 @@ class EsClient(BaseClient):
         password=None,
         use_ssl=False,
         verify_certs=False,
-        assert_hostname=False,
+        assert_hostname=None,
+        assert_fingerprint=None,
         ca_certs=None,
         client_cert=None,
         client_key=None,
@@ -66,7 +67,7 @@ class EsClient(BaseClient):
         self.client_key = client_key
         self.api_key = api_key
         self.token = token
-        self.assert_fingerprint = None  # TODO: fill this in
+        self.assert_fingerprint = assert_fingerprint
         self.ssl_show_warn = False  # TODO: fill this in as well
 
         self.headers = headers
@@ -108,9 +109,9 @@ class EsClient(BaseClient):
                     replacements['client_key'] = self.client_key
                 if self.verify_certs is not None:
                     replacements['verify_certs'] = self.verify_certs
-                if self.assert_hostname is not None:
+                if self.assert_hostname:
                     replacements['ssl_assert_hostname'] = self.assert_hostname
-                if self.assert_fingerprint is not None:
+                if self.assert_fingerprint:
                     replacements['ssl_assert_fingerprint'] = self.assert_fingerprint
                 if self.ssl_show_warn is not None:
                     replacements['ssl_show_warn'] = self.ssl_show_warn
@@ -295,6 +296,8 @@ class RefreshingEsClient(BaseClient):
             cloud_id=self.parent.cloud_id,
             use_ssl=self.parent.use_ssl,
             verify_certs=self.parent.verify_certs,
+            assert_hostname=self.parent.assert_hostname,
+            assert_fingerprint=self.parent.assert_fingerprint,
             ca_certs=self.parent.ca_certs,
             client_cert=self.parent.client_cert,
             client_key=self.parent.client_key,
@@ -479,7 +482,8 @@ DEFAULT_OPTIONS = {
     'token': None,
     'use_ssl': False,
     'verify_certs': False,
-    'assert_hostname': False,
+    'assert_hostname': None,
+    'assert_fingerprint': None,
     'ca_certs': None,
     'client_cert': None,
     'client_key': None,
@@ -557,6 +561,7 @@ def _maybe_copy_current_client_options(app, options: dict):
         options['use_ssl'] = current_es_client.use_ssl
         options['verify_certs'] = current_es_client.verify_certs
         options['assert_hostname'] = current_es_client.assert_hostname
+        options['assert_fingerprint'] = current_es_client.assert_fingerprint
         options['ca_certs'] = current_es_client.ca_certs
         options['client_cert'] = current_es_client.client_cert
         options['client_key'] = current_es_client.client_key
@@ -604,6 +609,7 @@ def _connect_userpass(app, **options):
         use_ssl=options['use_ssl'],
         verify_certs=options['verify_certs'],
         assert_hostname=options['assert_hostname'],
+        assert_fingerprint=options['assert_fingerprint'],
         ca_certs=options['ca_certs'],
         client_cert=options['client_cert'],
         client_key=options['client_key'],
@@ -628,6 +634,7 @@ def _connect_api_key(app, **options):
         use_ssl=options['use_ssl'],
         verify_certs=options['verify_certs'],
         assert_hostname=options['assert_hostname'],
+        assert_fingerprint=options['assert_fingerprint'],
         ca_certs=options['ca_certs'],
         client_cert=options['client_cert'],
         client_key=options['client_key'],
@@ -645,6 +652,7 @@ def _connect_token(app, **options):
         use_ssl=options['use_ssl'],
         verify_certs=options['verify_certs'],
         assert_hostname=options['assert_hostname'],
+        assert_fingerprint=options['assert_fingerprint'],
         ca_certs=options['ca_certs'],
         client_cert=options['client_cert'],
         client_key=options['client_key'],
