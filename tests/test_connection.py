@@ -128,16 +128,16 @@ def test_connect_will_prefer_cloud_id():
     mock_app = MagicMock(name='PeekApp')
     mock_app.config.as_bool = MagicMock(return_value=False)
 
-    mock_es = MagicMock()
-    MockEs = MagicMock(return_value=mock_es)
+    mock_transport = MagicMock()
+    MockTransport = MagicMock(return_value=mock_transport)
 
-    with patch('peek.connection.Elasticsearch', MockEs):
+    with patch('peek.connection.Transport', MockTransport):
         client = connect(
             mock_app,
             **{
                 'username': 'foo',
                 'password': 'password',
-                'cloud_id': 'my-cloud-id',
+                'cloud_id': 'my-cloud-id:' 'd3d3LmV4YW1wbGUuY29tOjQ0MyQ4ODgkOTk5OQ==',
                 'hosts': 'example.com:9200',
             },
         )

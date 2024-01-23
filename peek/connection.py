@@ -6,7 +6,9 @@ from abc import ABCMeta, abstractmethod
 from typing import List, Iterable
 
 import elastic_transport.client_utils
+from elastic_transport import Transport
 from configobj import Section
+from elastic_transport import NodeConfig
 from elasticsearch import AuthenticationException
 
 from peek.errors import PeekError
@@ -91,8 +93,6 @@ class EsClient(BaseClient):
                     hosts.append(host)
                 else:
                     hosts.append(f'http://{host}')
-        else:
-            raise ValueError('No hosts specified')
 
         node_configs = []
         for host in hosts:
@@ -115,8 +115,17 @@ class EsClient(BaseClient):
 
             node_configs.append(node_config.replace(**replacements))
 
-        self.transport = elastic_transport.Transport(node_configs, max_retries=0, retry_on_timeout=False)
-        # TODO: timeout is now handled at perform_request time
+        if self.cloud_id:
+            cloud_id = elastic_transport.client_utils.parse_cloud_id(self.cloud_id)
+            node_configs.append(
+                NodeConfig(scheme='https', host=cloud_id.es_address[0], port=cloud_id.es_address[1], http_compress=True)
+            )
+
+        if not node_configs:
+            raise ValueError('no node configurations found')
+
+        # Timeout is handled at perform_request
+        self.transport = Transport(node_configs, max_retries=0, retry_on_timeout=False)
 
     def perform_request(self, method, path, payload=None, deserialize_it=False, headers=None, **kwargs):
         _logger.debug(f'Performing request: {method!r}, {path!r}, {payload!r}')
@@ -202,7 +211,7 @@ class EsClient(BaseClient):
                 else:
                     hosts.append(('https://' if self.use_ssl else 'http://') + host)
         else:
-            hosts.append(self.cloud_id)
+            hosts.append(self.cloud_id.split(':')[0])
 
         hosts = ','.join(hosts)
         if self.api_key:
