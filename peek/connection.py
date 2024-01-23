@@ -153,7 +153,10 @@ class EsClient(BaseClient):
                 method, path, body=payload, request_timeout=None, headers=http_headers, **kwargs
             )
             # TODO: process meta
-            return response.body.decode('utf-8')
+            if deserialize_it:
+                return response.body
+            else:
+                return response.body.decode('utf-8')
         finally:
             if not deserialize_it:
                 self.transport.serializers = serializers

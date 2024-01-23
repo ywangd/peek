@@ -1,6 +1,7 @@
-prompt-toolkit~=3.0.29
-Pygments~=2.11.2
 configobj~=5.0.6
 elasticsearch~=8.12.0
-urllib3~=1.26.9
+elastic-transport~=8.12.0
 keyring~=23.5.0
+prompt-toolkit~=3.0.29
+Pygments~=2.11.2
+urllib3~=1.26.9
