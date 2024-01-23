@@ -3,6 +3,8 @@ from unittest.mock import MagicMock, call
 
 import pytest
 from configobj import ConfigObj
+from elastic_transport import ApiResponseMeta, HttpHeaders, NodeConfig
+from elastic_transport._transport import TransportApiResponse
 
 from peek.errors import PeekError
 from peek.parser import PeekParser
@@ -28,7 +30,12 @@ def peek_vm():
     es_client = MagicMock(name='EsClient')
     mock_app.es_client_manager.current = es_client
     mock_app.es_client_manager.get_client = MagicMock(return_value=es_client)
-    es_client.perform_request = MagicMock(return_value='{"foo": [1, 2, 3, 4], "bar": {"hello": [42, "world"]}}')
+    es_client.perform_request = MagicMock(
+        return_value=TransportApiResponse(
+            ApiResponseMeta(200, "1.1", HttpHeaders(), 0.0, MagicMock()),
+            '{"foo": [1, 2, 3, 4], "bar": {"hello": [42, "world"]}}',
+        )
+    )
     return vm
 
 
@@ -185,6 +192,7 @@ def test_warning_header(peek_vm, parser):
 
     def perform_request(*args, **kwargs):
         warnings.warn(message, ElasticsearchDeprecationWarning)
+        return TransportApiResponse(MagicMock(), '')
 
     es_client.perform_request = MagicMock(side_effect=perform_request)
 

@@ -69,7 +69,7 @@ def _oidc_prepare(es_client, realm: str):
             }
         ),
         deserialize_it=True,
-    )
+    ).body
 
 
 def _oidc_do_authenticate(es_client, realm: str, state: str, nonce: str, redirect_uri: str):
@@ -85,7 +85,7 @@ def _oidc_do_authenticate(es_client, realm: str, state: str, nonce: str, redirec
             }
         ),
         deserialize_it=True,
-    )
+    ).body
     return response
 
 

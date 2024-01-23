@@ -6,10 +6,10 @@ from abc import ABCMeta, abstractmethod
 from typing import List, Iterable
 
 import elastic_transport.client_utils
-from elastic_transport import Transport
 from configobj import Section
 from elastic_transport import NodeConfig
-from elasticsearch import AuthenticationException
+from elastic_transport import Transport
+from elastic_transport._transport import TransportApiResponse
 
 from peek.errors import PeekError
 
@@ -152,11 +152,10 @@ class EsClient(BaseClient):
             response = self.transport.perform_request(
                 method, path, body=payload, request_timeout=None, headers=http_headers, **kwargs
             )
-            # TODO: process meta
             if deserialize_it:
-                return response.body
+                return response
             else:
-                return response.body.decode('utf-8')
+                return TransportApiResponse(response.meta, response.body.decode('utf-8'))
         finally:
             if not deserialize_it:
                 self.transport.serializers = serializers
@@ -251,26 +250,26 @@ class RefreshingEsClient(BaseClient):
         return getattr(self.delegate, item)
 
     def perform_request(self, method, path, payload=None, deserialize_it=False, **kwargs):
-        try:
-            return self.delegate.perform_request(method, path, payload, deserialize_it, **kwargs)
-        except AuthenticationException as e:
-            if e.status_code == 401:
-                response = self.parent.perform_request(
-                    'POST',
-                    '/_security/oauth2/token',
-                    json.dumps(
-                        {
-                            'grant_type': 'refresh_token',
-                            'refresh_token': self.refresh_token,
-                        }
-                    ),
-                    deserialize_it=True,
-                )
-                self.access_token = response['access_token']
-                self.refresh_token = response['refresh_token']
-                self.expires_in = response['expires_in']
-                self._build_delegate()
-                self.perform_request(method, path, payload, deserialize_it=deserialize_it, **kwargs)
+        response = self.delegate.perform_request(method, path, payload, deserialize_it, **kwargs)
+        if response.meta.status == 401:
+            body = self.parent.perform_request(
+                'POST',
+                '/_security/oauth2/token',
+                json.dumps(
+                    {
+                        'grant_type': 'refresh_token',
+                        'refresh_token': self.refresh_token,
+                    }
+                ),
+                deserialize_it=True,
+            ).body
+            self.access_token = body['access_token']
+            self.refresh_token = body['refresh_token']
+            self.expires_in = body['expires_in']
+            self.delegate = self._build_delegate()
+            return self.perform_request(method, path, payload, deserialize_it=deserialize_it, **kwargs)
+        else:
+            return response
 
     def info(self):
         info = self.delegate.info()
@@ -700,7 +699,7 @@ class ConnectFunc:
         es_client = connect(app, **options)
         if test_connection:
             try:
-                app.display.info(es_client.perform_request('GET', '/_security/_authenticate'))
+                app.display.info(es_client.perform_request('GET', '/_security/_authenticate').body)
             except Exception as e:
                 app.display.error(e)
                 return

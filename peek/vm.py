@@ -175,7 +175,7 @@ class PeekVM(Visitor):
                     'payload': payload,
                     'headers': final_headers,
                 }
-                response = es_client.perform_request(node.method, final_path, payload, headers=final_headers)
+                response = es_client.perform_request(node.method, final_path, payload, headers=final_headers).body
             for w in ws:
                 if not quiet and self._should_show_warnings(w):
                     self.app.display.warn(str(w.message))

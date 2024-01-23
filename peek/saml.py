@@ -75,7 +75,7 @@ def _saml_prepare(es_client, realm: str):
             }
         ),
         deserialize_it=True,
-    )
+    ).body
 
 
 def _saml_do_authenticate(es_client, realm: str, _id: str, content: str):
@@ -90,7 +90,7 @@ def _saml_do_authenticate(es_client, realm: str, _id: str, content: str):
             }
         ),
         deserialize_it=True,
-    )
+    ).body
     return response
 
 
