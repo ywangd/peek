@@ -117,9 +117,10 @@ class EsClient(BaseClient):
 
         if self.cloud_id:
             cloud_id = elastic_transport.client_utils.parse_cloud_id(self.cloud_id)
-            node_configs.append(
-                NodeConfig(scheme='https', host=cloud_id.es_address[0], port=cloud_id.es_address[1], http_compress=True)
+            node_config = NodeConfig(
+                scheme='https', host=cloud_id.es_address[0], port=cloud_id.es_address[1], http_compress=True
             )
+            node_configs.append(node_config.replace(headers=request_headers))
 
         if not node_configs:
             raise ValueError('no node configurations found')
