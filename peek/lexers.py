@@ -1,24 +1,24 @@
 import re
 from typing import Iterable
 
-from pygments.lexer import RegexLexer, words, include, bygroups, default
+from pygments.lexer import RegexLexer, bygroups, default, include, words
 from pygments.style import Style
 from pygments.token import (
+    Comment,
+    Error,
+    Generic,
     Keyword,
     Literal,
-    String,
-    Number,
-    Punctuation,
     Name,
-    Comment,
-    Whitespace,
-    Generic,
-    Error,
+    Number,
     Operator,
+    Punctuation,
+    String,
     Text,
+    Whitespace,
 )
 
-from peek.common import PeekToken, HTTP_METHODS
+from peek.common import HTTP_METHODS, PeekToken
 from peek.errors import PeekSyntaxError
 
 Percent = Punctuation.Percent
@@ -329,7 +329,7 @@ class PeekLexer(RegexLexer):
             try:
                 pt = PeekToken(*next(stream))
                 if pt.ttype is DictKey:
-                    assert 0 == len(buffer)
+                    assert len(buffer) == 0
                     buffer.append(pt)
                     while True:
                         pt_next = PeekToken(*next(stream))

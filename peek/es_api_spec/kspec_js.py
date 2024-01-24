@@ -8,12 +8,11 @@ from unittest.mock import MagicMock
 
 from configobj import ConfigObj
 
-from peek.ast import NameNode, SymbolNode, DictNode, BinOpNode, TextNode, Node
+from peek.ast import BinOpNode, DictNode, NameNode, Node, SymbolNode, TextNode
 from peek.config import config_location
 from peek.parser import PeekParser
-from peek.visitors import FormattingVisitor
-from peek.visitors import Ref
-from peek.vm import PeekVM, _BIN_OP_FUNCS
+from peek.visitors import FormattingVisitor, Ref
+from peek.vm import _BIN_OP_FUNCS, PeekVM
 
 _CONST_SIMPLE_PATTERN = re.compile(r'^(export )?const (?P<name>\w+)[^=]* = (?P<rest>{[^;]*);?')
 _CONST_COMPLEX_PATTERN = re.compile(

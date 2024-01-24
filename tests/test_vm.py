@@ -3,6 +3,8 @@ from unittest.mock import MagicMock, call
 
 import pytest
 from configobj import ConfigObj
+from elastic_transport import ApiResponseMeta, HttpHeaders
+from elastic_transport._transport import TransportApiResponse
 
 from peek.errors import PeekError
 from peek.parser import PeekParser
@@ -28,7 +30,12 @@ def peek_vm():
     es_client = MagicMock(name='EsClient')
     mock_app.es_client_manager.current = es_client
     mock_app.es_client_manager.get_client = MagicMock(return_value=es_client)
-    es_client.perform_request = MagicMock(return_value='{"foo": [1, 2, 3, 4], "bar": {"hello": [42, "world"]}}')
+    es_client.perform_request = MagicMock(
+        return_value=TransportApiResponse(
+            ApiResponseMeta(200, "1.1", HttpHeaders(), 0.0, MagicMock()),
+            '{"foo": [1, 2, 3, 4], "bar": {"hello": [42, "world"]}}',
+        )
+    )
     return vm
 
 
@@ -48,7 +55,7 @@ def test_peek_vm_data_types(peek_vm, parser):
 
 def test_peek_vm_expr(peek_vm, parser):
     peek_vm.execute_node(parser.parse('debug 1 + 2 * 3 + (5-1) {"a": 42}.@a [4, 2, 1].1 foo="a" + "b"')[0])
-    assert_called_with(peek_vm, 11, 42, 2, **{'foo': 'ab'})
+    assert_called_with(peek_vm, 11, 42, 2, foo='ab')
 
 
 def test_str_and_number(peek_vm, parser):
@@ -135,10 +142,8 @@ def test_payload_file(peek_vm, parser):
 
     peek_vm.execute_node(
         parser.parse(
-            '''PUT _bulk
-@{}'''.format(
-                payload_file
-            )
+            f'''PUT _bulk
+@{payload_file}'''
         )[0]
     )
 
@@ -170,21 +175,15 @@ def test_payload_file(peek_vm, parser):
 
 
 def test_warning_header(peek_vm, parser):
-    import elasticsearch
-
-    if elasticsearch.__version__ < (7, 7, 0):
-        return
-
-    import warnings
-    from elasticsearch.exceptions import ElasticsearchDeprecationWarning
-
     peek_vm.app.display.warn = MagicMock(return_value=None)
     es_client = peek_vm.app.es_client_manager.get_client()
 
     message = 'This is a warning message'
 
     def perform_request(*args, **kwargs):
-        warnings.warn(message, ElasticsearchDeprecationWarning)
+        return TransportApiResponse(
+            ApiResponseMeta(200, '1.1', HttpHeaders({'Warning': f'299 elasticsearch {message}'}), 0.0, MagicMock()), ''
+        )
 
     es_client.perform_request = MagicMock(side_effect=perform_request)
 

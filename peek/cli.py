@@ -30,7 +30,8 @@ def main():
     parser.add_argument(
         '--verify_certs', action='store_true', default=argparse.SUPPRESS, help='Verify server certificate'
     )
-    parser.add_argument('--assert_hostname', action='store_true', default=argparse.SUPPRESS, help='Verify hostname')
+    parser.add_argument('--assert_hostname', default=argparse.SUPPRESS, help='Verify for the given hostname')
+    parser.add_argument('--assert_fingerprint', default=argparse.SUPPRESS, help='Verify for the given fingerprint')
     parser.add_argument('--ca_certs', help='Location of CA certificates')
     parser.add_argument('--client_cert', help='Location of client certificate')
     parser.add_argument('--client_key', help='Location of client private key')

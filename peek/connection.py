@@ -1,45 +1,37 @@
 import base64
-import functools
 import json
 import logging
 import os
 from abc import ABCMeta, abstractmethod
-from typing import List, Iterable
+from typing import Iterable, List
 
-import elasticsearch.client.utils
+import elastic_transport.client_utils
 from configobj import Section
-from elasticsearch import Elasticsearch, AuthenticationException
-from urllib3 import Timeout
+from elastic_transport import NodeConfig, Transport, client_utils
+from elastic_transport._transport import TransportApiResponse
 
-from peek.config import get_global_config
 from peek.errors import PeekError
 
 _logger = logging.getLogger(__name__)
 
-# Wrappers for adding request and response content type
-_wrapper_json = elasticsearch.client.utils.query_params(
-    request_mimetypes=["application/json"], response_mimetypes=["application/json"]
-)
-
-_wrapper_text = elasticsearch.client.utils.query_params(
-    request_mimetypes=["application/json"], response_mimetypes=["text/plain", "application/json"]
-)
-
 
 class NoopDeserializer:
-    def __init__(self):
-        pass
+    def __init__(self, delegate):
+        self._delegate = delegate
+
+    def dumps(self, *args, **kwargs):
+        return self._delegate.dumps(*args, **kwargs)
 
     def loads(self, s, *args, **kwargs):
         return s
 
-
-noopDeserializer = NoopDeserializer()
+    def get_serializer(self, *args, **kwargs):
+        return self._delegate.get_serializer(*args, **kwargs)
 
 
 class BaseClient(metaclass=ABCMeta):
     @abstractmethod
-    def perform_request(self, method, path, payload=None, deserialize_it=False, **kwargs):
+    def perform_request(self, method, path, payload=None, deserialize_it=False, **kwargs) -> TransportApiResponse:
         pass
 
 
@@ -53,7 +45,8 @@ class EsClient(BaseClient):
         password=None,
         use_ssl=False,
         verify_certs=False,
-        assert_hostname=False,
+        assert_hostname=None,
+        assert_fingerprint=None,
         ca_certs=None,
         client_cert=None,
         client_key=None,
@@ -73,60 +66,99 @@ class EsClient(BaseClient):
         self.client_key = client_key
         self.api_key = api_key
         self.token = token
-        self.headers = dict(headers) if headers is not None else None
-        if token:
-            token_header = {'Authorization': f'Bearer {token}'}
-            if headers:
-                headers.update(token_header)
-            else:
-                headers = token_header
+        self.assert_fingerprint = assert_fingerprint
+        self.ssl_show_warn = False  # TODO: fill this in as well
 
-        self.es = Elasticsearch(
-            hosts=self.hosts.split(',') if self.hosts else None,
-            cloud_id=cloud_id,
-            http_auth=self.auth,
-            use_ssl=use_ssl,
-            verify_certs=verify_certs,
-            ca_certs=ca_certs,
-            client_cert=client_cert,
-            client_key=client_key,
-            ssl_show_warn=False,
-            timeout=Timeout(connect=None, read=None),
-            api_key=api_key,
-            headers=headers,
-            ssl_assert_hostname=assert_hostname,
-        )
-        # skip product verification because it requires deserialization of payload
-        self.es.transport._verified_elasticsearch = True
+        self.headers = headers
+        request_headers = {} if self.headers is None else dict(self.headers)
 
-    def perform_request(self, method, path, payload=None, deserialize_it=False, **kwargs):
+        # The order of authentication scheme is API key, token then basic auth.
+        # We add them in reverse order so that later ones overwrite the earlier ones
+        # TODO: use basic_auth_to_header utility method from the transport lib
+        if self.auth:
+            request_headers.update({'Authorization': client_utils.basic_auth_to_header((username, password))})
+
+        if self.token:
+            request_headers.update({'Authorization': f'Bearer {self.token}'})
+
+        if self.api_key:
+            request_headers.update(
+                {'Authorization': 'ApiKey ' + base64.b64encode(':'.join(self.api_key).encode('utf-8')).decode()}
+            )
+
+        hosts = []
+        if self.hosts:
+            for host in self.hosts.split(','):
+                if host.startswith('http://') or host.startswith('https://'):
+                    hosts.append(host)
+                else:
+                    hosts.append(f'{"https" if self.use_ssl else "http"}://{host}')
+
+        node_configs = []
+        for host in hosts:
+            node_config = elastic_transport.client_utils.url_to_node_config(host)
+            replacements = {'headers': dict(node_config.headers)}
+            replacements['headers'].update(request_headers)
+            if node_config.scheme == 'https':
+                if self.ca_certs:
+                    replacements['ca_certs'] = self.ca_certs
+                if self.client_cert:
+                    replacements['client_cert'] = self.client_cert
+                if self.client_key:
+                    replacements['client_key'] = self.client_key
+                if self.verify_certs is not None:
+                    replacements['verify_certs'] = self.verify_certs
+                if self.assert_hostname:
+                    replacements['ssl_assert_hostname'] = self.assert_hostname
+                if self.assert_fingerprint:
+                    replacements['ssl_assert_fingerprint'] = self.assert_fingerprint
+                if self.ssl_show_warn is not None:
+                    replacements['ssl_show_warn'] = self.ssl_show_warn
+
+                # By default verify_certs is false. If client cert and key are explicitly passed,
+                # verify_certs must be true as well, otherwise Python won't send the client materials at all
+                if 'client_cert' in replacements or 'client_key' in replacements:
+                    replacements['verify_certs'] = True
+
+            node_configs.append(node_config.replace(**replacements))
+
+        if self.cloud_id:
+            cloud_id = elastic_transport.client_utils.parse_cloud_id(self.cloud_id)
+            node_config = NodeConfig(
+                scheme='https', host=cloud_id.es_address[0], port=cloud_id.es_address[1], http_compress=True
+            )
+            node_configs.append(node_config.replace(headers=request_headers))
+
+        if not node_configs:
+            raise ValueError('no node configurations found')
+
+        # Timeout is handled at perform_request
+        self.transport = Transport(node_configs, max_retries=0, retry_on_timeout=False)
+
+    def perform_request(self, method, path, payload=None, deserialize_it=False, headers=None, **kwargs):
         _logger.debug(f'Performing request: {method!r}, {path!r}, {payload!r}')
-        deserializer = self.es.transport.deserializer
+        serializers = self.transport.serializers
         try:
             if not deserialize_it:
                 # Avoid deserializing the response since we parse it with the main loop for syntax highlighting
-                self.es.transport.deserializer = noopDeserializer
-            _wrapper = self._get_wrapper(path)
-            return _wrapper(functools.partial(self.es.transport.perform_request, method, self.wrap_path(path)))(
-                body=payload, **kwargs
+                self.transport.serializers = NoopDeserializer(serializers)
+
+            http_headers = elastic_transport.HttpHeaders(headers)
+
+            if payload is not None and 'content-type' not in http_headers:
+                http_headers['content-type'] = 'application/json'
+
+            response = self.transport.perform_request(
+                method, path, body=payload, request_timeout=None, headers=http_headers, **kwargs
             )
+
+            if deserialize_it:
+                return response
+            else:
+                return TransportApiResponse(response.meta, response.body.decode('utf-8'))
         finally:
             if not deserialize_it:
-                self.es.transport.deserializer = deserializer
-
-    def _get_wrapper(self, path):
-        if path == '/_nodes/hot_threads':
-            return _wrapper_text
-        elif path.startswith("/_cat/"):
-            if get_global_config().as_bool('accept_json_for_cat'):
-                return _wrapper_json
-            else:
-                return _wrapper_text
-        else:
-            return _wrapper_json
-
-    def wrap_path(self, path):
-        return path
+                self.transport.serializers = serializers
 
     def info(self):
         if self.api_key:
@@ -166,6 +198,7 @@ class EsClient(BaseClient):
             'use_ssl': self.use_ssl,
             'verify_certs': self.verify_certs,
             'assert_hostname': self.assert_hostname,
+            'assert_fingerprint': self.assert_fingerprint,
             'ca_certs': self.ca_certs,
             'client_cert': self.client_cert,
             'client_key': self.client_key,
@@ -190,7 +223,7 @@ class EsClient(BaseClient):
                 else:
                     hosts.append(('https://' if self.use_ssl else 'http://') + host)
         else:
-            hosts.append(self.cloud_id)
+            hosts.append(self.cloud_id.split(':')[0] + "@Cloud")
 
         hosts = ','.join(hosts)
         if self.api_key:
@@ -218,26 +251,26 @@ class RefreshingEsClient(BaseClient):
         return getattr(self.delegate, item)
 
     def perform_request(self, method, path, payload=None, deserialize_it=False, **kwargs):
-        try:
-            return self.delegate.perform_request(method, path, payload, deserialize_it, **kwargs)
-        except AuthenticationException as e:
-            if e.status_code == 401:
-                response = self.parent.perform_request(
-                    'POST',
-                    '/_security/oauth2/token',
-                    json.dumps(
-                        {
-                            'grant_type': 'refresh_token',
-                            'refresh_token': self.refresh_token,
-                        }
-                    ),
-                    deserialize_it=True,
-                )
-                self.access_token = response['access_token']
-                self.refresh_token = response['refresh_token']
-                self.expires_in = response['expires_in']
-                self._build_delegate()
-                self.perform_request(method, path, payload, deserialize_it=deserialize_it, **kwargs)
+        response = self.delegate.perform_request(method, path, payload, deserialize_it, **kwargs)
+        if response.meta.status == 401:
+            body = self.parent.perform_request(
+                'POST',
+                '/_security/oauth2/token',
+                json.dumps(
+                    {
+                        'grant_type': 'refresh_token',
+                        'refresh_token': self.refresh_token,
+                    }
+                ),
+                deserialize_it=True,
+            ).body
+            self.access_token = body['access_token']
+            self.refresh_token = body['refresh_token']
+            self.expires_in = body['expires_in']
+            self.delegate = self._build_delegate()
+            return self.perform_request(method, path, payload, deserialize_it=deserialize_it, **kwargs)
+        else:
+            return response
 
     def info(self):
         info = self.delegate.info()
@@ -271,6 +304,8 @@ class RefreshingEsClient(BaseClient):
             cloud_id=self.parent.cloud_id,
             use_ssl=self.parent.use_ssl,
             verify_certs=self.parent.verify_certs,
+            assert_hostname=self.parent.assert_hostname,
+            assert_fingerprint=self.parent.assert_fingerprint,
             ca_certs=self.parent.ca_certs,
             client_cert=self.parent.client_cert,
             client_key=self.parent.client_key,
@@ -455,7 +490,8 @@ DEFAULT_OPTIONS = {
     'token': None,
     'use_ssl': False,
     'verify_certs': False,
-    'assert_hostname': False,
+    'assert_hostname': None,
+    'assert_fingerprint': None,
     'ca_certs': None,
     'client_cert': None,
     'client_key': None,
@@ -507,9 +543,9 @@ def _maybe_configure_smart_connect(app, options: dict):
                     urlpath.startswith('/_security/user/') or urlpath.startswith('/_xpack/security/user/')
                 ):
                     if urlpath.startswith('/_security/user/'):
-                        username = urlpath[len('/_security/user/'):]
+                        username = urlpath[len('/_security/user/') :]
                     else:
-                        username = urlpath[len('/_xpack/security/user/'):]
+                        username = urlpath[len('/_xpack/security/user/') :]
                     payload = json.loads(last_request['payload'])
                     password = payload.get('password', None)
                     _maybe_copy_current_client_options(app, smart_options)
@@ -533,6 +569,7 @@ def _maybe_copy_current_client_options(app, options: dict):
         options['use_ssl'] = current_es_client.use_ssl
         options['verify_certs'] = current_es_client.verify_certs
         options['assert_hostname'] = current_es_client.assert_hostname
+        options['assert_fingerprint'] = current_es_client.assert_fingerprint
         options['ca_certs'] = current_es_client.ca_certs
         options['client_cert'] = current_es_client.client_cert
         options['client_key'] = current_es_client.client_key
@@ -580,6 +617,7 @@ def _connect_userpass(app, **options):
         use_ssl=options['use_ssl'],
         verify_certs=options['verify_certs'],
         assert_hostname=options['assert_hostname'],
+        assert_fingerprint=options['assert_fingerprint'],
         ca_certs=options['ca_certs'],
         client_cert=options['client_cert'],
         client_key=options['client_key'],
@@ -604,6 +642,7 @@ def _connect_api_key(app, **options):
         use_ssl=options['use_ssl'],
         verify_certs=options['verify_certs'],
         assert_hostname=options['assert_hostname'],
+        assert_fingerprint=options['assert_fingerprint'],
         ca_certs=options['ca_certs'],
         client_cert=options['client_cert'],
         client_key=options['client_key'],
@@ -621,6 +660,7 @@ def _connect_token(app, **options):
         use_ssl=options['use_ssl'],
         verify_certs=options['verify_certs'],
         assert_hostname=options['assert_hostname'],
+        assert_fingerprint=options['assert_fingerprint'],
         ca_certs=options['ca_certs'],
         client_cert=options['client_cert'],
         client_key=options['client_key'],
@@ -660,7 +700,7 @@ class ConnectFunc:
         es_client = connect(app, **options)
         if test_connection:
             try:
-                app.display.info(es_client.perform_request('GET', '/_security/_authenticate'))
+                app.display.info(es_client.perform_request('GET', '/_security/_authenticate').body)
             except Exception as e:
                 app.display.error(e)
                 return

@@ -12,5 +12,10 @@ class AlwaysNoneNameSpace:
         return None
 
 
-PeekToken = NamedTuple('PeekToken', [('index', int), ('ttype', _TokenType), ('value', str)])
+class PeekToken(NamedTuple):
+    index: int
+    ttype: _TokenType
+    value: str
+
+
 NONE_NS = AlwaysNoneNameSpace()

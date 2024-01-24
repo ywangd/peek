@@ -4,13 +4,13 @@ import logging
 from abc import ABCMeta
 from typing import List, Tuple
 
-from prompt_toolkit.completion import Completion, CompleteEvent
+from prompt_toolkit.completion import CompleteEvent, Completion
 from prompt_toolkit.document import Document
-from pygments.token import String, Name
+from pygments.token import Name, String
 
 from peek.common import PeekToken
 from peek.es_api_spec.schema import Schema
-from peek.lexers import Slash, PathPart, Assign, CurlyLeft, CurlyRight, DictKey, EOF, Colon, BracketLeft, Comma
+from peek.lexers import EOF, Assign, BracketLeft, Colon, Comma, CurlyLeft, CurlyRight, DictKey, PathPart, Slash
 from peek.parser import ParserEvent, ParserEventType
 
 _logger = logging.getLogger(__name__)

@@ -29,7 +29,7 @@ classifiers = [
 ]
 dependencies = [
     "configobj~=5.0.6",
-    "elasticsearch>=7.17.0,<8.0.0",
+    "elastic-transport~=8.12.0",
     "keyring~=23.5.0",
     "prompt-toolkit~=3.0.29",
     "Pygments~=2.11.2",
@@ -97,3 +97,6 @@ allow-direct-references = true
 target-version = ["py38"]
 line-length = 120
 skip-string-normalization = true
+
+[tool.usort]
+

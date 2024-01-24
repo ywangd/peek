@@ -5,16 +5,16 @@ from json import JSONDecodeError
 from typing import Any
 
 import pygments
-from prompt_toolkit import print_formatted_text, HTML
-from prompt_toolkit.formatted_text import PygmentsTokens, FormattedText, to_formatted_text, merge_formatted_text
+from prompt_toolkit import HTML, print_formatted_text
+from prompt_toolkit.formatted_text import FormattedText, PygmentsTokens, merge_formatted_text, to_formatted_text
 from prompt_toolkit.styles import (
-    style_from_pygments_cls,
     ConditionalStyleTransformation,
     SwapLightAndDarkStyleTransformation,
+    style_from_pygments_cls,
 )
 from pygments.token import Token
 
-from peek.lexers import PeekStyle, PeekLexer, Heading, TipsMinor
+from peek.lexers import Heading, PeekLexer, PeekStyle, TipsMinor
 
 _logger = logging.getLogger(__name__)
 
@@ -139,5 +139,5 @@ def to_text(val):
     # Normal lists which are not instances of `FormattedText` are
     # considered plain text.
     if isinstance(val, list) and not isinstance(val, FormattedText):
-        return to_formatted_text("{0}".format(val))
+        return to_formatted_text(f"{val}")
     return to_formatted_text(val, auto_convert=True)

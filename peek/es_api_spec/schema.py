@@ -1,7 +1,7 @@
 import logging
 import numbers
 from dataclasses import dataclass
-from typing import List, Dict, Union, Any
+from typing import Any, Dict, List, Union
 
 _logger = logging.getLogger(__name__)
 

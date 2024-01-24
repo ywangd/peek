@@ -2,57 +2,57 @@ import ast
 import json
 import logging
 from enum import Enum
-from typing import Iterable, NamedTuple, Callable
+from typing import Callable, Iterable, NamedTuple
 
-from pygments.token import Token, Whitespace, String, Comment, Literal, Number, Name, Error
+from pygments.token import Comment, Error, Literal, Name, Number, String, Token, Whitespace
 
 from peek.ast import (
-    NameNode,
-    FuncCallNode,
-    KeyValueNode,
-    StringNode,
-    NumberNode,
-    TextNode,
-    DictNode,
     ArrayNode,
-    ShellOutNode,
-    EsApiCallInlinePayloadNode,
-    EsApiCallFilePayloadNode,
     BinOpNode,
-    UnaryOpNode,
-    GroupNode,
-    SymbolNode,
-    LetNode,
+    DictNode,
+    EsApiCallFilePayloadNode,
+    EsApiCallInlinePayloadNode,
     ForInNode,
+    FuncCallNode,
+    GroupNode,
+    KeyValueNode,
+    LetNode,
+    NameNode,
+    NumberNode,
+    ShellOutNode,
+    StringNode,
+    SymbolNode,
+    TextNode,
+    UnaryOpNode,
 )
-from peek.common import PeekToken, HTTP_METHODS
+from peek.common import HTTP_METHODS, PeekToken
 from peek.errors import PeekSyntaxError
 from peek.lexers import (
-    PeekLexer,
+    EOF,
+    Assign,
+    At,
+    BinOp,
     BlankLine,
-    CurlyLeft,
-    DictKey,
-    Colon,
-    CurlyRight,
-    Comma,
     BracketLeft,
     BracketRight,
-    TripleS,
-    TripleD,
-    EOF,
+    Colon,
+    Comma,
+    CurlyLeft,
+    CurlyRight,
+    DictKey,
+    For,
     FuncName,
-    Assign,
     HttpMethod,
+    In,
+    Let,
     OptionName,
-    ShellOut,
-    At,
     ParenLeft,
     ParenRight,
+    PeekLexer,
+    ShellOut,
+    TripleD,
+    TripleS,
     UnaryOp,
-    BinOp,
-    Let,
-    For,
-    In,
 )
 
 _logger = logging.getLogger(__name__)
@@ -105,7 +105,9 @@ class ParserEventType(Enum):
 
 
 # Event to be published right before the actual parsing
-ParserEvent = NamedTuple('ParsingEvent', [('type', ParserEventType), ('token', PeekToken)])
+class ParserEvent(NamedTuple):
+    type: ParserEventType
+    token: PeekToken
 
 
 class PeekParser:

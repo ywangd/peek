@@ -28,7 +28,7 @@ def krb_authenticate(es_client: EsClient, service=None, username=None, name=None
             }
         ),
         deserialize_it=True,
-    )
+    ).body
     _logger.debug(f'Kerberos Token auth response: {auth_response}')
 
     return RefreshingEsClient(
@@ -59,7 +59,7 @@ class KrbAuthenticateFunc:
             options.get('name', None),
         )
         app.es_client_manager.add(krb_es_client)
-        return app.es_client_manager.current.perform_request('GET', '/_security/_authenticate')
+        return app.es_client_manager.current.perform_request('GET', '/_security/_authenticate').body
 
     @property
     def options(self):

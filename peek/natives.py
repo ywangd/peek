@@ -372,9 +372,9 @@ class HelpFunc:
 
 class VersionFunc:
     def __call__(self, app):
-        import elasticsearch
+        import elastic_transport
 
-        return f'"Peek (v{__version__})"\n"elasticsearch-py (v{elasticsearch.__versionstr__})"'
+        return f'"Peek (v{__version__})"\n"elastic_transport (v{elastic_transport.__version__})"'
 
     @property
     def description(self):
@@ -418,9 +418,9 @@ class DownloadApiSpecsFunc:
                     f'before download new spec files.'
                 )
 
+            import io
             import urllib.request
             import zipfile
-            import io
 
             kibana_version = options.get('version', '7.9.1')
             kibana_release_url = f'https://github.com/elastic/kibana/archive/v{kibana_version}.zip'

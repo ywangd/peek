@@ -3,7 +3,7 @@
 """Tests for `peek` package."""
 import json
 import os
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 from configobj import ConfigObj

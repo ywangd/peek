@@ -1,6 +1,6 @@
 import json
 import os
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 from configobj import ConfigObj
@@ -64,7 +64,7 @@ def test_connection_related_funcs(peek_app):
     )
 
     session_f = SessionFunc()
-    assert "Session save as: '__default__'" == session_f(peek_app, **{'@': ['save']})
+    assert session_f(peek_app, **{'@': ['save']}) == "Session save as: '__default__'"
     mock_history.save_session.assert_called_with('__default__', json.dumps(peek_app.es_client_manager.to_dict()))
     mock_history.load_session = MagicMock(return_value=json.dumps(peek_app.es_client_manager.to_dict()))
 
@@ -141,16 +141,16 @@ def test_connection_related_funcs(peek_app):
 def test_connect_with_failed_test_will_not_be_added(peek_app):
     peek_app.display = MagicMock()
     peek_app.display.error = MagicMock()
-    mock_es = MagicMock()
+    mock_transport = MagicMock()
 
     error = RuntimeError('Should fail')
 
     def mock_perform_request(*args, **kwargs):
         raise error
 
-    mock_es.transport.perform_request = MagicMock(side_effect=mock_perform_request)
-    MockEs = MagicMock(return_value=mock_es)
-    with patch('peek.connection.Elasticsearch', MockEs):
+    mock_transport.perform_request = MagicMock(side_effect=mock_perform_request)
+    MockTransport = MagicMock(return_value=mock_transport)
+    with patch('peek.connection.Transport', MockTransport):
         connect_f = ConnectFunc()
         assert connect_f(peek_app, username=None, test=True) is None
         peek_app.display.error.assert_called_with(error)
@@ -227,4 +227,4 @@ def test_version(peek_app):
     from peek import __version__
 
     assert f'v{__version__}' in value
-    assert 'elasticsearch-py' in value
+    assert 'elastic_transport' in value

@@ -6,40 +6,37 @@ import operator
 import os
 import sys
 import urllib
-import warnings
 from numbers import Number
 from subprocess import Popen
 
-import elasticsearch
+from elastic_transport._transport import TransportApiResponse
 from pygments.token import Name
 
 from peek.ast import (
-    Visitor,
-    EsApiCallNode,
-    DictNode,
-    KeyValueNode,
     ArrayNode,
-    NumberNode,
-    StringNode,
-    Node,
-    FuncCallNode,
-    NameNode,
-    TextNode,
-    ShellOutNode,
-    EsApiCallInlinePayloadNode,
-    EsApiCallFilePayloadNode,
-    GroupNode,
     BinOpNode,
-    UnaryOpNode,
-    SymbolNode,
-    LetNode,
+    DictNode,
+    EsApiCallFilePayloadNode,
+    EsApiCallInlinePayloadNode,
+    EsApiCallNode,
     ForInNode,
+    FuncCallNode,
+    GroupNode,
+    KeyValueNode,
+    LetNode,
+    NameNode,
+    Node,
+    NumberNode,
+    ShellOutNode,
+    StringNode,
+    SymbolNode,
+    TextNode,
+    UnaryOpNode,
+    Visitor,
 )
 from peek.errors import PeekError
 from peek.natives import EXPORTS
 from peek.visitors import Ref
-
-warnings_available = elasticsearch.__version__ >= (7, 7, 0)
 
 _logger = logging.getLogger(__name__)
 
@@ -166,22 +163,24 @@ class PeekVM(Visitor):
         try:
             if outfile is not None:
                 self.app.start_capture(outfile)
-            with warnings.catch_warnings(record=True) as ws:
-                final_path = _maybe_encode_date_math(path)
-                final_headers = headers if headers else None
-                self.context['__'] = {
-                    'method': node.method,
-                    'path': final_path,
-                    'payload': payload,
-                    'headers': final_headers,
-                }
-                response = es_client.perform_request(node.method, final_path, payload, headers=final_headers)
-            for w in ws:
-                if not quiet and self._should_show_warnings(w):
-                    self.app.display.warn(str(w.message))
-            self.context['_'] = _maybe_decode_json(response)
+            final_path = _maybe_encode_date_math(path)
+            final_headers = headers if headers else None
+            self.context['__'] = {
+                'method': node.method,
+                'path': final_path,
+                'payload': payload,
+                'headers': final_headers,
+            }
+            response: TransportApiResponse = es_client.perform_request(
+                node.method, final_path, payload, headers=final_headers
+            )
+
+            warning = response.meta.headers.get('warning')
+            if warning is not None and self.app.config.as_bool('show_warnings'):
+                self.app.display.warn(warning.split(" ", 2)[2])
+            self.context['_'] = _maybe_decode_json(response.body)
             if not quiet:
-                self.app.display.info(response, header_text=self._get_header_text(conn, runas))
+                self.app.display.info(response.body, header_text=self._get_header_text(conn, runas))
         except Exception as e:
             if getattr(e, 'info', None) is not None and isinstance(getattr(e, 'status_code', None), int):
                 self.context['_'] = _maybe_decode_json(e.info) if isinstance(e.info, str) else e.info
@@ -242,7 +241,7 @@ class PeekVM(Visitor):
             if len(lhs_chain) == 1:
                 self.context[lhs_chain[0]] = rhs.get()
             else:
-                if not lhs_chain[0] in self.context:
+                if lhs_chain[0] not in self.context:
                     raise PeekError(f'Unknown name: {lhs_chain[0]!r}')
                 lhs = self.context[lhs_chain[0]]
                 for x in lhs_chain[1:-1]:
@@ -431,14 +430,6 @@ class PeekVM(Visitor):
         if runas is not None:
             parts.append(f'runas={runas!r}')
         return ' '.join(parts)
-
-    def _should_show_warnings(self, w):
-        if warnings_available and self.app.config.as_bool('show_warnings'):
-            from elasticsearch.exceptions import ElasticsearchDeprecationWarning
-
-            return w.category == ElasticsearchDeprecationWarning
-        else:
-            return False
 
 
 def _maybe_decode_json(r):

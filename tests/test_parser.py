@@ -1,10 +1,10 @@
 import pytest
-from pygments.token import String, Whitespace, Comment, Literal, Name
+from pygments.token import Comment, Literal, Name, String, Whitespace
 
-from peek.ast import EsApiCallNode, ShellOutNode, EsApiCallInlinePayloadNode, EsApiCallFilePayloadNode
+from peek.ast import EsApiCallFilePayloadNode, EsApiCallInlinePayloadNode, EsApiCallNode, ShellOutNode
 from peek.errors import PeekSyntaxError
-from peek.lexers import CurlyLeft, CurlyRight, HttpMethod, FuncName, BlankLine, Let
-from peek.parser import PeekParser, process_tokens, PeekToken, ParserEventType, find_last_stmt_token
+from peek.lexers import BlankLine, CurlyLeft, CurlyRight, FuncName, HttpMethod, Let
+from peek.parser import ParserEventType, PeekParser, PeekToken, find_last_stmt_token, process_tokens
 
 
 @pytest.fixture
@@ -305,7 +305,7 @@ def test_parser_expr(parser):
     text = '''f 1 * 2 + (3 - 2) g(3)
 '''
     nodes = parser.parse(text)
-    assert 1 == len(nodes)
+    assert len(nodes) == 1
     assert str(nodes[0]) == "f [] [1 * 2 + (3 - 2),g [] [3] {}] {}\n"
 
 

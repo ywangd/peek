@@ -2,8 +2,9 @@ import json
 import logging
 import os
 import ssl
+import sys
 import webbrowser
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from queue import Queue
 from threading import Thread
 from typing import Any, Optional
@@ -68,7 +69,7 @@ def _oidc_prepare(es_client, realm: str):
             }
         ),
         deserialize_it=True,
-    )
+    ).body
 
 
 def _oidc_do_authenticate(es_client, realm: str, state: str, nonce: str, redirect_uri: str):
@@ -84,7 +85,7 @@ def _oidc_do_authenticate(es_client, realm: str, state: str, nonce: str, redirec
             }
         ),
         deserialize_it=True,
-    )
+    ).body
     return response
 
 
@@ -97,7 +98,13 @@ def _oidc_start_http_server(callback_port, callback_ssl):
     if callback_ssl:
         keyfile = os.path.join(package_root, 'certs', 'key.pem')
         certfile = os.path.join(package_root, 'certs', 'cert.pem')
-        httpd.socket = ssl.wrap_socket(httpd.socket, keyfile=keyfile, certfile=certfile, server_side=True)
+
+        if sys.version_info < (3, 12):
+            httpd.socket = ssl.wrap_socket(httpd.socket, keyfile=keyfile, certfile=certfile, server_side=True)
+        else:
+            ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            ssl_context.load_cert_chain(certfile=certfile, keyfile=keyfile)
+            httpd.socket = ssl_context.wrap_socket(httpd.socket, server_side=True)
 
     t = Thread(target=httpd.serve_forever, daemon=True)
     t.start()

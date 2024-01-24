@@ -1,8 +1,8 @@
 import pytest
-from pygments.token import Token, Name, Whitespace
+from pygments.token import Name, Token, Whitespace
 
 from peek.common import PeekToken
-from peek.lexers import PeekLexer, UrlPathLexer, BinOp
+from peek.lexers import BinOp, PeekLexer, UrlPathLexer
 
 
 @pytest.fixture
@@ -224,7 +224,7 @@ def test_builtin_as_kv_value(peek_lexer):
 
 def test_dot_notation(peek_lexer):
     tokens = [t for t in do_test(peek_lexer, text='''f a.1.2.5''') if (t.ttype is BinOp and t.value == '.')]
-    assert 3 == len(tokens)
+    assert len(tokens) == 3
 
 
 def test_expressions(peek_lexer):
