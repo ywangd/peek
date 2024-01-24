@@ -198,6 +198,7 @@ class EsClient(BaseClient):
             'use_ssl': self.use_ssl,
             'verify_certs': self.verify_certs,
             'assert_hostname': self.assert_hostname,
+            'assert_fingerprint': self.assert_fingerprint,
             'ca_certs': self.ca_certs,
             'client_cert': self.client_cert,
             'client_key': self.client_key,
