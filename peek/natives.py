@@ -394,7 +394,7 @@ class DownloadApiSpecsFunc:
             schema_filepath = os.path.join(config_dir, 'schema.json')
             if os.path.exists(schema_filepath):
                 raise RuntimeError(f'schema file already exists [{schema_filepath}]. Please remove it before download.')
-            git_branch = options.get('version', '8.2')
+            git_branch = options.get('version', '8.12')
             import urllib.request
 
             url = (
@@ -436,7 +436,7 @@ class DownloadApiSpecsFunc:
     @property
     def options(self):
         if get_global_config().as_bool('prefer_elasticsearch_specification'):
-            return {'version': '8.2'}
+            return {'version': '8.12'}
         else:
             return {'version': '7.9.1'}
 

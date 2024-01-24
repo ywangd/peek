@@ -71,6 +71,10 @@ The following sample is a quick guide on Peek usages:
 
 .. code-block:: javascript
 
+  // Download the API schema from the elasticsearch-specification project to enable auto-completion
+  // If the output says the schema file already exists, you can safely proceed to the next command.
+  _download_api_specs
+
   // NOTE a blank line is needed to trigger API execution, or type "ESC + Enter" to execute regardlessly
   // Exit the interactive session any time by pressing Ctrl-d or type exit
   GET /_cluster/health  // comment is allowed almost anywhere
