@@ -5,7 +5,7 @@ import ssl
 import sys
 import urllib
 import webbrowser
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from queue import Queue
 from threading import Thread
 from typing import Any, Optional

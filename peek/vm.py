@@ -13,26 +13,26 @@ from elastic_transport._transport import TransportApiResponse
 from pygments.token import Name
 
 from peek.ast import (
-    Visitor,
-    EsApiCallNode,
-    DictNode,
-    KeyValueNode,
     ArrayNode,
-    NumberNode,
-    StringNode,
-    Node,
-    FuncCallNode,
-    NameNode,
-    TextNode,
-    ShellOutNode,
-    EsApiCallInlinePayloadNode,
-    EsApiCallFilePayloadNode,
-    GroupNode,
     BinOpNode,
-    UnaryOpNode,
-    SymbolNode,
-    LetNode,
+    DictNode,
+    EsApiCallFilePayloadNode,
+    EsApiCallInlinePayloadNode,
+    EsApiCallNode,
     ForInNode,
+    FuncCallNode,
+    GroupNode,
+    KeyValueNode,
+    LetNode,
+    NameNode,
+    Node,
+    NumberNode,
+    ShellOutNode,
+    StringNode,
+    SymbolNode,
+    TextNode,
+    UnaryOpNode,
+    Visitor,
 )
 from peek.errors import PeekError
 from peek.natives import EXPORTS
@@ -241,7 +241,7 @@ class PeekVM(Visitor):
             if len(lhs_chain) == 1:
                 self.context[lhs_chain[0]] = rhs.get()
             else:
-                if not lhs_chain[0] in self.context:
+                if lhs_chain[0] not in self.context:
                     raise PeekError(f'Unknown name: {lhs_chain[0]!r}')
                 lhs = self.context[lhs_chain[0]]
                 for x in lhs_chain[1:-1]:

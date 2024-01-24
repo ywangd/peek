@@ -1,7 +1,7 @@
 from io import StringIO
 from unittest.mock import MagicMock, patch
 
-from prompt_toolkit.formatted_text import PygmentsTokens, FormattedText
+from prompt_toolkit.formatted_text import FormattedText, PygmentsTokens
 
 from peek.display import Display
 from peek.natives import EXPORTS

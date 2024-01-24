@@ -1,17 +1,17 @@
 import ast
 import json
 import logging
-from typing import List, Dict
+from typing import Dict, List
 
-from prompt_toolkit.completion import Completion, CompleteEvent
+from prompt_toolkit.completion import CompleteEvent, Completion
 from prompt_toolkit.document import Document
-from pygments.token import String, Name
+from pygments.token import Name, String
 
 from peek.common import PeekToken
 from peek.es_api_spec.api_completer import ESApiCompleter
 from peek.es_api_spec.kspec_js import build_js_specs
 from peek.es_api_spec.kspec_json import load_json_specs
-from peek.lexers import Slash, PathPart, Assign, CurlyLeft, CurlyRight, DictKey, Colon, BracketLeft, EOF, Comma
+from peek.lexers import EOF, Assign, BracketLeft, Colon, Comma, CurlyLeft, CurlyRight, DictKey, PathPart, Slash
 from peek.parser import ParserEvent, ParserEventType
 
 _logger = logging.getLogger(__name__)
@@ -249,7 +249,7 @@ class KibanaSpecESApiCompleter(ESApiCompleter):
             else:
                 rules = rules.get(k, None)
 
-            if not i == len(payload_keys) - 1 or unwrap_value_for_last_key:
+            if i != len(payload_keys) - 1 or unwrap_value_for_last_key:
                 rules = self._maybe_process_rules(history, rules)
             else:
                 rules = self._maybe_process_rules(history, rules, unwrap_value=False)

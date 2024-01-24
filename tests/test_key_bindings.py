@@ -1,4 +1,4 @@
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 from prompt_toolkit.document import Document
 
@@ -39,7 +39,7 @@ def test_single_line_buffer_will_not_be_handled_if_it_is_http_call():
     buffer.document = Document('get / conn=1')
     assert buffer_should_be_handled(mock_app)() is False
 
-    for c in range(0, 11):
+    for c in range(11):
         buffer.document = Document('get / conn=1', cursor_position=c)
         assert buffer_should_be_handled(mock_app)() is False
 
@@ -119,7 +119,7 @@ get /
 @patch('peek.key_bindings.get_app', get_app)
 def test_single_line_for_stmt_will_not_be_handled():
     text = '''for i in range(1, 10) {}'''
-    for c in range(0, len(text) + 1):
+    for c in range(len(text) + 1):
         buffer.document = Document(text)
         assert buffer_should_be_handled(mock_app)() is False
 

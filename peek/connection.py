@@ -3,12 +3,11 @@ import json
 import logging
 import os
 from abc import ABCMeta, abstractmethod
-from typing import List, Iterable
+from typing import Iterable, List
 
 import elastic_transport.client_utils
 from configobj import Section
-from elastic_transport import NodeConfig
-from elastic_transport import Transport
+from elastic_transport import NodeConfig, Transport
 from elastic_transport._transport import TransportApiResponse
 
 from peek.errors import PeekError

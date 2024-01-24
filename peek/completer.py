@@ -3,29 +3,29 @@ import logging
 import os
 from typing import Iterable, List, Optional
 
-from prompt_toolkit.completion import Completer, CompleteEvent, Completion, WordCompleter, FuzzyCompleter, PathCompleter
+from prompt_toolkit.completion import CompleteEvent, Completer, Completion, FuzzyCompleter, PathCompleter, WordCompleter
 from prompt_toolkit.contrib.completers import SystemCompleter
 from prompt_toolkit.document import Document
-from pygments.token import Error, Literal, String, Name
+from pygments.token import Error, Literal, Name, String
 
-from peek.common import PeekToken, HTTP_METHODS
+from peek.common import HTTP_METHODS, PeekToken
 from peek.completions import PayloadKeyCompletion
 from peek.config import config_location
 from peek.lexers import (
-    PeekLexer,
-    UrlPathLexer,
-    PathPart,
-    ParamName,
-    Ampersand,
-    QuestionMark,
-    Slash,
-    HttpMethod,
-    FuncName,
-    ShellOut,
-    DictKey,
     EOF,
+    Ampersand,
+    DictKey,
+    FuncName,
+    HttpMethod,
+    ParamName,
+    PathPart,
+    PeekLexer,
+    QuestionMark,
+    ShellOut,
+    Slash,
+    UrlPathLexer,
 )
-from peek.parser import PeekParser, ParserEvent, ParserEventType
+from peek.parser import ParserEvent, ParserEventType, PeekParser
 
 _logger = logging.getLogger(__name__)
 

@@ -10,52 +10,52 @@ class Visitor(metaclass=ABCMeta):
         self._consumers = []
 
     def visit_es_api_call_node(self, node):
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def visit_func_call_node(self, node):
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def visit_let_node(self, node):
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def visit_shell_out_node(self, node):
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def visit_for_in_node(self, node):
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def visit_name_node(self, node):
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def visit_symbol_node(self, node):
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def visit_text_node(self, node):
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def visit_key_value_node(self, node):
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def visit_dict_node(self, node):
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def visit_array_node(self, node):
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def visit_string_node(self, node):
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def visit_number_node(self, node):
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def visit_bin_op_node(self, node):
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def visit_unary_op_node(self, node):
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def visit_group_node(self, node):
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def consume(self, *args, **kwargs):
         if not self._consumers:

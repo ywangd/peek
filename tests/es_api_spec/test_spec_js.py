@@ -1,12 +1,12 @@
 import io
 import os
 import random
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from peek import __file__ as package_root
-from peek.es_api_spec.kspec_js import JsSpecParser, JsSpecEvaluator, build_js_specs
+from peek.es_api_spec.kspec_js import JsSpecEvaluator, JsSpecParser, build_js_specs
 
 package_root = os.path.dirname(package_root)
 kibana_dir = os.path.join(package_root, 'specs', 'kibana-7.8.1')

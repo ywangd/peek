@@ -1,6 +1,6 @@
 import json
 import os
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 from configobj import ConfigObj
@@ -64,7 +64,7 @@ def test_connection_related_funcs(peek_app):
     )
 
     session_f = SessionFunc()
-    assert "Session save as: '__default__'" == session_f(peek_app, **{'@': ['save']})
+    assert session_f(peek_app, **{'@': ['save']}) == "Session save as: '__default__'"
     mock_history.save_session.assert_called_with('__default__', json.dumps(peek_app.es_client_manager.to_dict()))
     mock_history.load_session = MagicMock(return_value=json.dumps(peek_app.es_client_manager.to_dict()))
 

@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Tuple, Any
+from typing import Any, Tuple
 
 from prompt_toolkit.buffer import CompletionState
 from prompt_toolkit.completion import Completion
@@ -106,5 +106,5 @@ def serialise_and_indent_json(data, current_indent):
 
 def monkey_patch_completion_state():
     if CompletionState.new_text_and_position != proxy_new_text_and_position:
-        setattr(CompletionState, 'original_new_text_and_position', CompletionState.new_text_and_position)
-        setattr(CompletionState, 'new_text_and_position', proxy_new_text_and_position)
+        CompletionState.original_new_text_and_position = CompletionState.new_text_and_position
+        CompletionState.new_text_and_position = proxy_new_text_and_position

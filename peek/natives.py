@@ -418,9 +418,9 @@ class DownloadApiSpecsFunc:
                     f'before download new spec files.'
                 )
 
+            import io
             import urllib.request
             import zipfile
-            import io
 
             kibana_version = options.get('version', '7.9.1')
             kibana_release_url = f'https://github.com/elastic/kibana/archive/v{kibana_version}.zip'

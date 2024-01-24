@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, call
 
 import pytest
 from configobj import ConfigObj
-from elastic_transport import ApiResponseMeta, HttpHeaders, NodeConfig
+from elastic_transport import ApiResponseMeta, HttpHeaders
 from elastic_transport._transport import TransportApiResponse
 
 from peek.errors import PeekError
@@ -55,7 +55,7 @@ def test_peek_vm_data_types(peek_vm, parser):
 
 def test_peek_vm_expr(peek_vm, parser):
     peek_vm.execute_node(parser.parse('debug 1 + 2 * 3 + (5-1) {"a": 42}.@a [4, 2, 1].1 foo="a" + "b"')[0])
-    assert_called_with(peek_vm, 11, 42, 2, **{'foo': 'ab'})
+    assert_called_with(peek_vm, 11, 42, 2, foo='ab')
 
 
 def test_str_and_number(peek_vm, parser):
@@ -142,10 +142,8 @@ def test_payload_file(peek_vm, parser):
 
     peek_vm.execute_node(
         parser.parse(
-            '''PUT _bulk
-@{}'''.format(
-                payload_file
-            )
+            f'''PUT _bulk
+@{payload_file}'''
         )[0]
     )
 

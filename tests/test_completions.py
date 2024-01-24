@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 from prompt_toolkit.completion import Completion
 from prompt_toolkit.document import Document
 
-from peek.completions import proxy_new_text_and_position, monkey_patch_completion_state, PayloadKeyCompletion
+from peek.completions import PayloadKeyCompletion, monkey_patch_completion_state, proxy_new_text_and_position
 
 monkey_patch_completion_state()
 

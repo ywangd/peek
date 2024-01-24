@@ -14,17 +14,17 @@ from prompt_toolkit.layout.processors import HighlightMatchingBracketProcessor
 from prompt_toolkit.lexers import PygmentsLexer
 from prompt_toolkit.styles import style_from_pygments_cls
 
-from peek.capture import NoOpCapture, FileCapture
-from peek.common import NONE_NS, AUTO_SAVE_NAME
+from peek.capture import FileCapture, NoOpCapture
+from peek.common import AUTO_SAVE_NAME, NONE_NS
 from peek.completer import PeekCompleter
 from peek.completions import monkey_patch_completion_state
-from peek.config import get_config, config_location
-from peek.connection import EsClientManager, connect, DelegatingListener
+from peek.config import config_location, get_config
+from peek.connection import DelegatingListener, EsClientManager, connect
 from peek.display import Display
 from peek.errors import PeekError, PeekSyntaxError
 from peek.history import SqLiteHistory
 from peek.key_bindings import key_bindings
-from peek.lexers import PeekLexer, PeekStyle, Heading, TipsMinor
+from peek.lexers import Heading, PeekLexer, PeekStyle, TipsMinor
 from peek.parser import PeekParser
 from peek.vm import PeekVM
 
@@ -68,7 +68,7 @@ class PeekApp:
                     )
                     _logger.debug(f'input: {text!r}')
                     if self._should_exit:
-                        raise EOFError()
+                        raise EOFError
                     if text.strip() == '':
                         continue
                     self.process_input(text)

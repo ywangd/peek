@@ -4,22 +4,22 @@ from prompt_toolkit.application import get_app
 from prompt_toolkit.buffer import ValidationState
 from prompt_toolkit.document import Document
 from prompt_toolkit.enums import DEFAULT_BUFFER
-from prompt_toolkit.filters import Condition, completion_is_selected, is_searching, has_completions
+from prompt_toolkit.filters import Condition, completion_is_selected, has_completions, is_searching
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.key_binding.key_processor import KeyPressEvent
 
 from peek.common import HTTP_METHODS
-from peek.errors import PeekSyntaxError, PeekError
+from peek.errors import PeekError, PeekSyntaxError
 from peek.lexers import (
+    BracketLeft,
+    BracketRight,
+    CurlyLeft,
+    CurlyRight,
+    ParenLeft,
+    ParenRight,
     PeekLexer,
     TripleD,
     TripleS,
-    ParenLeft,
-    BracketLeft,
-    CurlyLeft,
-    ParenRight,
-    BracketRight,
-    CurlyRight,
 )
 from peek.parser import process_tokens
 from peek.visitors import FormattingVisitor

@@ -1,7 +1,7 @@
 import logging
 import os
 import platform
-from os.path import expanduser, dirname
+from os.path import dirname, expanduser
 from typing import Iterable
 
 from configobj import ConfigObj

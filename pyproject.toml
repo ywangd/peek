@@ -98,3 +98,6 @@ allow-direct-references = true
 target-version = ["py38"]
 line-length = 120
 skip-string-normalization = true
+
+[tool.usort]
+
