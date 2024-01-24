@@ -17,12 +17,16 @@ def test_connect_default():
 def test_connect_will_prompt_password_when_no_password_is_found():
     mock_app = MagicMock(name='PeekApp')
     mock_app.config.as_bool = MagicMock(return_value=False)
+    mock_app.input = MagicMock(return_value='password')
 
     client = connect(
         mock_app,
-        username='foo', hosts='localhost:9201', use_ssl=True,
+        username='foo',
+        hosts='localhost:9201',
+        use_ssl=True,
     )
     mock_app.input.assert_called()
+    assert client.auth == 'foo:password'
     assert str(client) == 'foo @ https://localhost:9201'
 
 
@@ -40,12 +44,16 @@ def test_connect_will_not_prompt_password_when_password_is_found_in_env():
 def test_connect_will_prompt_password_when_forced():
     mock_app = MagicMock(name='PeekApp')
     mock_app.config.as_bool = MagicMock(return_value=False)
+    mock_app.input = MagicMock(return_value='new-password')
 
-    connect(
+    client = connect(
         mock_app,
-        username='foo', password='password', force_prompt=True,
+        username='foo',
+        password='password',
+        force_prompt=True,
     )
     mock_app.input.assert_called()
+    assert client.auth == 'foo:new-password'
 
 
 def test_connect_will_fail_when_password_is_not_provided_and_prompt_is_not_allowed():
@@ -55,7 +63,8 @@ def test_connect_will_fail_when_password_is_not_provided_and_prompt_is_not_allow
     with pytest.raises(PeekError) as e:
         connect(
             mock_app,
-            username='foo', no_prompt=True,
+            username='foo',
+            no_prompt=True,
         )
     assert 'Password is not found and password prompt is disabled' in str(e)
 
@@ -82,7 +91,10 @@ def test_connect_has_highest_priority_for_api_key():
 
     client = connect(
         mock_app,
-        api_key='id:key', token='some-token', username='foo', password='password',
+        api_key='id:key',
+        token='some-token',
+        username='foo',
+        password='password',
     )
 
     assert str(client) == 'K-id @ http://localhost:9200'
@@ -95,7 +107,9 @@ def test_connect_has_second_priority_for_token():
 
     client = connect(
         mock_app,
-        token='some-token', username='foo', password='password',
+        token='some-token',
+        username='foo',
+        password='password',
     )
 
     assert str(client) == 'T-some-token @ http://localhost:9200'
@@ -112,7 +126,10 @@ def test_connect_will_prefer_cloud_id():
     with patch('peek.connection.Transport', MockTransport):
         client = connect(
             mock_app,
-            username='foo', password='password', cloud_id='my-cloud-id:' 'd3d3LmV4YW1wbGUuY29tOjQ0MyQ4ODgkOTk5OQ==', hosts='example.com:9200',
+            username='foo',
+            password='password',
+            cloud_id='my-cloud-id:' 'd3d3LmV4YW1wbGUuY29tOjQ0MyQ4ODgkOTk5OQ==',
+            hosts='example.com:9200',
         )
 
     assert str(client) == 'foo @ my-cloud-id@Cloud'
@@ -124,7 +141,9 @@ def test_es_client_to_and_from_dict():
     mock_app.config.as_bool = MagicMock(return_value=False)
     client = connect(
         mock_app,
-        username='foo', password='password', hosts='example.com:9200',
+        username='foo',
+        password='password',
+        hosts='example.com:9200',
     )
 
     d = client.to_dict()
@@ -139,7 +158,10 @@ def test_refreshing_es_client_to_and_from_dict():
     mock_app.config.as_bool = MagicMock(return_value=False)
     parent = connect(
         mock_app,
-        username='foo', password='password', hosts='example.com:9200', use_ssl=True,
+        username='foo',
+        password='password',
+        hosts='example.com:9200',
+        use_ssl=True,
     )
 
     client = RefreshingEsClient(

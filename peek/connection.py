@@ -7,7 +7,7 @@ from typing import Iterable, List
 
 import elastic_transport.client_utils
 from configobj import Section
-from elastic_transport import NodeConfig, Transport
+from elastic_transport import NodeConfig, Transport, client_utils
 from elastic_transport._transport import TransportApiResponse
 
 from peek.errors import PeekError
@@ -76,7 +76,7 @@ class EsClient(BaseClient):
         # We add them in reverse order so that later ones overwrite the earlier ones
         # TODO: use basic_auth_to_header utility method from the transport lib
         if self.auth:
-            request_headers.update({'Authorization': 'Basic ' + base64.b64encode(self.auth.encode('utf-8')).decode()})
+            request_headers.update({'Authorization': client_utils.basic_auth_to_header((username, password))})
 
         if self.token:
             request_headers.update({'Authorization': f'Bearer {self.token}'})
@@ -151,7 +151,7 @@ class EsClient(BaseClient):
             response = self.transport.perform_request(
                 method, path, body=payload, request_timeout=None, headers=http_headers, **kwargs
             )
-            # TODO: handle warnings
+
             if deserialize_it:
                 return response
             else:

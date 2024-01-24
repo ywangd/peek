@@ -16,4 +16,6 @@ class PeekToken(NamedTuple):
     index: int
     ttype: _TokenType
     value: str
+
+
 NONE_NS = AlwaysNoneNameSpace()
