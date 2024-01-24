@@ -227,4 +227,4 @@ def test_version(peek_app):
     from peek import __version__
 
     assert f'v{__version__}' in value
-    assert 'elasticsearch-py' in value
+    assert 'elastic_transport' in value

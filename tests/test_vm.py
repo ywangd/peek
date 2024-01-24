@@ -177,22 +177,15 @@ def test_payload_file(peek_vm, parser):
 
 
 def test_warning_header(peek_vm, parser):
-    import elasticsearch
-
-    if elasticsearch.__version__ < (7, 7, 0):
-        return
-
-    import warnings
-    from elasticsearch.exceptions import ElasticsearchDeprecationWarning
-
     peek_vm.app.display.warn = MagicMock(return_value=None)
     es_client = peek_vm.app.es_client_manager.get_client()
 
     message = 'This is a warning message'
 
     def perform_request(*args, **kwargs):
-        warnings.warn(message, ElasticsearchDeprecationWarning)
-        return TransportApiResponse(MagicMock(), '')
+        return TransportApiResponse(
+            ApiResponseMeta(200, '1.1', HttpHeaders({'Warning': f'299 elasticsearch {message}'}), 0.0, MagicMock()), ''
+        )
 
     es_client.perform_request = MagicMock(side_effect=perform_request)
 

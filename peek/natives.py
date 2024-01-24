@@ -372,9 +372,9 @@ class HelpFunc:
 
 class VersionFunc:
     def __call__(self, app):
-        import elasticsearch
+        import elastic_transport
 
-        return f'"Peek (v{__version__})"\n"elasticsearch-py (v{elasticsearch.__versionstr__})"'
+        return f'"Peek (v{__version__})"\n"elastic_transport (v{elastic_transport.__version__})"'
 
     @property
     def description(self):

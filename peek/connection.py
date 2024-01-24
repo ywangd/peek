@@ -32,7 +32,7 @@ class NoopDeserializer:
 
 class BaseClient(metaclass=ABCMeta):
     @abstractmethod
-    def perform_request(self, method, path, payload=None, deserialize_it=False, **kwargs):
+    def perform_request(self, method, path, payload=None, deserialize_it=False, **kwargs) -> TransportApiResponse:
         pass
 
 
@@ -152,6 +152,7 @@ class EsClient(BaseClient):
             response = self.transport.perform_request(
                 method, path, body=payload, request_timeout=None, headers=http_headers, **kwargs
             )
+            # TODO: handle warnings
             if deserialize_it:
                 return response
             else:
