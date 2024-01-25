@@ -451,6 +451,39 @@ class DownloadApiSpecsFunc:
             )
 
 
+class DownloadExtensionFileFunc:
+
+    def __call__(self, app, url=None, **options):
+        if not url:
+            raise PeekError('URL of the extension file must be provided')
+
+        default_extension_path = os.path.join(config_location(), 'extensions')
+        if not os.path.exists(default_extension_path):
+            os.makedirs(default_extension_path, exist_ok=True)
+
+        filename = options.get('filename', None)
+        if filename is None:
+            from urllib3.util import parse_url
+            parsed = parse_url(url)
+            filename = os.path.basename(parsed.path)
+
+        if not filename.endswith('.py'):
+            filename += '.py'
+        filename = os.path.join(default_extension_path, filename)
+
+        import urllib.request
+        data = urllib.request.urlopen(url).read()
+        with open(filename, 'wb') as outs:
+            outs.write(data)
+
+        app.vm._load_one_extension_path(default_extension_path)
+        return f'Extension file [{filename}] downloaded and initialized'
+
+    @property
+    def description(self):
+        return 'Download an extension file from the specified URL and save it to the default extension directory'
+
+
 def consolidate_options(options, defaults):
     """
     Merge shorthanded @symbol into normal options kv pair with provided defaults
@@ -483,4 +516,5 @@ EXPORTS = {
     'saml_authenticate': SamlAuthenticateFunc(),
     'oidc_authenticate': OidcAuthenticateFunc(),
     'krb_authenticate': KrbAuthenticateFunc(),
+    '_download_extension_file': DownloadExtensionFileFunc(),
 }

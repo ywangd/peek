@@ -35,6 +35,7 @@ from peek.ast import (
     UnaryOpNode,
     Visitor,
 )
+from peek.config import config_location
 from peek.errors import PeekError
 from peek.natives import EXPORTS
 from peek.visitors import Ref
@@ -393,26 +394,33 @@ class PeekVM(Visitor):
         """
         Load extra variables from external paths
         """
+        default_extension_path = os.path.join(config_location(), 'extensions')
+        if os.path.exists(default_extension_path):
+            self._load_one_extension_path(default_extension_path)
+
         extension_path = self.app.config['extension_path']
         if not extension_path:
             return
 
         sys_path = sys.path[:]
         try:
-            for p in extension_path.split(':'):
+            for p in extension_path.split(os.pathsep):
                 if os.path.isfile(p):
-                    self._load_one_extension(p)
+                    self._load_one_extension_file(p)
                 elif os.path.isdir(p):
-                    for f in os.listdir(p):
-                        if not f.endswith('.py'):
-                            continue
-                        self._load_one_extension(os.path.join(p, f))
+                    self._load_one_extension_path(p)
                 else:
                     _logger.warning(f'Cannot load extension path: {p}')
         finally:
             sys.path = sys_path
 
-    def _load_one_extension(self, p):
+    def _load_one_extension_path(self, p):
+        for f in os.listdir(p):
+            if not f.endswith('.py'):
+                continue
+            self._load_one_extension_file(os.path.join(p, f))
+
+    def _load_one_extension_file(self, p):
         _logger.info(f'Loading extension: {p!r}')
         import importlib
 
