@@ -355,7 +355,7 @@ class ExitFunc:
 class HelpFunc:
     def __call__(self, app, func=None, **options):
         if func is None:
-            return '\n'.join(k for k in app.vm.functions.keys())
+            return '\n'.join(f'{k} - {getattr(v, "description", "")}' for k, v in app.vm.functions.items())
 
         for k, v in app.vm.functions.items():
             if v == func:
@@ -484,6 +484,16 @@ class DownloadExtensionFileFunc:
         return 'Download an extension file from the specified URL and save it to the default extension directory'
 
 
+class ContextFunc:
+
+    def __call__(self, app, **options):
+        keys = sorted([k for k, v in app.vm.context.items() if not callable(v)])
+        lines = []
+        for key in keys:
+            lines.append(f'{key} = {app.vm.context[key]!r}')
+        return '\n'.join(lines)
+
+
 def consolidate_options(options, defaults):
     """
     Merge shorthanded @symbol into normal options kv pair with provided defaults
@@ -517,4 +527,5 @@ EXPORTS = {
     'oidc_authenticate': OidcAuthenticateFunc(),
     'krb_authenticate': KrbAuthenticateFunc(),
     '_download_extension_file': DownloadExtensionFileFunc(),
+    'context': ContextFunc(),
 }
