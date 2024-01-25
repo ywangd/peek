@@ -65,3 +65,6 @@ accept_json_for_cat = False
 # Prefer schema.json file from the elasticsearch-specification project for autocompletion
 # Default is True. If false, it means use Kibana API spec files instead.
 prefer_elasticsearch_specification = True
+
+# Load all python variables defined in the file and expose them via VM context
+# context_file =

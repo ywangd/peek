@@ -89,6 +89,7 @@ class PeekVM(Visitor):
         self._bin_op_funcs = bin_op_funcs or _BIN_OP_FUNCS
         self._unary_op_funcs = unary_op_funcs or _UNARY_OP_FUNCS
         self.context = {}
+        self._load_context_file()
         self.builtins = EXPORTS
         if self.app.config.as_bool('load_extension'):
             self._load_extensions()
@@ -389,6 +390,16 @@ class PeekVM(Visitor):
             node.right_node.accept(self)
         else:
             raise PeekError(f'lhs can only have variable and dot notation, but got {node!r}')
+
+    def _load_context_file(self):
+        context_file = self.app.config['context_file']
+        if not context_file:
+            return
+
+        ns = {}
+        with open(context_file) as ins:
+            exec(ins.read(), {}, ns)
+        self.context.update(ns)
 
     def _load_extensions(self):
         """
