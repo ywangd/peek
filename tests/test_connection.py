@@ -132,7 +132,7 @@ def test_connect_will_prefer_cloud_id():
             hosts='example.com:9200',
         )
 
-    assert str(client) == 'foo @ my-cloud-id@Cloud'
+    assert str(client) == 'foo @ my-cloud-id [Cloud]'
     assert client.hosts is None
 
 

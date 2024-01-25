@@ -223,7 +223,7 @@ class EsClient(BaseClient):
                 else:
                     hosts.append(('https://' if self.use_ssl else 'http://') + host)
         else:
-            hosts.append(self.cloud_id.split(':')[0] + "@Cloud")
+            hosts.append(self.cloud_id.split(':')[0] + ' [Cloud]')
 
         hosts = ','.join(hosts)
         if self.api_key:
