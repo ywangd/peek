@@ -75,7 +75,7 @@ def test_peek_vm_func(peek_vm, parser):
 def test_peek_vm_es_api_call(peek_vm, parser):
     peek_vm.execute_node(parser.parse('GET /')[0])
     peek_vm.app.display.info.assert_called_with(
-        '{"foo": [1, 2, 3, 4], "bar": {"hello": [42, "world"]}}', header_text=''
+        '{"foo": [1, 2, 3, 4], "bar": {"hello": [42, "world"]}}', header_text='took=0.000ms'
     )
     assert peek_vm.get_value('_') == {'foo': [1, 2, 3, 4], 'bar': {'hello': [42, 'world']}}
     peek_vm.execute_node(parser.parse('debug _."bar".@hello.1')[0])

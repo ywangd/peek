@@ -198,7 +198,7 @@ class PeekVM(Visitor):
                 with open(outfile, 'w') as outs:
                     outs.write(out)
             if not quiet:
-                self.app.display.info(out, header_text=self._get_header_text(conn, runas))
+                self.app.display.info(out, header_text=self._get_header_text(response.meta, conn, runas))
         except Exception as e:
             if getattr(e, 'info', None) is not None and isinstance(getattr(e, 'status_code', None), int):
                 self.context['_'] = _maybe_decode_json(e.info) if isinstance(e.info, str) else e.info
@@ -456,12 +456,14 @@ class PeekVM(Visitor):
             _logger.error(f'Error on loading extension: {p!r}, {e}')
             _logger.exception(f'Error on loading extension: {p!r}')
 
-    def _get_header_text(self, conn, runas):
+    def _get_header_text(self, meta, conn, runas):
         parts = []
         if conn is not None:
             parts.append(f'conn={conn!r}')
         if runas is not None:
             parts.append(f'runas={runas!r}')
+
+        parts.append(f'took={meta.duration * 1000:.3f}ms')
         return ' '.join(parts)
 
 
