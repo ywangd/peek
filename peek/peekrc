@@ -67,4 +67,4 @@ accept_json_for_cat = False
 prefer_elasticsearch_specification = True
 
 # Load all python variables defined in the file and expose them via VM context
-# context_file =
+context_file =
