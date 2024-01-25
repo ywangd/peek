@@ -4,6 +4,7 @@ import json
 import logging
 import operator
 import os
+import subprocess
 import sys
 import urllib
 from numbers import Number
@@ -156,6 +157,8 @@ class PeekVM(Visitor):
         outfile = options.pop('out', None)
         # Default to suppress on screen output if output file is provided
         quiet = options.pop('quiet', outfile is not None)
+        pipe = options.pop('pipe', None)
+
         if options:
             self.app.display.error(f'Unknown options: {options}')
             return
@@ -177,12 +180,23 @@ class PeekVM(Visitor):
             if warning is not None and self.app.config.as_bool('show_warnings'):
                 # warning header has the format of "299 buildInfo message"
                 self.app.display.warn(warning.split(" ", 2)[2])
-            self.context['_'] = _maybe_decode_json(response.body)
+
+            out = response.body
+            if pipe:
+                process = Popen(pipe, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                process.stdin.write(response.body.encode('utf-8'))
+                out, err = process.communicate()
+                out = out.decode('utf-8')
+                err = err.decode('utf-8')
+                if err:
+                    raise ValueError(f'{response.body}\n{err}')
+
+            self.context['_'] = _maybe_decode_json(out)
             if outfile is not None:
                 with open(outfile, 'w') as outs:
-                    outs.write(response.body)
+                    outs.write(out)
             if not quiet:
-                self.app.display.info(response.body, header_text=self._get_header_text(conn, runas))
+                self.app.display.info(out, header_text=self._get_header_text(conn, runas))
         except Exception as e:
             if getattr(e, 'info', None) is not None and isinstance(getattr(e, 'status_code', None), int):
                 self.context['_'] = _maybe_decode_json(e.info) if isinstance(e.info, str) else e.info
