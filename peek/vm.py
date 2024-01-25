@@ -153,16 +153,14 @@ class PeekVM(Visitor):
             es_client = self.app.es_client_manager.get_client(conn)
         else:
             es_client = self.app.es_client_manager.current
-        quiet = options.pop('quiet', False)
         outfile = options.pop('out', None)
+        # Default to suppress on screen output if output file is provided
+        quiet = options.pop('quiet', outfile is not None)
         if options:
             self.app.display.error(f'Unknown options: {options}')
             return
 
-        existing_capture = self.app.capture
         try:
-            if outfile is not None:
-                self.app.start_capture(outfile)
             final_path = _maybe_encode_date_math(path)
             final_headers = headers if headers else None
             self.context['__'] = {
@@ -177,8 +175,12 @@ class PeekVM(Visitor):
 
             warning = response.meta.headers.get('warning')
             if warning is not None and self.app.config.as_bool('show_warnings'):
+                # warning header has the format of "299 buildInfo message"
                 self.app.display.warn(warning.split(" ", 2)[2])
             self.context['_'] = _maybe_decode_json(response.body)
+            if outfile is not None:
+                with open(outfile, 'w') as outs:
+                    outs.write(response.body)
             if not quiet:
                 self.app.display.info(response.body, header_text=self._get_header_text(conn, runas))
         except Exception as e:
@@ -186,10 +188,8 @@ class PeekVM(Visitor):
                 self.context['_'] = _maybe_decode_json(e.info) if isinstance(e.info, str) else e.info
                 self.app.display.info(e.info, header_text=self._get_header_text(conn, runas))
             else:
-                self.app.display.error(e, header_text=self._get_header_text(conn, runas))
+                self.app.display.error(getattr(e, 'message', str(e)), header_text=self._get_header_text(conn, runas))
                 _logger.exception(f'Error on ES API call: {node!r}')
-        finally:
-            self.app.capture = existing_capture
 
     def visit_func_call_node(self, node: FuncCallNode):
         if isinstance(node.name_node, NameNode):
