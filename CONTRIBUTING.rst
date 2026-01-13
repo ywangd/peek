@@ -66,21 +66,22 @@ Ready to contribute? Here's how to set up `peek` for local development.
 
 3. Install your local copy into a virtualenv. Assuming you have virtualenvwrapper installed, this is how you set up your fork for local development::
 
-    $ mkvirtualenv peek
     $ cd peek/
-    $ python setup.py develop
+    $ uv virtualenv --python 3.10
+    $ uv pip install -r requirements.txt -r requirements_dev.txt
 
 4. Create a branch for local development::
 
-    $ git checkout -b name-of-your-bugfix-or-feature
+    $ git switch -c name-of-your-bugfix-or-feature
 
    Now you can make your changes locally.
 
 5. When you're done making changes, check that your changes pass flake8 and the
    tests, including testing other Python versions with tox::
 
-    $ flake8 peek tests
-    $ python setup.py test or pytest
+    $ source .venv/bin/activate
+    $ tox -e flake8
+    $ pytest
     $ tox
 
    To get flake8 and tox, just pip install them into your virtualenv.

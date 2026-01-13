@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-fancy-pypi-readme"]
 build-backend = "hatchling.build"
 
 [project]
@@ -8,6 +8,7 @@ dynamic = ["version"]
 description = "Peek into elasticsearch clusters"
 readme = "README.rst"
 license = "MIT"
+license-files = ["LICENSE", "AUTHORS.rst"]
 requires-python = ">=3.8"
 authors = [
     { name = "Yang Wang", email = "ywangd@gmail.com" },
@@ -20,7 +21,6 @@ keywords = [
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Natural Language :: English",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
@@ -53,7 +53,19 @@ path = "peek/__init__.py"
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "/peek",
+    "peek",
+    "docs",
+    "README.rst",
+    "HISTORY.rst",
+    "CONTRIBUTING.rst",
+]
+
+[tool.hatch.metadata.hooks.fancy-pypi-readme]
+content-type = "text/x-rst"
+fragments = [
+  { path = "README.rst" },
+  { text = "\n" },
+  { path = "HISTORY.rst" },
 ]
 
 [tool.hatch.build.targets.wheel]
