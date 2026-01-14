@@ -33,7 +33,7 @@ Alternatively, peek can also be installed from source with:
 
 .. code-block:: bash
 
-    python setup.py install
+    pip install .
 
 Features
 --------
