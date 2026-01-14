@@ -96,7 +96,7 @@ The following sample is a quick guide on Peek usages:
   PUT /<my-index-{now/d}>
 
   // Shell out to download the EQL threat hunting demo file
-  !curl -o normalized-T1117-AtomicRed-regsvr32.json https://raw.githubusercontent.com/elastic/elasticsearch/master/docs/src/test/resources/normalized-T1117-AtomicRed-regsvr32.json
+  !curl -O https://raw.githubusercontent.com/elastic/elasticsearch/main/docs/src/yamlRestTest/resources/normalized-T1117-AtomicRed-regsvr32.json
 
   // Bulk indexing the above downloaded file
   POST my-index-000001/_bulk
