@@ -67,7 +67,7 @@ Ready to contribute? Here's how to set up `peek` for local development.
 3. Install your local copy into a virtualenv. Assuming you have virtualenvwrapper installed, this is how you set up your fork for local development::
 
     $ cd peek/
-    $ uv virtualenv --python 3.10
+    $ uv virtualenv
     $ uv pip install -r requirements.txt -r requirements_dev.txt
 
 4. Create a branch for local development::
@@ -103,7 +103,7 @@ Before you submit a pull request, check that it meets these guidelines:
 2. If the pull request adds functionality, the docs should be updated. Put
    your new functionality into a function with a docstring, and add the
    feature to the list in README.rst.
-3. The pull request should work for Python 3.6, 3.7 and 3.8. Check
+3. The pull request should work for all supported Python versions. Check
    https://github.com/ywangd/peek/actions and make sure that the tests pass.
 
 Tips
