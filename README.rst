@@ -13,7 +13,7 @@ running in terminal with additional features for tinkers.
 Installation
 ------------
 
-Please note the project requires Python 3.8+. It is recommended to install from PyPI with:
+Please note the project requires Python 3.10+. It is recommended to install from PyPI with:
 
 .. code-block:: bash
 
