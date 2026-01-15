@@ -28,8 +28,6 @@ jobs:
         python -m pip install --upgrade pip
         pip install tox
     - shell: bash
-      env:
-        MULE_TOKEN: ${{ secrets.MULE_TOKEN }}
       run: |
         scripts/specs-for-ci.sh
     - name: Test with tox
