@@ -68,7 +68,7 @@ Ready to contribute? Here's how to set up `peek` for local development.
 
     $ cd peek/
     $ uv virtualenv
-    $ uv pip install -r requirements.txt -r requirements_dev.txt
+    $ uv pip install --group dev --editable .
 
 4. Create a branch for local development::
 
