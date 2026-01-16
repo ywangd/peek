@@ -1,7 +1,7 @@
 import logging
 
 from prompt_toolkit.application import get_app
-from prompt_toolkit.buffer import ValidationState
+from prompt_toolkit.buffer import Buffer, ValidationState
 from prompt_toolkit.document import Document
 from prompt_toolkit.enums import DEFAULT_BUFFER
 from prompt_toolkit.filters import Condition, completion_is_selected, has_completions, is_searching
@@ -42,7 +42,7 @@ def key_bindings(app):
 
     @kb.add('enter', filter=~(completion_is_selected | is_searching) & ~buffer_should_be_handled(app))
     def _(event):
-        b = event.current_buffer  # type: prompt_toolkit.buffer.Buffer
+        b: Buffer = event.current_buffer
         c = b.document.current_char
 
         # When cursor is on the right curly bracket, just use the ident of the current line
