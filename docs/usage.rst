@@ -185,7 +185,7 @@ a bit more details on the specified function.
 External functions
 ^^^^^^^^^^^^^^^^^^
 Functions are simple Python callables. They can be defined in external files, loaded by Peek
-and become available. Following is a simple external function of name ``hello` that just prints
+and become available. Following is a simple external function of name ``hello`` that just prints
 "hello world" when invoked:
 
 .. code-block:: python
