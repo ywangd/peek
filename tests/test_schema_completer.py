@@ -17,10 +17,7 @@ mock_app = MagicMock(name='PeekApp')
 mock_app.vm.functions = {k: v for k, v in EXPORTS.items() if callable(v)}
 mock_app.config.as_bool.return_value = True
 mock_app.batch_mode = False
-config = {
-    'prefer_elasticsearch_specification': True,
-}
-mock_app.config = ConfigObj(config)
+mock_app.config = ConfigObj({})
 
 completer = PeekCompleter(mock_app)
 

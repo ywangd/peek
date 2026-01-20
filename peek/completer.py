@@ -149,35 +149,18 @@ class PeekCompleter(Completer):
         from peek import __file__ as package_root
 
         package_root = os.path.dirname(package_root)
-        if self.app.config.as_bool('prefer_elasticsearch_specification'):
-            _logger.info('Use elasticsearch-specification schema for autocompletion')
-            from peek.es_api_spec.api_completer import SchemaESApiCompleter
+        _logger.info('Use elasticsearch-specification schema for autocompletion')
+        from peek.es_api_spec.api_completer import SchemaESApiCompleter
 
-            schema_filepath = os.path.join(config_location(), 'schema.json')
-            if not os.path.exists(schema_filepath):
-                schema_filepath = os.path.join(package_root, 'specs', 'schema.json')
-            if os.path.exists(schema_filepath):
-                return SchemaESApiCompleter(schema_filepath)
-            else:
-                from peek.es_api_spec.api_completer import NoopESApiCompleter
-
-                return NoopESApiCompleter()
+        schema_filepath = os.path.join(config_location(), 'schema.json')
+        if not os.path.exists(schema_filepath):
+            schema_filepath = os.path.join(package_root, 'specs', 'schema.json')
+        if os.path.exists(schema_filepath):
+            return SchemaESApiCompleter(schema_filepath)
         else:
-            kibana_dir = self.app.config['kibana_dir']
-            if not kibana_dir:
-                config_dir = config_location()
-                if os.path.exists(config_dir):
-                    kibana_dirs = [
-                        os.path.join(config_dir, d) for d in os.listdir(config_dir) if d.startswith('kibana-')
-                    ]
-                    if kibana_dirs:
-                        kibana_dir = kibana_dirs[0]
-            if not kibana_dir:
-                kibana_dir = os.path.join(package_root, 'specs', 'kibana-7.8.1')
-            _logger.info(f'Attempt to build Elasticsearch API specs from: {kibana_dir}')
-            from peek.es_api_spec.kspec import KibanaSpecESApiCompleter
+            from peek.es_api_spec.api_completer import NoopESApiCompleter
 
-            return KibanaSpecESApiCompleter(self.app, kibana_dir)
+            return NoopESApiCompleter()
 
     def get_completions(self, document: Document, complete_event: CompleteEvent) -> Iterable[Completion]:
         _logger.debug(f'Document: {document}, Event: {complete_event}')

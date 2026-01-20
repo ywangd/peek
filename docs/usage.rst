@@ -141,15 +141,6 @@ Peek however does not ship with the spec file. Use the builtin function, ``_down
 to download and initialize the spec file from its GitHub official repository.
 The spec file is saved in Peek's config folder so you only need to run the function once.
 
-Legacy auto-completion with Kibana spec files
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Prior to v0.3.0, autocompletion uses API spec files published by the
-`Kibana project <https://github.com/elastic/kibana>`_. This is disabled by default.
-It can still be enabled (*NOT recommended*) by setting
-``prefer_elasticsearch_specification = False``. This also changes the behaviour of
-``_download_api_specs`` to download Kibana spec files instead.
-
-
 Functions
 ---------
 
