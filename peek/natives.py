@@ -7,7 +7,7 @@ from configobj import ConfigObj
 
 from peek import __version__
 from peek.common import DEFAULT_SAVE_NAME
-from peek.config import config_location
+from peek.config import config_location, get_global_config
 from peek.connection import ConnectFunc, EsClientManager
 from peek.display import PeekEncoder
 from peek.errors import PeekError
@@ -393,7 +393,7 @@ class DownloadApiSpecsFunc:
         schema_filepath = os.path.join(config_dir, 'schema.json')
         if os.path.exists(schema_filepath):
             raise RuntimeError(f'schema file already exists [{schema_filepath}]. Please remove it before download.')
-        git_branch = options.get('version', '8.12')
+        git_branch = self.options['version']
         import urllib.request
 
         url = (
@@ -408,7 +408,8 @@ class DownloadApiSpecsFunc:
 
     @property
     def options(self):
-        return {'version': '8.12'}
+        version = get_global_config().get('autocompletion_version', '9.2')
+        return {'version': version}
 
     @property
     def description(self):

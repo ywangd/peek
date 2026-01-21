@@ -5,6 +5,8 @@ History
 0.3.0 (unreleased)
 ------------------
 
+* Bump the default auto-completion version from Elasticsearch 8.2 to 9.2
+* Allow configuring the Elasticsearch specification version with `autocompletion_version` in peekrc
 * Drop legacy Kibana autocompletion support
 * Drop Python 3.8 and 3.9 support
 * Support Python 3.11 to 3.14

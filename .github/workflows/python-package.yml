@@ -29,7 +29,7 @@ jobs:
         pip install tox
     - shell: bash
       run: |
-        scripts/specs-for-ci.sh
+        curl https://raw.githubusercontent.com/elastic/elasticsearch-specification/9.2/output/schema/schema.json -o peek/specs/schema.json
     - name: Test with tox
       run: |
         tox -e py,flake8
