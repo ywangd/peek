@@ -30,13 +30,6 @@ get-specs:
 	mkdir -p peek/specs
 	curl -L https://raw.githubusercontent.com/elastic/elasticsearch-specification/8.2/output/schema/schema.json -o peek/specs/schema.json
 
-get-specs-legacy:
-	rm -rf $$TMPDIR/kibana-7.8.1.zip
-	curl -L https://github.com/elastic/kibana/archive/v7.8.1.zip -o $$TMPDIR/kibana-7.8.1.zip
-	mkdir -p peek/specs
-	unzip -o $$TMPDIR/kibana-7.8.1.zip -d peek/specs '*/lib/spec_definitions/j*'
-	rm -rf $$TMPDIR/kibana-7.8.1.zip
-
 clean: clean-build clean-pyc clean-test ## remove all build, test, coverage and Python artifacts
 
 clean-build: ## remove build artifacts

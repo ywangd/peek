@@ -2,6 +2,13 @@
 History
 =======
 
+0.3.0 (unreleased)
+------------------
+
+* Drop legacy Kibana autocompletion support
+* Drop Python 3.8 and 3.9 support
+* Support Python 3.11 to 3.14
+
 0.2.2 (2021-02-28)
 ------------------
 

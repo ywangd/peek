@@ -7,7 +7,7 @@ from configobj import ConfigObj
 
 from peek import __version__
 from peek.common import DEFAULT_SAVE_NAME
-from peek.config import config_location, get_global_config
+from peek.config import config_location
 from peek.connection import ConnectFunc, EsClientManager
 from peek.display import PeekEncoder
 from peek.errors import PeekError
@@ -390,65 +390,29 @@ class DownloadApiSpecsFunc:
                 f'Please create it before downloading API spec files'
             )
 
-        if app.config.as_bool('prefer_elasticsearch_specification'):
-            schema_filepath = os.path.join(config_dir, 'schema.json')
-            if os.path.exists(schema_filepath):
-                raise RuntimeError(f'schema file already exists [{schema_filepath}]. Please remove it before download.')
-            git_branch = options.get('version', '8.12')
-            import urllib.request
+        schema_filepath = os.path.join(config_dir, 'schema.json')
+        if os.path.exists(schema_filepath):
+            raise RuntimeError(f'schema file already exists [{schema_filepath}]. Please remove it before download.')
+        git_branch = options.get('version', '8.12')
+        import urllib.request
 
-            url = (
-                f'https://raw.githubusercontent.com/elastic/elasticsearch-specification/'
-                f'{git_branch}/output/schema/schema.json'
-            )
-            data = urllib.request.urlopen(url).read()
-            with open(schema_filepath, 'wb') as outs:
-                outs.write(data)
-            app.completer.init_api_completer()
-            return f'Elasticsearch specification [{git_branch}] downloaded and initialized'
-        else:
-            existing_kibana_dirs = [
-                os.path.join(config_dir, d) for d in os.listdir(config_dir) if d.startswith('kibana-')
-            ]
-            if existing_kibana_dirs:
-                raise RuntimeError(
-                    f'Existing {"directory" if len(existing_kibana_dirs) == 1 else "directories"} '
-                    f'found for API specs: {existing_kibana_dirs}. '
-                    f'Please remove {"it" if len(existing_kibana_dirs) == 1 else "them"} '
-                    f'before download new spec files.'
-                )
-
-            import io
-            import urllib.request
-            import zipfile
-
-            kibana_version = options.get('version', '7.9.1')
-            kibana_release_url = f'https://github.com/elastic/kibana/archive/v{kibana_version}.zip'
-            app.display.info(f'Downloading from {kibana_release_url} ... This may take a few minutes ...')
-            data = urllib.request.urlopen(kibana_release_url).read()
-            zf = zipfile.ZipFile(io.BytesIO(data))
-            for info in zf.infolist():
-                if 'spec_definitions' in info.filename:
-                    zf.extract(info, path=config_dir)
-            app.completer.init_api_completer()
-            return f'Version {kibana_version} API spec files are ready'
+        url = (
+            f'https://raw.githubusercontent.com/elastic/elasticsearch-specification/'
+            f'{git_branch}/output/schema/schema.json'
+        )
+        data = urllib.request.urlopen(url).read()
+        with open(schema_filepath, 'wb') as outs:
+            outs.write(data)
+        app.completer.init_api_completer()
+        return f'Elasticsearch specification [{git_branch}] downloaded and initialized'
 
     @property
     def options(self):
-        if get_global_config().as_bool('prefer_elasticsearch_specification'):
-            return {'version': '8.12'}
-        else:
-            return {'version': '7.9.1'}
+        return {'version': '8.12'}
 
     @property
     def description(self):
-        if get_global_config().as_bool('prefer_elasticsearch_specification'):
-            return 'Download and reload API spec file from the Elasticsearch Specification project.'
-        else:
-            return (
-                'Download and reload Elasticsearch API spec files from the Kibana project. '
-                'It may takes a few minutes depending on the network speed.'
-            )
+        return 'Download and reload API spec file from the Elasticsearch Specification project.'
 
 
 class DownloadExtensionFileFunc:
