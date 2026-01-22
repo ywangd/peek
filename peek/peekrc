@@ -3,6 +3,9 @@
 log_file = log
 log_level = info
 
+# Elasticsearch specification branch to use for autocompletion
+autocompletion_version = 9.2
+
 # Use system keyring to store credentials
 use_keyring = True
 

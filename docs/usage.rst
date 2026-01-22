@@ -141,6 +141,38 @@ Peek however does not ship with the spec file. Use the builtin function, ``_down
 to download and initialize the spec file from its GitHub official repository.
 The spec file is saved in Peek's config folder so you only need to run the function once.
 
+.. hint::
+
+    **Elasticsearch specification version**
+
+    By default, Peek downloads the latest specification version (currently 9.2). If you use a
+    different major version of Elasticsearch, for example 8.19, you will want to set
+    ``autocompletion_version = 8.19`` in your peekrc file.
+
+    **Compatibility**
+
+    The specification version determines which API features and behaviors are
+    available in Peek's auto-completion.
+
+    .. list-table::
+       :header-rows: 1
+       :widths: 30 35 35
+
+       * - Specification Version
+         - Elasticsearch 8.x
+         - Elasticsearch 9.x
+       * - 9.x
+         - ❌ Not compatible
+         - ✅ Compatible
+       * - 8.x
+         - ✅ Compatible
+         - ✅ Compatible
+
+    New Elasticsearch features are supported only in equivalent specification
+    versions. For example, a 9.2 specification fully supports Elasticsearch 9.2
+    features and works with 9.3 without breaking, but it does not support new
+    Elasticsearch 9.3 features.
+
 Functions
 ---------
 
