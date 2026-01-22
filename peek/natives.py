@@ -393,7 +393,7 @@ class DownloadApiSpecsFunc:
         schema_filepath = os.path.join(config_dir, 'schema.json')
         if os.path.exists(schema_filepath):
             raise RuntimeError(f'schema file already exists [{schema_filepath}]. Please remove it before download.')
-        git_branch = self.options['version']
+        git_branch = options.get('version', self.options['version'])
         import urllib.request
 
         url = (
