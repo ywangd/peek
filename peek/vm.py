@@ -202,9 +202,9 @@ class PeekVM(Visitor):
         except Exception as e:
             if getattr(e, 'info', None) is not None and isinstance(getattr(e, 'status_code', None), int):
                 self.context['_'] = _maybe_decode_json(e.info) if isinstance(e.info, str) else e.info
-                self.app.display.info(e.info, header_text=self._get_header_text(conn, runas))
+                self.app.display.info(e.info, header_text=self._get_header_text(None, conn, runas))
             else:
-                self.app.display.error(getattr(e, 'message', str(e)), header_text=self._get_header_text(conn, runas))
+                self.app.display.error(getattr(e, 'message', str(e)), header_text=self._get_header_text(None, conn, runas))
                 _logger.exception(f'Error on ES API call: {node!r}')
 
     def visit_func_call_node(self, node: FuncCallNode):
@@ -463,7 +463,8 @@ class PeekVM(Visitor):
         if runas is not None:
             parts.append(f'runas={runas!r}')
 
-        parts.append(f'took={meta.duration * 1000:.3f}ms')
+        if meta is not None:
+            parts.append(f'took={meta.duration * 1000:.3f}ms')
         return ' '.join(parts)
 
 
