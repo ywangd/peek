@@ -1,0 +1,77 @@
+name: Release to PyPI
+
+on:
+  push:
+    branches:
+      - "main"
+    tags:
+      - "*"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    if: github.repository_owner == 'ywangd'
+    name: Build dists
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+            persist-credentials: false
+            fetch-depth: 0 # Needed to fetch the version from git
+      - name: Setup python
+        uses: actions/setup-python@v6
+        with:
+          python-version: 3.x
+      - name: Install dependencies
+        run: python -m pip install build
+      - name: Build dists
+        run: python -m build
+      - name: Upload dists
+        uses: actions/upload-artifact@v6
+        with:
+          name: "dist"
+          path: "dist/"
+          if-no-files-found: error
+          retention-days: 5
+
+  pypi-publish:
+    name: Upload release to PyPI
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
+    needs: [build]
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      id-token: write  # Needed for trusted publishing to PyPI
+
+    steps:
+      - name: Download dists
+        uses: actions/download-artifact@v6
+        with:
+          name: "dist"
+          path: "dist/"
+      - name: Publish package distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@v1.13.0
+
+  test-pypi-publish:
+    name: "Upload release to Test PyPI"
+    needs: ["build"]
+    permissions:
+      id-token: write # Needed for trusted publishing to Test PyPI.
+    runs-on: "ubuntu-latest"
+    environment:
+      name: "testpypi"
+
+    steps:
+    - name: "Download dists"
+      uses: actions/download-artifact@v6
+      with:
+        artifact-ids: ${{ needs.build.outputs.artifact-id }}
+        path: "dist/"
+    - name: "Publish dists to Test PyPI"
+      uses: pypa/gh-action-pypi-publish@v1.13.0
+      with:
+        repository-url: https://test.pypi.org/legacy/
