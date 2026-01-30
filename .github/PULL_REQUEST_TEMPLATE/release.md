@@ -1,7 +1,7 @@
 * [ ] See if all tests pass
 * [ ] Get the release pull request approved
 * [ ] Squash merge the release pull request with message "`Release <VERSION>`"
-* [ ] Tag with X.Y.Z, push tag on urllib3/urllib3 (not on your fork, update `<REMOTE>` accordingly)
+* [ ] Tag with X.Y.Z, push tag on ywangd/peek (not on your fork, update `<REMOTE>` accordingly)
   * Notice that the `<VERSION>` shouldn't have a `v` prefix (Use `2.0.0` instead of `v2.0.0`)
   * ```
     # Ensure the release commit is the latest in the main branch.
