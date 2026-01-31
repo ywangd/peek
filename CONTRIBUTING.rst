@@ -112,3 +112,13 @@ Tips
 To run a subset of tests::
 
 $ pytest tests/test_peekapp.py
+
+Drafting a release
+------------------
+
+A release candidate can be created by any contributor.
+
+ * Update HISTORY.rst with the changes since the last release and a new version number.
+ * Commit the changes to a release-X.Y.Z branch.
+ * Create a pull request and append &expand=1&template=release.md to the URL before submitting in order to include our release checklist in the pull request description.
+ * Follow the checklist!
