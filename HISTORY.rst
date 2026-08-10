@@ -2,14 +2,16 @@
 History
 =======
 
-0.5.0 (unreleased)
+1.0.0 (2026-08-05)
 ------------------
 
 * Bump the default auto-completion version from Elasticsearch 8.2 to 9.2
 * Allow configuring the Elasticsearch specification version with `autocompletion_version` in peekrc
+* Honour the `version` option passed to the API spec download function
 * Drop legacy Kibana autocompletion support
 * Drop Python 3.8 and 3.9 support
-* Support Python 3.11 to 3.14
+* Support Python 3.10 to 3.14
+* Fix crash on displaying responses that carry no metadata
 
 0.4.0 (2024-01-25)
 ------------------
